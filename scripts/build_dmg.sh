@@ -8,9 +8,9 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-VERSION="${1:-1.1.1}"
+VERSION="${1:-1.2.0}"
 CONFIGURATION="${2:-release}"
-BUILD_NUMBER="${3:-1110}"
+BUILD_NUMBER="${3:-1200}"
 OUTPUT_DIR="$PROJECT_ROOT/.build/dist/"
 DMG_NAME="OtterKeep-${VERSION}.dmg"
 DMG_PATH="$OUTPUT_DIR/$DMG_NAME"

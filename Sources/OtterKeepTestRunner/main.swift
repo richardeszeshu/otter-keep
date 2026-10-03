@@ -3,7 +3,7 @@
 //  OtterKeepTestRunner
 //
 //  Comprehensive End-to-End Deterministic System Test Suite & Benchmark
-//  for OtterKeep 1.1.1 (Build 1110).
+//  for OtterKeep 1.2.0 (Build 1200).
 //
 //  Covers Modules 1 through 10:
 //  - Module 1: System & Version Integrity
@@ -125,7 +125,7 @@ final class OtterKeepTestSuite {
 
     func runAll() async throws {
         print("\n================================================================================")
-        print("🦦 OTTERKEEP 1.1.1 (BUILD 1110) SYSTEM INTEGRATION TEST SUITE & BENCHMARK")
+        print("🦦 OTTERKEEP 1.2.0 (BUILD 1200) SYSTEM INTEGRATION TEST SUITE & BENCHMARK")
         print("================================================================================\n")
 
         let suiteStart = ContinuousClock().now
@@ -200,6 +200,14 @@ final class OtterKeepTestSuite {
         await runTest("10.3 OtterAboutView Brand Metadata & About Controller", testOtterAboutViewPresentation)
         await runTest("10.4 AppState Root Navigation & Profile Switching", testAppStateRootNavigation)
 
+        // MARK: - Module 11: Menu Bar Commands & Configuration Export/Import
+        print("\n🔹 Module 11: Menu Bar Commands & Configuration Export/Import")
+        await runTest("11.1 Configuration Archive JSON Schema & Round-Trip Serialization", testConfigurationArchiveRoundTrip)
+        await runTest("11.2 Configuration Validation & Error Handling", testConfigurationArchiveValidation)
+        await runTest("11.3 ProfileStore Export & Import with Atomic Persistence", testProfileStoreExportImport)
+        await runTest("11.4 AppState Export/Import Pipeline & Settings Propagation", testAppStateExportImportPipeline)
+        await runTest("11.5 OtterKeepMenuCommands Structure & Shortcuts", testOtterKeepMenuCommandsInstantiation)
+
         // MARK: - Summary & Results
         let totalDuration = ContinuousClock().now - suiteStart
         let totalSeconds = Double(totalDuration.components.seconds) + Double(totalDuration.components.attoseconds) / 1_000_000_000_000_000_000.0
@@ -230,7 +238,7 @@ final class OtterKeepTestSuite {
     // =========================================================================
 
     func testCoreEngineMetadataAndSlogans() async throws {
-        try assertEqual(CoreEngine.version, "1.1.1", "CoreEngine version must be exactly 1.1.1")
+        try assertEqual(CoreEngine.version, "1.2.0", "CoreEngine version must be exactly 1.2.0")
         try assertEqual(CoreEngine.appName, "OtterKeep", "CoreEngine appName must be OtterKeep")
         try assertEqual(CoreEngine.bundleIdentifier, "com.otterkeep.desktop", "Bundle ID must match")
 
@@ -269,8 +277,8 @@ final class OtterKeepTestSuite {
 
     func testSparkleAppcastCoordinatorLogic() async throws {
         let coordinator = SoftwareUpdateCoordinator.shared
-        try assertEqual(coordinator.currentVersion, "1.1.1")
-        try assertEqual(coordinator.currentBuild, "1110")
+        try assertEqual(coordinator.currentVersion, "1.2.0")
+        try assertEqual(coordinator.currentBuild, "1200")
 
         // Verify default public endpoints
         try assertTrue(SoftwareUpdateCoordinator.defaultAppcastURL.absoluteString.contains("richardeszeshu/otter-keep"), "Appcast URL must point to richardeszeshu/otter-keep")
@@ -279,10 +287,10 @@ final class OtterKeepTestSuite {
 
         // Mock an update
         let mockInfo = SoftwareUpdateInfo(
-            version: "1.2.0",
-            buildNumber: "1200",
+            version: "1.3.0",
+            buildNumber: "1300",
             releaseNotes: "Performance improvements & APFS CoW tuning",
-            downloadURL: URL(string: "https://github.com/richardeszeshu/otter-keep/releases/tag/v1.2.0")!,
+            downloadURL: URL(string: "https://github.com/richardeszeshu/otter-keep/releases/tag/v1.3.0")!,
             publicationDate: Date(),
             isCritical: false
         )
@@ -357,8 +365,8 @@ final class OtterKeepTestSuite {
             guard let repoAppcast = parsedRepoAppcast else {
                 throw TestFailure(message: "Failed to parse repository Distribution/appcast.xml")
             }
-            try assertEqual(repoAppcast.version, "1.1.1", "Repository appcast must have version 1.1.1 as latest")
-            try assertEqual(repoAppcast.buildNumber, "1110", "Repository appcast must have build 1110")
+            try assertEqual(repoAppcast.version, "1.2.0", "Repository appcast must have version 1.2.0 as latest")
+            try assertEqual(repoAppcast.buildNumber, "1200", "Repository appcast must have build 1200")
             try assertTrue(repoAppcast.downloadURL.absoluteString.contains("richardeszeshu/otter-keep"), "Download URL must point to richardeszeshu/otter-keep")
         }
     }
@@ -1246,6 +1254,174 @@ final class OtterKeepTestSuite {
 
         // Open About presentation trigger
         appState.openAbout()
+    }
+
+    // =========================================================================
+    // MARK: - Module 11 Implementations
+    // =========================================================================
+
+    func testConfigurationArchiveRoundTrip() async throws {
+        let tempDir = try createTempDirectory()
+        defer { removeTempDirectory(tempDir) }
+
+        let p1 = BackupProfile(
+            name: "ArchiveTestProfile",
+            sourceURL: tempDir.appendingPathComponent("Src"),
+            destinationURL: tempDir.appendingPathComponent("Dst"),
+            excludePatterns: ["*.tmp", ".DS_Store"]
+        )
+        let settings = AppSettings(
+            language: .hungarian,
+            launchAtLogin: true,
+            startMinimized: false,
+            debugFileLoggingEnabled: true,
+            finderIntegrationEnabled: true,
+            themeMode: .dark
+        )
+        let photos = PhotosBackupConfiguration(
+            destinationURL: tempDir.appendingPathComponent("PhotosDst")
+        )
+
+        let manager = ConfigurationBackupManager.shared
+        let exportedData = try manager.exportConfigurationData(
+            profiles: [p1],
+            settings: settings,
+            photosConfig: photos
+        )
+
+        try assertTrue(exportedData.count > 0, "Exported JSON data must not be empty")
+
+        // Parse back
+        let archive = try manager.parseArchive(from: exportedData)
+        try assertEqual(archive.schemaVersion, 1)
+        try assertEqual(archive.profiles.count, 1)
+        try assertEqual(archive.profiles.first?.name, "ArchiveTestProfile")
+        try assertEqual(archive.settings.language, .hungarian)
+        try assertEqual(archive.settings.themeMode, .dark)
+        try assertTrue(archive.settings.launchAtLogin)
+        try assertTrue(archive.settings.debugFileLoggingEnabled)
+        try assertEqual(archive.photosConfig?.destinationURL.path, photos.destinationURL.path)
+    }
+
+    func testConfigurationArchiveValidation() async throws {
+        let manager = ConfigurationBackupManager.shared
+
+        // 1. Empty profiles must fail validation
+        let emptyArchive = ConfigurationExportArchive(
+            schemaVersion: 1,
+            profiles: [],
+            settings: AppSettings()
+        )
+        var emptyThrew = false
+        do {
+            try manager.validateArchive(emptyArchive)
+        } catch ConfigurationArchiveError.emptyProfiles {
+            emptyThrew = true
+        } catch {
+            throw TestFailure(message: "Unexpected error: \(error)")
+        }
+        try assertTrue(emptyThrew, "Validating archive with 0 profiles must throw emptyProfiles")
+
+        // 2. Corrupted JSON data
+        let invalidData = "invalid { json: true".data(using: .utf8)!
+        var corruptedThrew = false
+        do {
+            _ = try manager.parseArchive(from: invalidData)
+        } catch ConfigurationArchiveError.invalidArchiveFormat {
+            corruptedThrew = true
+        } catch {
+            throw TestFailure(message: "Unexpected error: \(error)")
+        }
+        try assertTrue(corruptedThrew, "Parsing invalid JSON must throw invalidArchiveFormat")
+
+        // 3. Unsupported schema version
+        let badVersionArchive = ConfigurationExportArchive(
+            schemaVersion: 0,
+            profiles: [ProfileStore.shared.createDefaultInitialProfile()],
+            settings: AppSettings()
+        )
+        var versionThrew = false
+        do {
+            try manager.validateArchive(badVersionArchive)
+        } catch ConfigurationArchiveError.unsupportedSchemaVersion {
+            versionThrew = true
+        } catch {
+            throw TestFailure(message: "Unexpected error: \(error)")
+        }
+        try assertTrue(versionThrew, "Schema version 0 must throw unsupportedSchemaVersion")
+    }
+
+    func testProfileStoreExportImport() async throws {
+        let tempDir = try createTempDirectory()
+        defer { removeTempDirectory(tempDir) }
+
+        let exportURL = tempDir.appendingPathComponent("test_export_config.json")
+        let profileStore = ProfileStore.shared
+
+        let customProfile = BackupProfile(
+            name: "ProfileStoreExportTest",
+            sourceURL: tempDir.appendingPathComponent("TestSource"),
+            destinationURL: tempDir.appendingPathComponent("TestDest")
+        )
+
+        try profileStore.exportConfiguration(
+            to: exportURL,
+            profiles: [customProfile],
+            settings: AppSettings(language: .english, themeMode: .light)
+        )
+
+        try assertTrue(FileManager.default.fileExists(atPath: exportURL.path), "Export file must exist on disk")
+
+        // Parse and check attributes
+        let archive = try ConfigurationBackupManager.shared.parseArchive(from: exportURL)
+        try assertEqual(archive.profiles.count, 1)
+        try assertEqual(archive.profiles.first?.name, "ProfileStoreExportTest")
+        try assertEqual(archive.settings.language, .english)
+    }
+
+    func testAppStateExportImportPipeline() async throws {
+        let tempDir = try createTempDirectory()
+        defer { removeTempDirectory(tempDir) }
+
+        let appState = AppState()
+        let exportPath = tempDir.appendingPathComponent("appstate_export.json")
+
+        // Configure test state
+        let initialProfileCount = appState.profiles.count
+        try assertTrue(initialProfileCount > 0)
+
+        try appState.exportConfiguration(to: exportPath)
+        try assertTrue(FileManager.default.fileExists(atPath: exportPath.path))
+
+        // Modify settings
+        appState.currentTheme = .dark
+        appState.launchAtLoginEnabled = true
+
+        // Re-import
+        try appState.importConfiguration(from: exportPath)
+        try assertEqual(appState.profiles.count, initialProfileCount)
+    }
+
+    func testOtterKeepMenuCommandsInstantiation() async throws {
+        let appState = AppState()
+        let menuCommands = OtterKeepMenuCommands(appState: appState)
+        try assertNotNil(menuCommands)
+
+        // Verify key menu localization strings in both languages
+        let fileHu = L10n.t(.menuFile, lang: .hungarian)
+        let fileEn = L10n.t(.menuFile, lang: .english)
+        try assertEqual(fileHu, "Fájl")
+        try assertEqual(fileEn, "File")
+
+        let actionsHu = L10n.t(.menuBackupActions, lang: .hungarian)
+        let actionsEn = L10n.t(.menuBackupActions, lang: .english)
+        try assertEqual(actionsHu, "Mentés & Műveletek")
+        try assertEqual(actionsEn, "Backup & Actions")
+
+        let exportHu = L10n.t(.menuExportConfig, lang: .hungarian)
+        let exportEn = L10n.t(.menuExportConfig, lang: .english)
+        try assertEqual(exportHu, "Konfiguráció exportálása…")
+        try assertEqual(exportEn, "Export Configuration…")
     }
 }
 

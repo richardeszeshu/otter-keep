@@ -180,4 +180,61 @@ public final class ProfileStore: @unchecked Sendable {
             excludePatterns: ["*.tmp", ".DS_Store", "node_modules", "DerivedData"]
         )
     }
+
+    // MARK: - Configuration Export & Import
+
+    /// Exports all configured profiles and settings to a JSON archive file at the specified URL.
+    /// - Parameters:
+    ///   - destinationURL: Destination file URL.
+    ///   - profiles: Optional profile list override (defaults to loaded profiles).
+    ///   - settings: Optional settings override (defaults to current settings).
+    ///   - photosConfig: Optional photos configuration override.
+    public func exportConfiguration(
+        to destinationURL: URL,
+        profiles: [BackupProfile]? = nil,
+        settings: AppSettings? = nil,
+        photosConfig: PhotosBackupConfiguration? = nil
+    ) throws {
+        let effectiveProfiles = profiles ?? loadProfiles()
+        let effectiveSettings = settings ?? LocalizationManager.shared.settings
+        let effectivePhotos = photosConfig ?? PhotosProfileStore.shared.loadConfiguration()
+        try ConfigurationBackupManager.shared.exportConfiguration(
+            to: destinationURL,
+            profiles: effectiveProfiles,
+            settings: effectiveSettings,
+            photosConfig: effectivePhotos
+        )
+    }
+
+    /// Imports a validated configuration archive from a JSON file, atomically updating profiles and settings with rollback protection.
+    /// - Parameter sourceURL: Source JSON file URL.
+    /// - Returns: The imported and validated `ConfigurationExportArchive`.
+    @discardableResult
+    public func importConfiguration(
+        from sourceURL: URL
+    ) throws -> ConfigurationExportArchive {
+        let archive = try ConfigurationBackupManager.shared.parseArchive(from: sourceURL)
+
+        lock.lock()
+        defer { lock.unlock() }
+
+        let backupProfiles = loadProfilesUnlocked()
+        let backupSettings = LocalizationManager.shared.settings
+        let backupPhotos = PhotosProfileStore.shared.loadConfiguration()
+
+        do {
+            try saveProfilesUnlocked(archive.profiles)
+            LocalizationManager.shared.settings = archive.settings
+            if let photos = archive.photosConfig {
+                try PhotosProfileStore.shared.saveConfiguration(photos)
+            }
+            return archive
+        } catch {
+            // Rollback on failure
+            try? saveProfilesUnlocked(backupProfiles)
+            LocalizationManager.shared.settings = backupSettings
+            try? PhotosProfileStore.shared.saveConfiguration(backupPhotos)
+            throw error
+        }
+    }
 }

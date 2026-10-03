@@ -1081,6 +1081,47 @@ public enum L10n {
         case errRemoteUnreachableRemediationDesc
         case errPhotosNotAuthorizedTitle
         case errPhotosNotAuthorizedDesc
+
+        // MARK: - Menu Bar Commands & Configuration Archive
+        case menuFile
+        case menuBackupActions
+        case menuView
+        case menuWindow
+        case menuHelp
+        case menuCheckForUpdates
+        case menuPreferences
+        case menuNewProfile
+        case menuRenameProfile
+        case menuExportConfig
+        case menuImportConfig
+        case menuCloseWindow
+        case menuRunBackupSelected
+        case menuRunAllBackups
+        case menuRunPhotosBackup
+        case menuDryRunBackup
+        case menuCancelBackup
+        case menuBackupInspector
+        case menuViewOverview
+        case menuViewTimeMachine
+        case menuViewRulesMaintenance
+        case menuViewPhotos
+        case menuViewLogs
+        case menuToggleTheme
+        case menuRefreshData
+        case menuMainWindow
+        case menuDocumentation
+        case menuReleaseNotes
+        case menuRevealLogs
+        case menuReportIssue
+        case exportConfigTitle
+        case exportConfigSuccessMessage
+        case exportConfigErrorMessage
+        case importConfigTitle
+        case importConfigSuccessMessage
+        case importConfigErrorMessage
+        case importConfigInvalidFile
+        case importConfigConfirmTitle
+        case importConfigConfirmMessage
     }
 
 
@@ -1894,7 +1935,48 @@ public enum L10n {
         .errDiskFullRemediationDesc: "A célköteten nincs elegendő szabad hely a mentés befejezéséhez. Futtass tárhely-karbantartást a régi mentések ritkításához, vagy csatlakoztass egy nagyobb kapacitású meghajtót.",
         .errRemoteUnreachableRemediationDesc: "Nem sikerült kapcsolatot létesíteni a távoli mentési végponttal. Ellenőrizd az internetkapcsolatot, a hozzáférési adatokat és a hálózati tűzfalbeállításokat.",
         .errPhotosNotAuthorizedTitle: "Fotótár-hozzáférés korlátozva",
-        .errPhotosNotAuthorizedDesc: "Az OtterKeep számára engedély szükséges az Apple Fotótárhoz az inkrementális mentés elvégzéséhez. Engedélyezd a hozzáférést a Rendszerbeállítások > Adatvédelem és biztonság > Fotók menüpontban."
+        .errPhotosNotAuthorizedDesc: "Az OtterKeep számára engedély szükséges az Apple Fotótárhoz az inkrementális mentés elvégzéséhez. Engedélyezd a hozzáférést a Rendszerbeállítások > Adatvédelem és biztonság > Fotók menüpontban.",
+
+        // MARK: - Menu Bar Commands & Configuration Archive
+        .menuFile: "Fájl",
+        .menuBackupActions: "Mentés & Műveletek",
+        .menuView: "Nézet",
+        .menuWindow: "Ablak",
+        .menuHelp: "Súgó",
+        .menuCheckForUpdates: "Frissítések keresése…",
+        .menuPreferences: "Beállítások…",
+        .menuNewProfile: "Új mentési profil…",
+        .menuRenameProfile: "Profil átnevezése…",
+        .menuExportConfig: "Konfiguráció exportálása…",
+        .menuImportConfig: "Konfiguráció importálása…",
+        .menuCloseWindow: "Ablak bezárása",
+        .menuRunBackupSelected: "Kijelölt profil mentése",
+        .menuRunAllBackups: "Összes profil mentése",
+        .menuRunPhotosBackup: "Apple Fotótár mentése",
+        .menuDryRunBackup: "Mentés szimulációja (Dry-Run)…",
+        .menuCancelBackup: "Folyamatban lévő mentés megszakítása",
+        .menuBackupInspector: "Mentésvizsgáló & Naplózás…",
+        .menuViewOverview: "Áttekintés",
+        .menuViewTimeMachine: "Időgép & Pillanatképek",
+        .menuViewRulesMaintenance: "Szabályok & Karbantartás",
+        .menuViewPhotos: "Apple Fotótár munkaterület",
+        .menuViewLogs: "Rendszernaplók",
+        .menuToggleTheme: "Megjelenési téma váltása",
+        .menuRefreshData: "Adatok és pillanatképek frissítése",
+        .menuMainWindow: "OtterKeep főablak",
+        .menuDocumentation: "OtterKeep dokumentáció",
+        .menuReleaseNotes: "Kiadási megjegyzések",
+        .menuRevealLogs: "Naplófájlok megnyitása Finderben",
+        .menuReportIssue: "Hibajelentés küldése (GitHub)",
+        .exportConfigTitle: "Konfiguráció exportálása",
+        .exportConfigSuccessMessage: "A konfiguráció és a mentési profilok sikeresen exportálva.",
+        .exportConfigErrorMessage: "Nem sikerült exportálni a konfigurációt: %@",
+        .importConfigTitle: "Konfiguráció importálása",
+        .importConfigSuccessMessage: "A konfiguráció és a profilok sikeresen importálva és érvényesítve.",
+        .importConfigErrorMessage: "Nem sikerült importálni a konfigurációt: %@",
+        .importConfigInvalidFile: "A kiválasztott fájl nem érvényes OtterKeep konfigurációs archívum.",
+        .importConfigConfirmTitle: "Konfiguráció felülírásának megerősítése",
+        .importConfigConfirmMessage: "A konfiguráció importálása felülírja a jelenlegi mentési profilokat és beállításokat. Szeretnéd folytatni?"
     ]
 
 
@@ -2701,7 +2783,48 @@ public enum L10n {
         .errDiskFullRemediationDesc: "The destination volume does not have enough free space to complete this snapshot. Run storage maintenance to prune older snapshots or attach a larger drive.",
         .errRemoteUnreachableRemediationDesc: "Unable to establish connection to the remote backup endpoint. Verify your network connection, credentials, and firewall settings.",
         .errPhotosNotAuthorizedTitle: "Photos Access Restricted",
-        .errPhotosNotAuthorizedDesc: "OtterKeep needs permission to access your Apple Photos Library to perform incremental backups. Enable access in System Settings > Privacy & Security > Photos."
+        .errPhotosNotAuthorizedDesc: "OtterKeep needs permission to access your Apple Photos Library to perform incremental backups. Enable access in System Settings > Privacy & Security > Photos.",
+
+        // MARK: - Menu Bar Commands & Configuration Archive
+        .menuFile: "File",
+        .menuBackupActions: "Backup & Actions",
+        .menuView: "View",
+        .menuWindow: "Window",
+        .menuHelp: "Help",
+        .menuCheckForUpdates: "Check for Updates…",
+        .menuPreferences: "Settings…",
+        .menuNewProfile: "New Backup Profile…",
+        .menuRenameProfile: "Rename Profile…",
+        .menuExportConfig: "Export Configuration…",
+        .menuImportConfig: "Import Configuration…",
+        .menuCloseWindow: "Close Window",
+        .menuRunBackupSelected: "Run Backup for Selected Profile",
+        .menuRunAllBackups: "Run All Backups",
+        .menuRunPhotosBackup: "Run Apple Photos Backup",
+        .menuDryRunBackup: "Dry-Run / Simulate Backup…",
+        .menuCancelBackup: "Cancel Running Backup",
+        .menuBackupInspector: "Backup Inspector & Audit…",
+        .menuViewOverview: "Overview",
+        .menuViewTimeMachine: "Time Machine & Snapshots",
+        .menuViewRulesMaintenance: "Rules & Maintenance",
+        .menuViewPhotos: "Apple Photos Workspace",
+        .menuViewLogs: "Diagnostic Logs",
+        .menuToggleTheme: "Toggle Appearance Theme",
+        .menuRefreshData: "Refresh Data & Snapshots",
+        .menuMainWindow: "OtterKeep Main Window",
+        .menuDocumentation: "OtterKeep Documentation",
+        .menuReleaseNotes: "Release Notes",
+        .menuRevealLogs: "Reveal Logs in Finder",
+        .menuReportIssue: "Report an Issue on GitHub",
+        .exportConfigTitle: "Export Configuration",
+        .exportConfigSuccessMessage: "Configuration and backup profiles successfully exported.",
+        .exportConfigErrorMessage: "Failed to export configuration: %@",
+        .importConfigTitle: "Import Configuration",
+        .importConfigSuccessMessage: "Configuration and backup profiles successfully imported and verified.",
+        .importConfigErrorMessage: "Failed to import configuration: %@",
+        .importConfigInvalidFile: "The selected file is not a valid OtterKeep configuration archive.",
+        .importConfigConfirmTitle: "Confirm Configuration Import",
+        .importConfigConfirmMessage: "Importing this configuration will replace your current backup profiles and settings. Do you want to proceed?"
     ]
 }
 
