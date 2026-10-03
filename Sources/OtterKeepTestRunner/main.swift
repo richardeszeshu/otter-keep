@@ -378,8 +378,8 @@ final class OtterKeepTestSuite {
             guard let repoAppcast = parsedRepoAppcast else {
                 throw TestFailure(message: "Failed to parse repository Distribution/appcast.xml")
             }
-            try assertEqual(repoAppcast.version, "1.2.0", "Repository appcast must have version 1.2.0 as latest")
-            try assertEqual(repoAppcast.buildNumber, "1200", "Repository appcast must have build 1200")
+            try assertEqual(repoAppcast.version, "1.3.0", "Repository appcast must have version 1.3.0 as latest")
+            try assertEqual(repoAppcast.buildNumber, "1300", "Repository appcast must have build 1300")
             try assertTrue(repoAppcast.downloadURL.absoluteString.contains("richardeszeshu/otter-keep"), "Download URL must point to richardeszeshu/otter-keep")
         }
     }
