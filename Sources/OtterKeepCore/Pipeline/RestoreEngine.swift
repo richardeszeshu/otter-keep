@@ -382,12 +382,11 @@ public actor RestoreEngine {
             }
         }
 
-        let resolvedPassphrase = passphrase ?? KeychainManager.getSecret(for: destination.keychainAccount) ?? "OtterKeepDefaultCloudSecret"
+        let resolvedPassphrase = RemoteStorageFactory.resolveEncryptionPassphrase(for: destination, profileId: destination.id, explicitPassphrase: passphrase)
 
         switch destination.type {
         case .s3(let s3Config):
-            let secretKey = KeychainManager.getSecret(for: destination.keychainAccount) ?? ""
-            let s3Provider = S3StorageProvider(config: s3Config, secretAccessKey: secretKey)
+            let s3Provider = RemoteStorageFactory.makeS3Provider(for: destination, config: s3Config)
 
             let encryptedKey = "\(snapshotId)/\(relativePath).enc"
             let plainKey = "\(snapshotId)/\(relativePath)"
@@ -421,19 +420,7 @@ public actor RestoreEngine {
             try finalData.write(to: stagingURL, options: .atomic)
 
         case .smb(let smbConfig):
-            let mountPoint: URL
-            let resolvedSubpath: String
-            if smbConfig.shareURL.hasPrefix("file://") || smbConfig.shareURL.hasPrefix("/") {
-                let localPath = smbConfig.shareURL.replacingOccurrences(of: "file://", with: "")
-                mountPoint = URL(fileURLWithPath: localPath)
-                resolvedSubpath = smbConfig.subfolder.isEmpty ? "OtterKeep_Backups" : smbConfig.subfolder
-            } else {
-                let password = KeychainManager.getSecret(for: destination.keychainAccount)
-                let mounter = NetworkShareMounter()
-                let mountResult = try await mounter.mountShare(config: smbConfig, password: password)
-                mountPoint = mountResult.mountPoint
-                resolvedSubpath = mountResult.resolvedSubpath
-            }
+            let (mountPoint, resolvedSubpath) = try await RemoteStorageFactory.mountNetworkShare(for: destination, config: smbConfig)
 
             let baseRemoteDir = mountPoint.appendingPathComponent(resolvedSubpath).appendingPathComponent(snapshotId)
             let fileURL = baseRemoteDir.appendingPathComponent("root").appendingPathComponent(relativePath)
@@ -452,8 +439,7 @@ public actor RestoreEngine {
             try finalData.write(to: stagingURL, options: .atomic)
 
         case .webdav(let webdavConfig):
-            let password = KeychainManager.getSecret(for: destination.keychainAccount)
-            let provider = WebDAVStorageProvider(config: webdavConfig, password: password)
+            let provider = RemoteStorageFactory.makeWebDAVProvider(for: destination, config: webdavConfig)
 
             let encryptedPath = "\(snapshotId)/\(relativePath).enc"
             let plainPath = "\(snapshotId)/\(relativePath)"
@@ -486,8 +472,7 @@ public actor RestoreEngine {
             try finalData.write(to: stagingURL, options: .atomic)
 
         case .sftp(let sftpConfig):
-            let password = KeychainManager.getSecret(for: destination.keychainAccount)
-            let provider = SFTPStorageProvider(config: sftpConfig, password: password)
+            let provider = RemoteStorageFactory.makeSFTPProvider(for: destination, config: sftpConfig)
 
             let tempDownloadURL = parentDir.appendingPathComponent(".otterkeep_sftp_temp_\(UUID().uuidString)")
             defer { try? FileManager.default.removeItem(at: tempDownloadURL) }

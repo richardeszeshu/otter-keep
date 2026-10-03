@@ -136,9 +136,8 @@ public actor BackupCopyJobCoordinator {
         )
         if !eval.isPermitted {
             let msg = eval.reason ?? "Network policy constraint not satisfied."
-            let sanitizedName = LogPrivacySanitizer.sanitize(profile.name)
             logger.warning("\(msg)")
-            LogManager.shared.log("Replication postponed for profile '\(sanitizedName)': \(msg)", level: .warning, category: "Replication")
+            LogManager.shared.log("Replication postponed for profile [\(profile.id)]: \(msg)", level: .warning, category: "Replication")
             throw NSError(domain: "OtterKeep.Replication", code: 4001, userInfo: [NSLocalizedDescriptionKey: msg])
         }
 
@@ -261,8 +260,7 @@ public actor BackupCopyJobCoordinator {
             statusMessage: "3-2-1 Replication finished."
         ))
 
-        let safeProfileName = LogPrivacySanitizer.sanitize(profile.name)
-        LogManager.shared.log("3-2-1 Replication Copy Job finished for '\(safeProfileName)': \(successfulDests)/\(destinations.count) destinations synced (\(totalReplicatedFiles) files, \(totalReplicatedBytes / 1024 / 1024) MB) in \(String(format: "%.2f", duration))s", level: .info, category: "Replication")
+        LogManager.shared.log("3-2-1 Replication Copy Job finished for profile [\(profile.id)]: \(successfulDests)/\(destinations.count) destinations synced (\(totalReplicatedFiles) files, \(totalReplicatedBytes / 1024 / 1024) MB) in \(String(format: "%.2f", duration))s", level: .info, category: "Replication")
 
         return summary
     }
@@ -291,9 +289,8 @@ public actor BackupCopyJobCoordinator {
         ))
 
         do {
-            let secretKey = KeychainManager.getSecret(for: dest.keychainAccount) ?? ""
-            let passphrase = KeychainManager.getPassphrase(for: profile.id) ?? KeychainManager.getSecret(for: dest.keychainAccount) ?? "OtterKeepDefaultCloudSecret"
-            let s3Provider = S3StorageProvider(config: s3Config, secretAccessKey: secretKey)
+            let s3Provider = RemoteStorageFactory.makeS3Provider(for: dest, config: s3Config)
+            let passphrase = RemoteStorageFactory.resolveEncryptionPassphrase(for: dest, profileId: profile.id)
 
             var destReplicatedFiles = 0
             var destReplicatedBytes: Int64 = 0
@@ -468,7 +465,7 @@ public actor BackupCopyJobCoordinator {
                 completedAt: Date()
             )
 
-            logger.info("Successfully replicated snapshot \(snapshot.id) to S3 '\(dest.name)': \(destReplicatedFiles) files, \(destReplicatedBytes) bytes")
+            logger.info("Successfully replicated snapshot \(snapshot.id) to S3: \(destReplicatedFiles) files, \(destReplicatedBytes) bytes")
             return DestinationSyncResult(
                 replicatedFiles: destReplicatedFiles,
                 replicatedBytes: destReplicatedBytes,
@@ -477,7 +474,7 @@ public actor BackupCopyJobCoordinator {
             )
         } catch {
             let errMsg = error.localizedDescription
-            logger.error("Failed to replicate snapshot to S3 '\(dest.name)': \(errMsg)")
+            logger.error("Failed to replicate snapshot to S3: \(errMsg)")
             try? await database.updateReplicationSnapshot(
                 snapshotId: snapshot.id,
                 destinationIdentifier: destId,
@@ -517,20 +514,7 @@ public actor BackupCopyJobCoordinator {
         ))
 
         do {
-            let mountPoint: URL
-            let resolvedSubpath: String
-            if smbConfig.shareURL.hasPrefix("file://") || smbConfig.shareURL.hasPrefix("/") {
-                let localPath = smbConfig.shareURL.replacingOccurrences(of: "file://", with: "")
-                mountPoint = URL(fileURLWithPath: localPath)
-                resolvedSubpath = smbConfig.subfolder.isEmpty ? "OtterKeep_Backups" : smbConfig.subfolder
-            } else {
-                let password = KeychainManager.getSecret(for: dest.keychainAccount)
-                let mounter = NetworkShareMounter()
-                let mountResult = try await mounter.mountShare(config: smbConfig, password: password)
-                mountPoint = mountResult.mountPoint
-                resolvedSubpath = mountResult.resolvedSubpath
-            }
-
+            let (mountPoint, resolvedSubpath) = try await RemoteStorageFactory.mountNetworkShare(for: dest, config: smbConfig)
             let targetDir = mountPoint.appendingPathComponent(resolvedSubpath).appendingPathComponent(snapshot.snapshotPath)
             try FileManager.default.createDirectory(at: targetDir, withIntermediateDirectories: true)
 
@@ -565,7 +549,7 @@ public actor BackupCopyJobCoordinator {
                 completedAt: Date()
             )
 
-            logger.info("Successfully replicated snapshot \(snapshot.id) to SMB NAS '\(dest.name)'")
+            logger.info("Successfully replicated snapshot \(snapshot.id) to SMB NAS")
             return DestinationSyncResult(
                 replicatedFiles: destReplicatedFiles,
                 replicatedBytes: destReplicatedBytes,
@@ -574,7 +558,7 @@ public actor BackupCopyJobCoordinator {
             )
         } catch {
             let errMsg = error.localizedDescription
-            logger.error("Failed to replicate snapshot to SMB '\(dest.name)': \(errMsg)")
+            logger.error("Failed to replicate snapshot to SMB: \(errMsg)")
             try? await database.updateReplicationSnapshot(
                 snapshotId: snapshot.id,
                 destinationIdentifier: destId,
@@ -614,8 +598,8 @@ public actor BackupCopyJobCoordinator {
         ))
 
         do {
-            let password = KeychainManager.getSecret(for: dest.keychainAccount)
-            let webdavProvider = WebDAVStorageProvider(config: webdavConfig, password: password)
+            let webdavProvider = RemoteStorageFactory.makeWebDAVProvider(for: dest, config: webdavConfig)
+            let passphrase = RemoteStorageFactory.resolveEncryptionPassphrase(for: dest, profileId: profile.id)
 
             var destReplicatedFiles = 0
             var destReplicatedBytes: Int64 = 0
@@ -637,7 +621,6 @@ public actor BackupCopyJobCoordinator {
                 let payload: Data
                 let remoteFilename: String
                 if dest.isClientEncryptionEnabled {
-                    let passphrase = KeychainManager.getPassphrase(for: profile.id) ?? KeychainManager.getSecret(for: dest.keychainAccount) ?? "OtterKeepDefaultCloudSecret"
                     payload = try ClientSideEncryptor.encrypt(data: rawArchiveData, passphrase: passphrase)
                     remoteFilename = "\(archiveURL.lastPathComponent).enc"
                 } else {
@@ -658,7 +641,6 @@ public actor BackupCopyJobCoordinator {
                     let payload: Data
                     let remotePath: String
                     if dest.isClientEncryptionEnabled {
-                        let passphrase = KeychainManager.getPassphrase(for: profile.id) ?? KeychainManager.getSecret(for: dest.keychainAccount) ?? "OtterKeepDefaultCloudSecret"
                         payload = try ClientSideEncryptor.encrypt(data: rawData, passphrase: passphrase)
                         remotePath = "\(snapshot.id)/\(file.relativePath).enc"
                     } else {
@@ -683,7 +665,7 @@ public actor BackupCopyJobCoordinator {
                 completedAt: Date()
             )
 
-            logger.info("Successfully replicated snapshot \(snapshot.id) to WebDAV '\(dest.name)': \(destReplicatedFiles) files, \(destReplicatedBytes) bytes")
+            logger.info("Successfully replicated snapshot \(snapshot.id) to WebDAV: \(destReplicatedFiles) files, \(destReplicatedBytes) bytes")
             return DestinationSyncResult(
                 replicatedFiles: destReplicatedFiles,
                 replicatedBytes: destReplicatedBytes,
@@ -692,7 +674,7 @@ public actor BackupCopyJobCoordinator {
             )
         } catch {
             let errMsg = error.localizedDescription
-            logger.error("Failed to replicate snapshot to WebDAV '\(dest.name)': \(errMsg)")
+            logger.error("Failed to replicate snapshot to WebDAV: \(errMsg)")
             try? await database.updateReplicationSnapshot(
                 snapshotId: snapshot.id,
                 destinationIdentifier: destId,
@@ -732,8 +714,8 @@ public actor BackupCopyJobCoordinator {
         ))
 
         do {
-            let password = KeychainManager.getSecret(for: dest.keychainAccount)
-            let sftpProvider = SFTPStorageProvider(config: sftpConfig, password: password)
+            let sftpProvider = RemoteStorageFactory.makeSFTPProvider(for: dest, config: sftpConfig)
+            let passphrase = RemoteStorageFactory.resolveEncryptionPassphrase(for: dest, profileId: profile.id)
 
             var destReplicatedFiles = 0
             var destReplicatedBytes: Int64 = 0
@@ -753,7 +735,6 @@ public actor BackupCopyJobCoordinator {
 
                 let uploadURL: URL
                 if dest.isClientEncryptionEnabled {
-                    let passphrase = KeychainManager.getPassphrase(for: profile.id) ?? KeychainManager.getSecret(for: dest.keychainAccount) ?? "OtterKeepDefaultCloudSecret"
                     let rawArchiveData = try Data(contentsOf: archiveURL)
                     let payload = try ClientSideEncryptor.encrypt(data: rawArchiveData, passphrase: passphrase)
                     let encURL = tempDir.appendingPathComponent("\(archiveURL.lastPathComponent).enc")
@@ -790,7 +771,7 @@ public actor BackupCopyJobCoordinator {
                 completedAt: Date()
             )
 
-            logger.info("Successfully replicated snapshot \(snapshot.id) to SFTP '\(dest.name)': \(destReplicatedFiles) files, \(destReplicatedBytes) bytes")
+            logger.info("Successfully replicated snapshot \(snapshot.id) to SFTP: \(destReplicatedFiles) files, \(destReplicatedBytes) bytes")
             return DestinationSyncResult(
                 replicatedFiles: destReplicatedFiles,
                 replicatedBytes: destReplicatedBytes,
@@ -799,7 +780,7 @@ public actor BackupCopyJobCoordinator {
             )
         } catch {
             let errMsg = error.localizedDescription
-            logger.error("Failed to replicate snapshot to SFTP '\(dest.name)': \(errMsg)")
+            logger.error("Failed to replicate snapshot to SFTP: \(errMsg)")
             try? await database.updateReplicationSnapshot(
                 snapshotId: snapshot.id,
                 destinationIdentifier: destId,
