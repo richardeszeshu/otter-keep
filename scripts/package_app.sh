@@ -233,31 +233,33 @@ codesign --force --sign - --entitlements "$TEMP_ENTITLEMENTS" "$APPEX_BUNDLE"
 codesign --force --sign - "$APP_BUNDLE"
 rm -f "$TEMP_ENTITLEMENTS"
 
-echo "📡 7. Registering with LaunchServices, Services, and PluginKit..."
-LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-if [ -f "$LSREGISTER" ]; then
-    "$LSREGISTER" -f "$APP_BUNDLE"
+if [ -z "$SKIP_REGISTER" ]; then
+    echo "📡 7. Registering with LaunchServices, Services, and PluginKit..."
+    LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+    if [ -f "$LSREGISTER" ]; then
+        "$LSREGISTER" -f "$APP_BUNDLE"
+    fi
+
+    touch "$APP_BUNDLE"
+
+    defaults write pbs NSServicesStatus -dict-add "com.otterkeep.OtterKeepApp - OtterKeep: Előző verziók böngészése... - openVersionHistoryService" '{
+        "enabled_context_menu" = 1;
+        "enabled_services_menu" = 1;
+        "presentation_modes" = {
+            ContextMenu = 1;
+            ServicesMenu = 1;
+        };
+    }' 2>/dev/null || true
+    /System/Library/CoreServices/pbs -update 2>/dev/null || true
+
+    pluginkit -a "$APPEX_BUNDLE" || true
+    pluginkit -e use -i com.otterkeep.OtterKeepApp.FinderSync || true
+
+    echo "✅ Verifying PluginKit status:"
+    pluginkit -m -p com.apple.FinderSync | grep -i "otterkeep" || true
+
+    echo "🔄 8. Restarting Finder to attach extension..."
+    killall Finder || true
 fi
 
-touch "$APP_BUNDLE"
-
-defaults write pbs NSServicesStatus -dict-add "com.otterkeep.OtterKeepApp - OtterKeep: Előző verziók böngészése... - openVersionHistoryService" '{
-    "enabled_context_menu" = 1;
-    "enabled_services_menu" = 1;
-    "presentation_modes" = {
-        ContextMenu = 1;
-        ServicesMenu = 1;
-    };
-}' 2>/dev/null || true
-/System/Library/CoreServices/pbs -update 2>/dev/null || true
-
-pluginkit -a "$APPEX_BUNDLE" || true
-pluginkit -e use -i com.otterkeep.OtterKeepApp.FinderSync || true
-
-echo "✅ Verifying PluginKit status:"
-pluginkit -m -p com.apple.FinderSync | grep -i "otterkeep" || true
-
-echo "🔄 8. Restarting Finder to attach extension..."
-killall Finder || true
-
-echo "🎉 OtterKeep.app successfully packaged and registered at: $APP_BUNDLE"
+echo "🎉 OtterKeep.app successfully packaged at: $APP_BUNDLE"
