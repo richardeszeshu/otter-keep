@@ -38,129 +38,128 @@ public struct OtterAboutView: View {
 
             Divider()
 
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: OtterTheme.spacing16) {
-                    // 1. Mascot Logo with Glowing Dual Ring
-                    VStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(OtterTheme.oceanicTeal.opacity(0.18))
-                                .frame(width: 110, height: 110)
-                                .blur(radius: 12)
+            VStack(spacing: 14) {
+                // 1. Mascot Logo with Glowing Dual Ring
+                VStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(OtterTheme.oceanicTeal.opacity(0.18))
+                            .frame(width: 96, height: 96)
+                            .blur(radius: 10)
 
-                            Circle()
-                                .fill(OtterTheme.otterAmber.opacity(0.14))
-                                .frame(width: 100, height: 100)
-                                .blur(radius: 8)
+                        Circle()
+                            .fill(OtterTheme.otterAmber.opacity(0.14))
+                            .frame(width: 86, height: 86)
+                            .blur(radius: 6)
 
-                            OtterKeepLogoView(size: 88, withGlow: true, withBorder: true)
-                        }
+                        OtterKeepLogoView(size: 76, withGlow: true, withBorder: true)
+                    }
 
-                        VStack(spacing: 4) {
-                            Text("OtterKeep")
-                                .font(.system(size: 26, weight: .bold, design: .rounded))
-                                .foregroundStyle(.primary)
+                    VStack(spacing: 4) {
+                        Text("OtterKeep")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
 
-                            HStack(spacing: 6) {
-                                Text("v\(CoreEngine.version) (Build 1000)")
-                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2.5)
-                                    .background(OtterTheme.oceanicTeal.opacity(0.15), in: Capsule())
-                                    .overlay(
-                                        Capsule()
-                                            .stroke(OtterTheme.oceanicTeal.opacity(0.35), lineWidth: 1)
-                                    )
-                                    .foregroundStyle(OtterTheme.oceanicTeal)
-                            }
+                        HStack(spacing: 6) {
+                            Text("v\(CoreEngine.version) (Build 1000)")
+                                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2.5)
+                                .background(OtterTheme.oceanicTeal.opacity(0.15), in: Capsule())
+                                .overlay(
+                                    Capsule()
+                                        .stroke(OtterTheme.oceanicTeal.opacity(0.35), lineWidth: 1)
+                                )
+                                .foregroundStyle(OtterTheme.oceanicTeal)
                         }
                     }
-
-                    // 2. Slogans
-                    VStack(spacing: 3) {
-                        Text("„Keep what you love close to your chest.”")
-                            .font(.system(size: 13, weight: .semibold, design: .serif).italic())
-                            .foregroundStyle(OtterTheme.otterAmber)
-
-                        Text("„Őrizd a legfontosabb kincseidet biztos kezekben.”")
-                            .font(.system(size: 11.5, weight: .regular))
-                            .foregroundStyle(.secondary)
-                    }
-
-                    // 3. Brand Lore Quote Card
-                    HStack(spacing: 12) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(OtterTheme.otterAmber)
-                            .frame(width: 3)
-
-                        Text(L10n.t(.aboutLoreStory))
-                            .font(.system(size: 11, weight: .regular))
-                            .lineSpacing(3)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.leading)
-                    }
-                    .padding(12)
-                    .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke(OtterTheme.subtleBorder, lineWidth: 0.5)
-                    )
-
-                    // 4. Architecture & Feature Badges (2x2 Grid)
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                        architectureBadge(
-                            icon: "bolt.shield.fill",
-                            color: OtterTheme.oceanicTeal,
-                            title: "APFS CoW Engine",
-                            subtitle: "Zero-latency instant clones"
-                        )
-                        architectureBadge(
-                            icon: "swift",
-                            color: .orange,
-                            title: "Swift 6 Concurrency",
-                            subtitle: "Actor-isolated data safety"
-                        )
-                        architectureBadge(
-                            icon: "internaldrive.fill",
-                            color: OtterTheme.otterAmber,
-                            title: "Local-First",
-                            subtitle: "100% on-device private vaults"
-                        )
-                        architectureBadge(
-                            icon: "hand.raised.slash.fill",
-                            color: OtterTheme.statusGreen,
-                            title: "Zero Telemetry",
-                            subtitle: "No trackers, no telemetry"
-                        )
-                    }
-
-                    // 5. Interactive Resource Links
-                    HStack(spacing: 10) {
-                        LinkButton(title: "Website", icon: "globe", url: "https://otterkeep.app")
-                        LinkButton(title: "Website", icon: "globe", url: "https://otterkeep.app")
-                        LinkButton(title: "GitHub", icon: "chevron.left.forwardslash.chevron.right", url: "https://github.com/richardeszes/otter-keep")
-                        LinkButton(title: "Releases", icon: "tag.fill", url: "https://github.com/richardeszes/otter-keep/releases")
-                        LinkButton(title: "MIT License", icon: "doc.text.fill", url: "https://github.com/richardeszes/otter-keep/blob/main/LICENSE")
-                    }
-                    .padding(.top, 4)
-
-                    // 6. Credits & Copyright Footnote
-                    VStack(spacing: 2) {
-                        Text("Crafted with care by Richárd Eszes & Open Source Contributors")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.tertiary)
-
-                        Text("© 2026 OtterKeep. All rights reserved.")
-                            .font(.system(size: 9.5, weight: .regular))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .padding(.top, 6)
-                    .padding(.bottom, 16)
                 }
-                .padding(.horizontal, 24)
+
+                // 2. Slogans
+                VStack(spacing: 3) {
+                    Text("„Keep what you love close to your chest.”")
+                        .font(.system(size: 12.5, weight: .semibold, design: .serif).italic())
+                        .foregroundStyle(OtterTheme.otterAmber)
+
+                    Text("„Őrizd a legfontosabb kincseidet biztos kezekben.”")
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(.secondary)
+                }
+
+                // 3. Brand Lore Quote Card
+                HStack(spacing: 12) {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(OtterTheme.otterAmber)
+                        .frame(width: 3)
+
+                    Text(L10n.t(.aboutLoreStory))
+                        .font(.system(size: 11, weight: .regular))
+                        .lineSpacing(3)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                }
+                .padding(12)
+                .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(OtterTheme.subtleBorder, lineWidth: 0.5)
+                )
+
+                // 4. Architecture & Feature Badges (2x2 Grid)
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                    architectureBadge(
+                        icon: "bolt.shield.fill",
+                        color: OtterTheme.oceanicTeal,
+                        title: "APFS CoW Engine",
+                        subtitle: "Zero-latency instant clones"
+                    )
+                    architectureBadge(
+                        icon: "swift",
+                        color: .orange,
+                        title: "Swift 6 Concurrency",
+                        subtitle: "Actor-isolated data safety"
+                    )
+                    architectureBadge(
+                        icon: "internaldrive.fill",
+                        color: OtterTheme.otterAmber,
+                        title: "Local-First",
+                        subtitle: "100% on-device private vaults"
+                    )
+                    architectureBadge(
+                        icon: "hand.raised.slash.fill",
+                        color: OtterTheme.statusGreen,
+                        title: "Zero Telemetry",
+                        subtitle: "No trackers, no telemetry"
+                    )
+                }
+
+                // 5. Interactive Resource Links
+                HStack(spacing: 8) {
+                    LinkButton(title: "Website", icon: "globe", url: "https://otterkeep.app")
+                    LinkButton(title: "GitHub", icon: "chevron.left.forwardslash.chevron.right", url: "https://github.com/richardeszes/otter-keep")
+                    LinkButton(title: "Releases", icon: "tag.fill", url: "https://github.com/richardeszes/otter-keep/releases")
+                    LinkButton(title: "MIT License", icon: "doc.text.fill", url: "https://github.com/richardeszes/otter-keep/blob/main/LICENSE")
+                }
+                .padding(.top, 2)
+
+                // 6. Credits & Copyright Footnote
+                VStack(spacing: 2) {
+                    Text("Crafted with care by Richárd Eszes & Open Source Contributors")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.tertiary)
+
+                    Text("© 2026 OtterKeep. All rights reserved.")
+                        .font(.system(size: 9.5, weight: .regular))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.top, 4)
+                .padding(.bottom, 16)
             }
+            .padding(.horizontal, 24)
+            .padding(.top, 14)
         }
-        .frame(width: 480, height: 580)
+        .frame(width: 480)
+        .fixedSize(horizontal: true, vertical: true)
         .background(
             RoundedRectangle(cornerRadius: OtterTheme.heroCornerRadius, style: .continuous)
                 .fill(Color(nsColor: .windowBackgroundColor))
@@ -273,7 +272,18 @@ public final class AboutWindowController: NSObject {
     private var window: NSWindow?
 
     public func show() {
+        // Find parent window to center upon
+        let parentWindow = NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: {
+            $0.isVisible && !($0 is NSPanel) && $0.canBecomeMain
+        })
+
         if let window = window, window.isVisible {
+            if let parent = parentWindow {
+                let parentFrame = parent.frame
+                let originX = parentFrame.origin.x + (parentFrame.width - window.frame.width) / 2
+                let originY = parentFrame.origin.y + (parentFrame.height - window.frame.height) / 2
+                window.setFrameOrigin(NSPoint(x: originX, y: originY))
+            }
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
@@ -284,8 +294,13 @@ public final class AboutWindowController: NSObject {
         })
         let hostingController = NSHostingController(rootView: aboutView)
 
+        // Calculate dynamic height fitting the content exactly
+        let fittingSize = hostingController.view.fittingSize
+        let panelWidth: CGFloat = 480
+        let panelHeight: CGFloat = fittingSize.height > 0 ? fittingSize.height : 520
+
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 580),
+            contentRect: NSRect(x: 0, y: 0, width: panelWidth, height: panelHeight),
             styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -307,8 +322,17 @@ public final class AboutWindowController: NSObject {
         panel.isOpaque = false
         panel.hasShadow = true
         panel.contentViewController = hostingController
-        panel.center()
+        panel.setContentSize(NSSize(width: panelWidth, height: panelHeight))
         panel.isReleasedWhenClosed = false
+
+        if let parent = parentWindow {
+            let parentFrame = parent.frame
+            let originX = parentFrame.origin.x + (parentFrame.width - panelWidth) / 2
+            let originY = parentFrame.origin.y + (parentFrame.height - panelHeight) / 2
+            panel.setFrameOrigin(NSPoint(x: originX, y: originY))
+        } else {
+            panel.center()
+        }
 
         self.window = panel
         panel.makeKeyAndOrderFront(nil)
