@@ -136,9 +136,9 @@ public struct OtterAboutView: View {
                 // 5. Interactive Resource Links
                 HStack(spacing: 8) {
                     LinkButton(title: "Website", icon: "globe", url: "https://otterkeep.app")
-                    LinkButton(title: "GitHub", icon: "chevron.left.forwardslash.chevron.right", url: "https://github.com/richardeszes/otter-keep")
-                    LinkButton(title: "Releases", icon: "tag.fill", url: "https://github.com/richardeszes/otter-keep/releases")
-                    LinkButton(title: "MIT License", icon: "doc.text.fill", url: "https://github.com/richardeszes/otter-keep/blob/main/LICENSE")
+                    LinkButton(title: "GitHub", icon: "chevron.left.forwardslash.chevron.right", url: "https://github.com/richardeszeshu/otter-keep")
+                    LinkButton(title: "Releases", icon: "tag.fill", url: "https://github.com/richardeszeshu/otter-keep/releases")
+                    LinkButton(title: "MIT License", icon: "doc.text.fill", url: "https://github.com/richardeszeshu/otter-keep/blob/main/LICENSE")
                 }
                 .padding(.top, 2)
 
