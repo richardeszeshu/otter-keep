@@ -73,6 +73,14 @@ public struct ReplicationProgressState: Sendable {
     }
 }
 
+/// Internal outcome metrics for a single destination sync execution.
+private struct DestinationSyncResult: Sendable {
+    let replicatedFiles: Int
+    let replicatedBytes: Int64
+    let skippedFiles: Int
+    let isSuccess: Bool
+}
+
 /// Actor orchestrating the secondary replication pipeline (3-2-1 Backup Copy Job) to S3 Cloud and NAS storage.
 public actor BackupCopyJobCoordinator {
     private let storage: FileSystemProvider
@@ -128,11 +136,11 @@ public actor BackupCopyJobCoordinator {
         )
         if !eval.isPermitted {
             let msg = eval.reason ?? "Network policy constraint not satisfied."
+            let sanitizedName = LogPrivacySanitizer.sanitize(profile.name)
             logger.warning("\(msg)")
-            LogManager.shared.log("Replication postponed for profile '\(profile.name)': \(msg)", level: .warning, category: "Replication")
+            LogManager.shared.log("Replication postponed for profile '\(sanitizedName)': \(msg)", level: .warning, category: "Replication")
             throw NSError(domain: "OtterKeep.Replication", code: 4001, userInfo: [NSLocalizedDescriptionKey: msg])
         }
-
 
         // 2. Resolve target snapshot
         let snapshot: SnapshotRecord
@@ -187,7 +195,6 @@ public actor BackupCopyJobCoordinator {
                     throttler: throttler,
                     state: &state
                 )
-
             case .smb(let smbConfig):
                 result = try await replicateSMB(
                     dest: dest,
@@ -199,7 +206,6 @@ public actor BackupCopyJobCoordinator {
                     throttler: throttler,
                     state: &state
                 )
-
             case .webdav(let webdavConfig):
                 result = try await replicateWebDAV(
                     dest: dest,
@@ -211,7 +217,6 @@ public actor BackupCopyJobCoordinator {
                     throttler: throttler,
                     state: &state
                 )
-
             case .sftp(let sftpConfig):
                 result = try await replicateSFTP(
                     dest: dest,
@@ -225,11 +230,11 @@ public actor BackupCopyJobCoordinator {
                 )
             }
 
+            totalReplicatedFiles += result.replicatedFiles
+            totalReplicatedBytes += result.replicatedBytes
+            totalSkippedFiles += result.skippedFiles
             if result.isSuccess {
                 successfulDests += 1
-                totalReplicatedFiles += result.replicatedFiles
-                totalReplicatedBytes += result.replicatedBytes
-                totalSkippedFiles += result.skippedFiles
             }
         }
 
@@ -256,19 +261,13 @@ public actor BackupCopyJobCoordinator {
             statusMessage: "3-2-1 Replication finished."
         ))
 
-        LogManager.shared.log("3-2-1 Replication Copy Job finished for '\(profile.name)': \(successfulDests)/\(destinations.count) destinations synced (\(totalReplicatedFiles) files, \(totalReplicatedBytes / 1024 / 1024) MB) in \(String(format: "%.2f", duration))s", level: .info, category: "Replication")
+        let safeProfileName = LogPrivacySanitizer.sanitize(profile.name)
+        LogManager.shared.log("3-2-1 Replication Copy Job finished for '\(safeProfileName)': \(successfulDests)/\(destinations.count) destinations synced (\(totalReplicatedFiles) files, \(totalReplicatedBytes / 1024 / 1024) MB) in \(String(format: "%.2f", duration))s", level: .info, category: "Replication")
 
         return summary
     }
 
-    // MARK: - Destination Specific Replication Handlers
-
-    private struct DestinationSyncResult: Sendable {
-        let replicatedFiles: Int
-        let replicatedBytes: Int64
-        let skippedFiles: Int
-        let isSuccess: Bool
-    }
+    // MARK: - Private Protocol-Specific Replicators
 
     private func replicateS3(
         dest: RemoteDestination,
@@ -393,9 +392,10 @@ public actor BackupCopyJobCoordinator {
                             remoteETag: existingETag,
                             checksum: file.checksum,
                             fileSize: file.fileSize,
-                            status: "replicated"
+                            status: "reused"
                         ))
                         state.processedFiles += 1
+                        onProgress?(state)
                         continue
                     }
 
@@ -407,7 +407,6 @@ public actor BackupCopyJobCoordinator {
                     let rawData = try Data(contentsOf: localFileURL)
                     let payload: Data
                     let objectKey: String
-
                     if dest.isClientEncryptionEnabled {
                         payload = try ClientSideEncryptor.encrypt(data: rawData, passphrase: passphrase)
                         objectKey = "\(snapshot.id)/\(file.relativePath).enc"
@@ -416,10 +415,8 @@ public actor BackupCopyJobCoordinator {
                         objectKey = "\(snapshot.id)/\(file.relativePath)"
                     }
 
-                    // Smart Throttling
                     await throttler.throttle(byteCount: Int64(payload.count))
 
-                    // Upload to S3 (Multipart for files > 8 MB, simple PUT for smaller)
                     let etag: String
                     if payload.count > 8 * 1024 * 1024 {
                         let uploadId = try await s3Provider.initiateMultipartUpload(key: objectKey)
