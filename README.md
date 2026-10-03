@@ -192,5 +192,5 @@ OtterKeep is distributed under the **MIT License**. See [LICENSE](LICENSE) for d
 ---
 
 <div align="center">
-<sub>Crafted with care in Budapest 🇭🇺 • Keep what you love close to your chest.</sub>
+<sub>Crafted with care in Hungary 🇭🇺 • Keep what you love close to your chest.</sub>
 </div>
