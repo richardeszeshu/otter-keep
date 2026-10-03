@@ -18,12 +18,14 @@ echo "======================================================="
 
 cd "$PROJECT_ROOT"
 
-echo "🔨 1. Compiling OtterKeepApp and OtterKeepFinderSyncExtension..."
+echo "🔨 1. Compiling OtterKeepApp, OtterKeepFinderSyncExtension, and otterkeep CLI..."
 swift build -c "$CONFIGURATION" --product OtterKeepApp
 swift build -c "$CONFIGURATION" --product OtterKeepFinderSyncExtension
+swift build -c "$CONFIGURATION" --product otterkeep
 
 APP_BINARY=""
 EXT_BINARY=""
+CLI_BINARY=""
 
 # Try common output directories
 for candidate_dir in "$PROJECT_ROOT/.build/$CONFIGURATION" "$PROJECT_ROOT/.build/out/Products/$CONFIGURATION" "$PROJECT_ROOT/.build/arm64-apple-macosx/$CONFIGURATION" "$PROJECT_ROOT/.build/x86_64-apple-macosx/$CONFIGURATION"; do
@@ -32,6 +34,9 @@ for candidate_dir in "$PROJECT_ROOT/.build/$CONFIGURATION" "$PROJECT_ROOT/.build
     fi
     if [ -f "$candidate_dir/OtterKeepFinderSyncExtension" ] && [ -z "$EXT_BINARY" ]; then
         EXT_BINARY="$candidate_dir/OtterKeepFinderSyncExtension"
+    fi
+    if [ -f "$candidate_dir/otterkeep" ] && [ -z "$CLI_BINARY" ]; then
+        CLI_BINARY="$candidate_dir/otterkeep"
     fi
 done
 
@@ -42,11 +47,15 @@ fi
 if [ -z "$EXT_BINARY" ] || [ ! -f "$EXT_BINARY" ]; then
     EXT_BINARY=$(find "$PROJECT_ROOT/.build" -name "OtterKeepFinderSyncExtension" -type f 2>/dev/null | grep -i "$CONFIGURATION" | head -n 1)
 fi
+if [ -z "$CLI_BINARY" ] || [ ! -f "$CLI_BINARY" ]; then
+    CLI_BINARY=$(find "$PROJECT_ROOT/.build" -name "otterkeep" -type f 2>/dev/null | grep -i "$CONFIGURATION" | head -n 1)
+fi
 
 echo "   OtterKeepApp: $APP_BINARY"
 echo "   OtterKeepFinderSyncExtension: $EXT_BINARY"
+echo "   otterkeep CLI: $CLI_BINARY"
 
-if [ -z "$APP_BINARY" ] || [ ! -f "$APP_BINARY" ] || [ -z "$EXT_BINARY" ] || [ ! -f "$EXT_BINARY" ]; then
+if [ -z "$APP_BINARY" ] || [ ! -f "$APP_BINARY" ] || [ -z "$EXT_BINARY" ] || [ ! -f "$EXT_BINARY" ] || [ -z "$CLI_BINARY" ] || [ ! -f "$CLI_BINARY" ]; then
     echo "❌ Error: Required binaries not found."
     exit 1
 fi
@@ -205,8 +214,10 @@ EOF
 echo "📥 5. Installing binaries..."
 cp "$APP_BINARY" "$APP_BUNDLE/Contents/MacOS/OtterKeepApp"
 cp "$EXT_BINARY" "$APPEX_BUNDLE/Contents/MacOS/OtterKeepFinderSyncExtension"
+cp "$CLI_BINARY" "$APP_BUNDLE/Contents/MacOS/otterkeep"
 chmod +x "$APP_BUNDLE/Contents/MacOS/OtterKeepApp"
 chmod +x "$APPEX_BUNDLE/Contents/MacOS/OtterKeepFinderSyncExtension"
+chmod +x "$APP_BUNDLE/Contents/MacOS/otterkeep"
 
 echo "🔐 6. Code signing with App Sandbox entitlement..."
 TEMP_ENTITLEMENTS="$(mktemp /tmp/otterkeep_ent.XXXXXX.plist)"
@@ -230,6 +241,7 @@ cat << 'EOF' > "$TEMP_ENTITLEMENTS"
 EOF
 
 codesign --force --sign - --entitlements "$TEMP_ENTITLEMENTS" "$APPEX_BUNDLE"
+codesign --force --sign - "$APP_BUNDLE/Contents/MacOS/otterkeep"
 codesign --force --sign - "$APP_BUNDLE"
 rm -f "$TEMP_ENTITLEMENTS"
 

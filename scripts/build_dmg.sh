@@ -67,13 +67,25 @@ hdiutil create \
     -format UDZO \
     "$DMG_PATH"
 
-# 5. Generate SHA256 checksum
-echo "🔒 4. Generating SHA256 checksum..."
+# 5. Generate SHA256 checksum for DMG
+echo "🔒 4. Generating SHA256 checksum for DMG..."
 shasum -a 256 "$DMG_PATH" > "$DMG_PATH.sha256"
 
+# 6. Generate ZIP archive (for Homebrew Cask & Sparkle updates)
+echo "📦 5. Creating ZIP archive for Homebrew Cask & Sparkle..."
+ZIP_NAME="OtterKeep-${VERSION}.zip"
+ZIP_PATH="$OUTPUT_DIR/$ZIP_NAME"
+rm -f "$ZIP_PATH"
+(cd "$APP_TARGET_DIR" && zip -r -y -q "$ZIP_PATH" "OtterKeep.app")
+shasum -a 256 "$ZIP_PATH" > "$ZIP_PATH.sha256"
+
 echo "======================================================="
-echo "🎉 DMG successfully created!"
-echo "   File:     $DMG_PATH"
+echo "🎉 Distribution artifacts successfully created!"
+echo "   DMG:      $DMG_PATH"
 echo "   Size:     $(du -h "$DMG_PATH" | cut -f1)"
-echo "   Checksum: $(cat "$DMG_PATH.sha256")"
+echo "   SHA256:   $(cat "$DMG_PATH.sha256")"
+echo "   ---"
+echo "   ZIP:      $ZIP_PATH"
+echo "   Size:     $(du -h "$ZIP_PATH" | cut -f1)"
+echo "   SHA256:   $(cat "$ZIP_PATH.sha256")"
 echo "======================================================="
