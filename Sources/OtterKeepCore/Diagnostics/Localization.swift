@@ -335,9 +335,20 @@ public enum L10n {
         case cowBadgeIntraVolume
         case cowBadgeSnapshotTarget
         case cowBadgeNonAPFS
+        case cowBadgeExFAT
+        case cowBadgeNTFS
+        case cowBadgeNTFSReadOnly
         case cowDescIntraVolume
         case cowDescSnapshotTarget
         case cowDescNonAPFS
+        case cowDescExFAT
+        case cowDescNTFS
+        case cowDescNTFSReadOnly
+        case errNTFSTargetReadOnly
+        case errDestinationReadOnly
+
+
+
 
         // MARK: - Scheduling
         case scheduleCardTitle
@@ -1217,9 +1228,19 @@ public enum L10n {
         .cowBadgeIntraVolume: "APFS Helyi CoW",
         .cowBadgeSnapshotTarget: "APFS Snapshot CoW",
         .cowBadgeNonAPFS: "Standard Mentés (Nem APFS)",
+        .cowBadgeExFAT: "exFAT (Fallback Stream)",
+        .cowBadgeNTFS: "NTFS (Illesztőprogram-alapú)",
+        .cowBadgeNTFSReadOnly: "NTFS (Írásvédett)",
         .cowDescIntraVolume: "Zéró másolású helyi pillanatfelvétel azonnali APFS reflink klónozással.",
         .cowDescSnapshotTarget: "Inkrementális mentés a céllemezen APFS CoW blokk-deduplikációval.",
         .cowDescNonAPFS: "Hagyományos másolási mód (a céllemez nem támogatja az APFS blokkszintű klónozást).",
+        .cowDescExFAT: "exFAT kötet: Nem támogat blokkszintű CoW klónozást és hardlinkeket; fizikai adatfolyam-másolással működik.",
+        .cowDescNTFS: "NTFS kötet: Illesztőprogram-támogatással működő írható tároló.",
+        .cowDescNTFSReadOnly: "A macOS natív NTFS illesztője írásvédett. Csak forrásként használható mentéshez.",
+        .errNTFSTargetReadOnly: "A kiválasztott célkötet NTFS fájlrendszerű és írásvédett. A macOS gyári NTFS illesztője nem támogatja az írást. Kérjük válasszon APFS vagy exFAT meghajtót, vagy használjon írható NTFS illesztőprogramot.",
+        .errDestinationReadOnly: "A kiválasztott célkötet írásvédett. Kérjük válasszon írható célmeghajtót.",
+
+
 
         .scheduleCardTitle: "Automatikus Ütemezés & Időzítés",
         .scheduleCardSubtitle: "Állítsd be, hogy a OtterKeep mikor hajtson végre automatikus háttérmentést ehhez a profilhoz.",
@@ -2065,9 +2086,19 @@ public enum L10n {
         .cowBadgeIntraVolume: "APFS Intra-Volume CoW",
         .cowBadgeSnapshotTarget: "APFS Snapshot CoW",
         .cowBadgeNonAPFS: "Standard Backup (Non-APFS)",
+        .cowBadgeExFAT: "exFAT (Fallback Stream)",
+        .cowBadgeNTFS: "NTFS (Driver-based)",
+        .cowBadgeNTFSReadOnly: "NTFS (Read-Only)",
         .cowDescIntraVolume: "Zero-copy local snapshot with instantaneous APFS reflink cloning.",
         .cowDescSnapshotTarget: "Incremental backup with target-side APFS CoW block deduplication.",
         .cowDescNonAPFS: "Standard copy mode (destination drive does not support APFS block-level cloning).",
+        .cowDescExFAT: "exFAT volume: Does not support block-level CoW cloning or hard links; uses physical stream copying.",
+        .cowDescNTFS: "NTFS volume: Storage operating via driver support.",
+        .cowDescNTFSReadOnly: "macOS native NTFS driver is read-only. It can only be used as a backup source.",
+        .errNTFSTargetReadOnly: "The selected destination volume is formatted as NTFS and is read-only. Native macOS NTFS driver does not support writing. Please select an APFS or exFAT drive, or use a writable NTFS driver.",
+        .errDestinationReadOnly: "The selected destination volume is read-only. Please select a writable destination drive.",
+
+
 
         .scheduleCardTitle: "Automatic Scheduling & Timers",
         .scheduleCardSubtitle: "Configure when OtterKeep should automatically execute background backups for this profile.",

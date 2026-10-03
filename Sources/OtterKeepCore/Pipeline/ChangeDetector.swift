@@ -48,11 +48,13 @@ public struct ChangeDetector: Sendable {
     ///   - scannedItems: List of items discovered during the current file tree scan.
     ///   - previousCatalog: Lookup dictionary of relative paths to previous catalog records.
     ///   - hashMode: Hash verification strategy mode (default: `.smartHash`).
+    ///   - timestampTolerance: Modification time comparison tolerance in seconds (default: `0.001` for APFS, `0.02` for exFAT, `2.0` for FAT).
     /// - Returns: A `ChangeDetectionResult` categorizing every scanned and removed item.
     public func detectChanges(
         scannedItems: [ScannedItem],
         previousCatalog: [String: FileCatalogRecord],
-        hashMode: HashVerificationMode = .smartHash
+        hashMode: HashVerificationMode = .smartHash,
+        timestampTolerance: Double = 0.001
     ) -> ChangeDetectionResult {
         var unmodified: [(current: ScannedItem, previous: FileCatalogRecord)] = []
         var added: [ScannedItem] = []
@@ -72,7 +74,7 @@ public struct ChangeDetector: Sendable {
                 // File comparison using modification time and file size
                 let sizeMatches = item.metadata.size == prev.fileSize
                 let timeDiff = abs(item.metadata.modificationTime.timeIntervalSince(prev.modificationTime))
-                let mtimeMatches = timeDiff < 0.001
+                let mtimeMatches = timeDiff <= max(0.001, timestampTolerance)
 
                 // If previous record had non-zero expected size but an empty SHA-256 hash (placeholder fallback),
                 // force physical re-transfer so actual content is backed up!
@@ -81,6 +83,7 @@ public struct ChangeDetector: Sendable {
                     modified.append(item)
                     continue
                 }
+
 
                 if sizeMatches && mtimeMatches {
                     if hashMode == .thoroughSampling && !item.metadata.isDirectory && !item.metadata.isSymlink {

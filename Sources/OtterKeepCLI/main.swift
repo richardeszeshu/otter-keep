@@ -44,9 +44,15 @@ struct OtterKeepCLI {
 
         // 3. Handle version query
         if args.contains("--version") || args.contains("-v") || args.first == "version" {
-            print("OtterKeep v\(CoreEngine.version) (GUI: v\(CoreEngine.uiVersion), Core: v\(CoreEngine.coreVersion), CLI: v\(CoreEngine.cliVersion))")
+            print("🦦 OtterKeep v\(CoreEngine.version) (Build \(CoreEngine.buildNumber))")
+            print("   ├── OtterKeepStorage:  v\(CoreEngine.storageVersion)")
+            print("   ├── OtterKeepDatabase: v\(CoreEngine.databaseVersion)")
+            print("   ├── OtterKeepCore:     v\(CoreEngine.coreVersion)")
+            print("   ├── OtterKeepUI:       v\(CoreEngine.uiVersion)")
+            print("   └── OtterKeepCLI:      v\(CoreEngine.cliVersion)")
             exitCLI(0)
         }
+
 
         // 4. Handle help request
         if args.isEmpty || args.contains("--help") || args.contains("-h") || args.first == "help" {
@@ -1057,7 +1063,12 @@ struct OtterKeepCLI {
         // 1. macOS System & Engine Version
         let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
         print("💻 Operating System: macOS \(osVersion)")
-        print("🦦 OtterKeep Engine: v\(CoreEngine.version)\n")
+        print("🦦 OtterKeep Engine: v\(CoreEngine.version) (Build \(CoreEngine.buildNumber))")
+        print("   ├── OtterKeepStorage:  v\(CoreEngine.storageVersion)")
+        print("   ├── OtterKeepDatabase: v\(CoreEngine.databaseVersion)")
+        print("   ├── OtterKeepCore:     v\(CoreEngine.coreVersion)")
+        print("   ├── OtterKeepUI:       v\(CoreEngine.uiVersion)")
+        print("   └── OtterKeepCLI:      v\(CoreEngine.cliVersion)\n")
 
         // 2. Full Disk Access & File System Permissions
         print("🔐 Permissions & TCC:")
@@ -1082,11 +1093,17 @@ struct OtterKeepCLI {
             let dstExists = FileManager.default.fileExists(atPath: p.destinationURL.path(percentEncoded: false))
 
             print("       • Source:      \(srcExists ? "✅ Accessible" : "❌ NOT FOUND") (\(p.sourceURL.path))")
+            if srcExists, let srcCaps = try? await storage.capabilities(at: p.sourceURL) {
+                print("         FS Format:   \(srcCaps.fsTypeName.uppercased()) (Precision: \(srcCaps.timestampToleranceSeconds)s)")
+            }
             print("       • Destination: \(dstExists ? "✅ Mounted" : "⚠️ UNMOUNTED / NOT FOUND") (\(p.destinationURL.path))")
 
             if dstExists {
                 if let caps = try? await storage.capabilities(at: p.destinationURL) {
-                    let cowStatus = caps.supportsAPFSClone ? "✅ Supported (APFS clonefile)" : "⚠️ Unsupported (Fallback Copy)"
+                    let fsLabel = caps.fsTypeName.uppercased()
+                    let roLabel = caps.isReadOnly ? " [READ-ONLY ⚠️]" : " [READ-WRITE ✅]"
+                    let cowStatus = caps.supportsAPFSClone ? "✅ Supported (APFS clonefile)" : (caps.isExFAT ? "ℹ️ Fallback Stream Copy (exFAT)" : "⚠️ Unsupported CoW (Fallback Copy)")
+                    print("         FS Format:   \(fsLabel)\(roLabel)")
                     print("       • CoW Clones:  \(cowStatus)")
                 }
                 if let capacity = try? storage.storageCapacity(at: p.destinationURL) {
@@ -1096,6 +1113,7 @@ struct OtterKeepCLI {
                 }
             }
         }
+
 
         // 4. Background Daemon
         print("\n⚙️ Background Daemon:")

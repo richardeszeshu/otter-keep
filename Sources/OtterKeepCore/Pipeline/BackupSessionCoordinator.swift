@@ -404,6 +404,13 @@ public actor BackupSessionCoordinator {
         let destinationCaps = try await storage.capabilities(at: destinationURL)
         logger.info("Destination volume capabilities: FS=\(destinationCaps.fsTypeName), APFSClone=\(destinationCaps.supportsAPFSClone), CoWMode=\(String(describing: eval.cowMode))")
 
+        if destinationCaps.isReadOnly {
+            let readOnlyMsg = destinationCaps.isNTFS ? L10n.t(.errNTFSTargetReadOnly) : L10n.t(.errDestinationReadOnly)
+            logger.error("\(readOnlyMsg)")
+            LogManager.shared.log(readOnlyMsg, level: .error, category: "Storage")
+            throw FileSystemError.permissionDenied(path: "\(destinationURL.path) (\(readOnlyMsg))")
+        }
+
         if eval.isSameVolume {
             let spofMsg = String(format: L10n.t(.spofWarningFormat), profile.destinationURL.path)
             logger.warning("\(spofMsg)")
@@ -461,13 +468,17 @@ public actor BackupSessionCoordinator {
         }
         reportProgress()
 
-        // 5. Differential change analysis
+        // 5. Differential change analysis with filesystem timestamp tolerance
+        let sourceCaps = try? await storage.capabilities(at: profile.sourceURL)
+        let tolerance = max(sourceCaps?.timestampToleranceSeconds ?? 0.001, destinationCaps.timestampToleranceSeconds)
         let detector = ChangeDetector()
         let changes = detector.detectChanges(
             scannedItems: scannedItems,
             previousCatalog: previousCatalog,
-            hashMode: profile.hashVerificationMode
+            hashMode: profile.hashVerificationMode,
+            timestampTolerance: tolerance
         )
+
 
         logger.info("Differential: \(changes.unmodified.count) unmodified, \(changes.added.count) added, \(changes.modified.count) modified, \(changes.deleted.count) deleted")
 
@@ -944,11 +955,18 @@ public actor BackupSessionCoordinator {
         }
 
         // 12. Atomically update 'Latest' symbolic link
-        let latestLink = destinationURL.appendingPathComponent("Latest")
-        let tempLink = destinationURL.appendingPathComponent(".latest_temp")
-        try? FileManager.default.removeItem(at: tempLink)
-        try FileManager.default.createSymbolicLink(at: tempLink, withDestinationURL: finalSnapshotDir)
-        try await storage.atomicMove(from: tempLink, to: latestLink)
+        if destinationCaps.supportsSymlinks {
+            let latestLink = destinationURL.appendingPathComponent("Latest")
+            let tempLink = destinationURL.appendingPathComponent(".latest_temp")
+            try? FileManager.default.removeItem(at: tempLink)
+            do {
+                try FileManager.default.createSymbolicLink(at: tempLink, withDestinationURL: finalSnapshotDir)
+                try await storage.atomicMove(from: tempLink, to: latestLink)
+            } catch {
+                logger.warning("Notice: 'Latest' symbolic link could not be created on \(destinationCaps.fsTypeName): \(error.localizedDescription)")
+            }
+        }
+
 
         // 13. Determine final status
         let snapshotStatus: String

@@ -147,7 +147,8 @@ public final class DebugFileLogger: @unchecked Sendable {
         # ==============================================================================
         # OtterKeep Diagnostic Debug Log
         # Session Started: \(timestamp)
-        # Engine Version: \(CoreEngine.version) | Architecture: \(arch)
+        # Engine Version: \(CoreEngine.version) (Build \(CoreEngine.buildNumber)) | Architecture: \(arch)
+        # Components: \(CoreEngine.componentVersionsFormatted)
         # macOS Version: \(osVersion)
         # Session ID: \(sessionId)
         # Privacy Sanitization: ACTIVE (Usernames, paths, and PII are redacted)
@@ -155,6 +156,7 @@ public final class DebugFileLogger: @unchecked Sendable {
         # ==============================================================================
 
         """
+
 
         writeQueue.async {
             if let data = header.data(using: .utf8) {

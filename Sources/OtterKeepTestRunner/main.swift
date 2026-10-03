@@ -125,7 +125,7 @@ final class OtterKeepTestSuite {
 
     func runAll() async throws {
         print("\n================================================================================")
-        print("🦦 OTTERKEEP 1.2.0 (BUILD 1200) SYSTEM INTEGRATION TEST SUITE & BENCHMARK")
+        print("🦦 OTTERKEEP 1.3.0 (BUILD 1300) SYSTEM INTEGRATION TEST SUITE & BENCHMARK")
         print("================================================================================\n")
 
         let suiteStart = ContinuousClock().now
@@ -144,6 +144,8 @@ final class OtterKeepTestSuite {
         await runTest("2.4 Extended Attributes (xattr) Preservation", testExtendedAttributesPreservation)
         await runTest("2.5 Atomic Directory Tree Renaming (atomicMove)", testAtomicDirectoryMove)
         await runTest("2.6 Fallback Storage Provider Non-APFS Behavior", testFallbackStorageProvider)
+        await runTest("2.7 exFAT & NTFS FileSystem Capabilities Matrix", testExFATAndNTFSCapabilities)
+        await runTest("2.8 FileSystemDriverRegistry & Driver Resolution", testFileSystemDriverRegistryAndDrivers)
 
         // MARK: - Module 3: SQLite Database Engine & Snapshots
         print("\n🔹 Module 3: SQLite Database Engine & Snapshots")
@@ -159,6 +161,8 @@ final class OtterKeepTestSuite {
         await runTest("4.2 Differential Change Detector (Mtime & Size & Inode)", testDifferentialChangeDetector)
         await runTest("4.3 Ransomware Anomaly Guard Anomaly Sensitivity", testRansomwareAnomalyGuard)
         await runTest("4.4 End-to-End Backup Lifecycle (Initial + Incremental)", testEndToEndBackupLifecycle)
+        await runTest("4.5 ChangeDetector Timestamp Precision & Tolerance", testChangeDetectorTimestampTolerance)
+
 
         // MARK: - Module 5: Client-Side Cryptography & Security Hardening
         print("\n🔹 Module 5: Client-Side Cryptography & Security Hardening")
@@ -238,7 +242,14 @@ final class OtterKeepTestSuite {
     // =========================================================================
 
     func testCoreEngineMetadataAndSlogans() async throws {
-        try assertEqual(CoreEngine.version, "1.2.0", "CoreEngine version must be exactly 1.2.0")
+        try assertEqual(CoreEngine.version, "1.3.0", "CoreEngine version must be exactly 1.3.0")
+        try assertEqual(CoreEngine.buildNumber, "1300", "CoreEngine buildNumber must be exactly 1300")
+        try assertEqual(CoreEngine.storageVersion, "1.1.0", "Storage version must be 1.1.0")
+        try assertEqual(CoreEngine.databaseVersion, "1.1.0", "Database version must be 1.1.0")
+        try assertEqual(CoreEngine.coreVersion, "1.2.0", "Core version must be 1.2.0")
+        try assertEqual(CoreEngine.uiVersion, "1.3.0", "UI version must be 1.3.0")
+        try assertEqual(CoreEngine.cliVersion, "1.1.0", "CLI version must be 1.1.0")
+        try assertEqual(CoreEngine.finderSyncVersion, "1.0.0", "FinderSync version must be 1.0.0")
         try assertEqual(CoreEngine.appName, "OtterKeep", "CoreEngine appName must be OtterKeep")
         try assertEqual(CoreEngine.bundleIdentifier, "com.otterkeep.desktop", "Bundle ID must match")
 
@@ -253,6 +264,7 @@ final class OtterKeepTestSuite {
         try assertEqual(huLore, "A vidrák kedvenc kavicsának legendája", "Hungarian lore title must match")
         try assertEqual(enLore, "The Legend of the Favorite Pebble", "English lore title must match")
     }
+
 
     func testSemanticVersionComparison() async throws {
         // Equal versions
@@ -277,8 +289,8 @@ final class OtterKeepTestSuite {
 
     func testSparkleAppcastCoordinatorLogic() async throws {
         let coordinator = SoftwareUpdateCoordinator.shared
-        try assertEqual(coordinator.currentVersion, "1.2.0")
-        try assertEqual(coordinator.currentBuild, "1200")
+        try assertEqual(coordinator.currentVersion, "1.3.0")
+        try assertEqual(coordinator.currentBuild, "1300")
 
         // Verify default public endpoints
         try assertTrue(SoftwareUpdateCoordinator.defaultAppcastURL.absoluteString.contains("richardeszeshu/otter-keep"), "Appcast URL must point to richardeszeshu/otter-keep")
@@ -287,10 +299,10 @@ final class OtterKeepTestSuite {
 
         // Mock an update
         let mockInfo = SoftwareUpdateInfo(
-            version: "1.3.0",
-            buildNumber: "1300",
+            version: "1.4.0",
+            buildNumber: "1400",
             releaseNotes: "Performance improvements & APFS CoW tuning",
-            downloadURL: URL(string: "https://github.com/richardeszeshu/otter-keep/releases/tag/v1.3.0")!,
+            downloadURL: URL(string: "https://github.com/richardeszeshu/otter-keep/releases/tag/v1.4.0")!,
             publicationDate: Date(),
             isCritical: false
         )
@@ -298,6 +310,7 @@ final class OtterKeepTestSuite {
         await coordinator.setMockUpdateInfo(mockInfo)
         let status = await coordinator.checkForUpdates()
         try assertEqual(status, UpdateCheckStatus.updateAvailable(mockInfo))
+
 
         // Mock an older version (no update available)
         let olderInfo = SoftwareUpdateInfo(
@@ -515,9 +528,75 @@ final class OtterKeepTestSuite {
         try assertEqual(dstContent, "Fallback Data")
     }
 
+    func testExFATAndNTFSCapabilities() async throws {
+        let apfsCaps = FileSystemCapabilities(fsTypeName: "apfs", supportsAPFSClone: true, supportsHardLinks: true, supportsExtendedAttributes: true, supportsSymlinks: true, supportsFileFlags: true, isReadOnly: false)
+        try assertTrue(apfsCaps.isAPFS)
+        try assertFalse(apfsCaps.isExFAT)
+        try assertFalse(apfsCaps.isNTFS)
+        try assertEqual(apfsCaps.timestampToleranceSeconds, 0.001)
+        try assertTrue(apfsCaps.supportsHardLinks)
+        try assertTrue(apfsCaps.supportsSymlinks)
+        try assertTrue(apfsCaps.supportsFileFlags)
+
+        let exfatCaps = FileSystemCapabilities(fsTypeName: "exfat", supportsAPFSClone: false, supportsHardLinks: false, supportsExtendedAttributes: false, supportsSymlinks: false, supportsFileFlags: false, isReadOnly: false)
+        try assertFalse(exfatCaps.isAPFS)
+        try assertTrue(exfatCaps.isExFAT)
+        try assertFalse(exfatCaps.isNTFS)
+        try assertEqual(exfatCaps.timestampToleranceSeconds, 0.02)
+        try assertFalse(exfatCaps.supportsHardLinks)
+        try assertFalse(exfatCaps.supportsSymlinks)
+        try assertFalse(exfatCaps.supportsFileFlags)
+
+        let ntfsCaps = FileSystemCapabilities(fsTypeName: "ntfs", supportsAPFSClone: false, supportsHardLinks: false, supportsExtendedAttributes: false, supportsSymlinks: false, supportsFileFlags: false, isReadOnly: true)
+        try assertFalse(ntfsCaps.isAPFS)
+        try assertFalse(ntfsCaps.isExFAT)
+        try assertTrue(ntfsCaps.isNTFS)
+        try assertTrue(ntfsCaps.isReadOnly)
+        try assertEqual(ntfsCaps.timestampToleranceSeconds, 0.001)
+
+        let fatCaps = FileSystemCapabilities(fsTypeName: "msdos", supportsAPFSClone: false, supportsHardLinks: false, supportsExtendedAttributes: false, supportsSymlinks: false, supportsFileFlags: false, isReadOnly: false)
+        try assertTrue(fatCaps.isFAT)
+        try assertEqual(fatCaps.timestampToleranceSeconds, 2.0)
+    }
+
+    func testFileSystemDriverRegistryAndDrivers() async throws {
+        let registry = FileSystemDriverRegistry.shared
+
+        // Test driver resolution by filesystem name
+        let apfsDriver = registry.driver(forFSType: "apfs")
+        try assertEqual(apfsDriver.fsTypeName, "apfs")
+
+        let exfatDriver = registry.driver(forFSType: "exfat")
+        try assertEqual(exfatDriver.fsTypeName, "exfat")
+
+        let ntfsDriver = registry.driver(forFSType: "ntfs")
+        try assertEqual(ntfsDriver.fsTypeName, "ntfs")
+
+        let fatDriver = registry.driver(forFSType: "msdos")
+        try assertEqual(fatDriver.fsTypeName, "msdos")
+
+        let genericDriver = registry.driver(forFSType: "unknown_custom_fs")
+        try assertEqual(genericDriver.fsTypeName, "generic")
+
+        // Test dynamic driver resolution via local temp folder URL
+        let tempDir = try createTempDirectory()
+        defer { removeTempDirectory(tempDir) }
+        let resolvedDriver = registry.driver(for: tempDir)
+        try assertNotNil(resolvedDriver)
+
+        // Test custom driver registration
+        final class MockExt4Driver: BasePOSIXFileSystemDriver, @unchecked Sendable {
+            override var fsTypeName: String { "ext4" }
+        }
+        registry.register(driver: MockExt4Driver(), forFSType: "ext4")
+        let ext4Driver = registry.driver(forFSType: "ext4")
+        try assertEqual(ext4Driver.fsTypeName, "ext4")
+    }
+
     // =========================================================================
     // MARK: - Module 3 Implementations
     // =========================================================================
+
 
     func testSQLiteWALModeAndPragmas() async throws {
         let tempDir = try createTempDirectory()
@@ -811,9 +890,49 @@ final class OtterKeepTestSuite {
         try assertEqual(versionsOfAlpha.count, 2, "alpha.txt must have 2 historical versions")
     }
 
+    func testChangeDetectorTimestampTolerance() async throws {
+        let now = Date()
+        let scanned = ScannedItem(
+            url: URL(fileURLWithPath: "/src/exfat_file.txt"),
+            relativePath: "exfat_file.txt",
+            metadata: FileMetadata(
+                url: URL(fileURLWithPath: "/src/exfat_file.txt"),
+                size: 1024,
+                modificationTime: now.addingTimeInterval(0.015), // 15ms diff (typical exFAT rounding)
+                inode: 1,
+                posixPermissions: 0o644,
+                isDirectory: false,
+                isSymlink: false
+            )
+        )
+        let prevRecord = FileCatalogRecord(
+            id: 1,
+            snapshotId: "snap_prev",
+            relativePath: "exfat_file.txt",
+            fileSize: 1024,
+            modificationTime: now,
+            inode: 1,
+            checksum: "test_checksum",
+            isDirectory: false,
+            isSymlink: false
+        )
+
+        let detector = ChangeDetector()
+        // Strict APFS tolerance (0.001s) sees 15ms as modified:
+        let strictResult = detector.detectChanges(scannedItems: [scanned], previousCatalog: ["exfat_file.txt": prevRecord], hashMode: .metadataOnly, timestampTolerance: 0.001)
+        try assertEqual(strictResult.modified.count, 1, "Strict tolerance should mark 15ms time difference as modified")
+        try assertEqual(strictResult.unmodified.count, 0)
+
+        // exFAT tolerance (0.02s) recognizes 15ms as unmodified:
+        let exfatResult = detector.detectChanges(scannedItems: [scanned], previousCatalog: ["exfat_file.txt": prevRecord], hashMode: .metadataOnly, timestampTolerance: 0.02)
+        try assertEqual(exfatResult.unmodified.count, 1, "exFAT tolerance should recognize 15ms rounding as unmodified")
+        try assertEqual(exfatResult.modified.count, 0)
+    }
+
     // =========================================================================
     // MARK: - Module 5 Implementations
     // =========================================================================
+
 
     func testOKENC2PBKDF2Encryption() async throws {
         let plainText = "OtterKeep-Top-Secret-Payload-2026"

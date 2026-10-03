@@ -3,15 +3,35 @@ import Foundation
 /// Core namespace and versioning umbrella for the OtterKeep engine.
 public struct CoreEngine: Sendable {
     /// Semantic version identifier of the OtterKeep application (main product version).
-    public static let version = "1.2.0"
+    public static let version = "1.3.0"
 
     /// Internal build sequence number.
-    public static let buildNumber = "1200"
+    public static let buildNumber = "1300"
 
     /// Subsystem versions:
-    public static let coreVersion = "1.1.0"
-    public static let cliVersion = "1.0.0"
-    public static let uiVersion = "1.2.0"
+    public static let storageVersion = "1.1.0"
+    public static let databaseVersion = "1.1.0"
+    public static let coreVersion = "1.2.0"
+    public static let uiVersion = "1.3.0"
+    public static let cliVersion = "1.1.0"
+    public static let finderSyncVersion = "1.0.0"
+
+    /// Structured dictionary of all subsystem components and their respective SemVer versions.
+    public static var componentVersions: [String: String] {
+        [
+            "OtterKeepStorage": storageVersion,
+            "OtterKeepDatabase": databaseVersion,
+            "OtterKeepCore": coreVersion,
+            "OtterKeepUI": uiVersion,
+            "OtterKeepCLI": cliVersion,
+            "OtterKeepFinderSyncExtension": finderSyncVersion
+        ]
+    }
+
+    /// Formatted single-line summary of all component versions.
+    public static var componentVersionsFormatted: String {
+        "Storage: v\(storageVersion), Database: v\(databaseVersion), Core: v\(coreVersion), UI: v\(uiVersion), CLI: v\(cliVersion)"
+    }
 
     /// Application display name.
     public static let appName = "OtterKeep"
@@ -24,3 +44,4 @@ public struct CoreEngine: Sendable {
 }
 
 public typealias OtterKeepEngine = CoreEngine
+

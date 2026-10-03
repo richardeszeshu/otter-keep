@@ -380,12 +380,20 @@ public actor DatabaseEngine {
         try execute(query: "PRAGMA busy_timeout = 10000;")
 
         // Write-Ahead Logging (WAL) and performance tuning pragmas
-        try execute(query: "PRAGMA journal_mode = WAL;")
+        // If WAL mode fails (e.g. on external FAT/exFAT or network drives lacking POSIX shared memory),
+        // gracefully fall back to TRUNCATE mode.
+        do {
+            try execute(query: "PRAGMA journal_mode = WAL;")
+        } catch {
+            logger.warning("WAL journal mode unavailable on filesystem, falling back to TRUNCATE: \(error.localizedDescription)")
+            try? execute(query: "PRAGMA journal_mode = TRUNCATE;")
+        }
         try execute(query: "PRAGMA synchronous = NORMAL;")
         try execute(query: "PRAGMA foreign_keys = ON;")
 
         try createSchema()
     }
+
 
     /// Executes a raw SQL query with error handling and query execution duration profiling.
     private func execute(query: String) throws {

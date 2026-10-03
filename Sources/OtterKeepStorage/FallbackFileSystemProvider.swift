@@ -21,9 +21,12 @@ public final class FallbackFileSystemProvider: FileSystemProvider, Sendable {
             supportsAPFSClone: false,
             supportsHardLinks: baseCaps.supportsHardLinks,
             supportsExtendedAttributes: baseCaps.supportsExtendedAttributes,
+            supportsSymlinks: baseCaps.supportsSymlinks,
+            supportsFileFlags: baseCaps.supportsFileFlags,
             isReadOnly: baseCaps.isReadOnly
         )
     }
+
 
     /// Queries storage capacity metrics via the underlying provider.
     /// - Parameter url: Target volume URL.
