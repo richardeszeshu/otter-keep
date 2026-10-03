@@ -13,24 +13,30 @@ import OtterKeepCore
 /// Brand-new modern macOS Sequoia About (Névjegy) view celebrating the OtterKeep lore, architecture, and craftsmanship.
 public struct OtterAboutView: View {
     @Environment(\.dismiss) private var dismiss
+    private let onClose: (() -> Void)?
 
-    public init() {}
+    public init(onClose: (() -> Void)? = nil) {
+        self.onClose = onClose
+    }
+
+    private func closeAction() {
+        if let onClose = onClose {
+            onClose()
+        } else {
+            dismiss()
+            AboutWindowController.shared.close()
+        }
+    }
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Top Close Button Bar
-            HStack {
-                Spacer()
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundStyle(.tertiary)
-                }
-                .buttonStyle(.plain)
-                .padding([.top, .trailing], 14)
-            }
+            // MARK: - Header
+            headerView
+                .padding(.horizontal, 22)
+                .padding(.top, 18)
+                .padding(.bottom, 14)
+
+            Divider()
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: OtterTheme.spacing16) {
@@ -131,9 +137,10 @@ public struct OtterAboutView: View {
                     // 5. Interactive Resource Links
                     HStack(spacing: 10) {
                         LinkButton(title: "Website", icon: "globe", url: "https://otterkeep.app")
-                        LinkButton(title: "GitHub", icon: "chevron.left.forwardslash.chevron.right", url: "https://github.com/richardeszes/DataSquirrel")
-                        LinkButton(title: "Releases", icon: "tag.fill", url: "https://github.com/richardeszes/DataSquirrel/releases")
-                        LinkButton(title: "MIT License", icon: "doc.text.fill", url: "https://github.com/richardeszes/DataSquirrel/blob/main/LICENSE")
+                        LinkButton(title: "Website", icon: "globe", url: "https://otterkeep.app")
+                        LinkButton(title: "GitHub", icon: "chevron.left.forwardslash.chevron.right", url: "https://github.com/richardeszes/otter-keep")
+                        LinkButton(title: "Releases", icon: "tag.fill", url: "https://github.com/richardeszes/otter-keep/releases")
+                        LinkButton(title: "MIT License", icon: "doc.text.fill", url: "https://github.com/richardeszes/otter-keep/blob/main/LICENSE")
                     }
                     .padding(.top, 4)
 
@@ -153,8 +160,58 @@ public struct OtterAboutView: View {
                 .padding(.horizontal, 24)
             }
         }
-        .frame(width: 480, height: 550)
-        .background(.ultraThinMaterial)
+        .frame(width: 480, height: 580)
+        .background(
+            RoundedRectangle(cornerRadius: OtterTheme.heroCornerRadius, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: OtterTheme.heroCornerRadius, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        stops: [
+                            .init(color: OtterTheme.specularHighlight, location: 0.0),
+                            .init(color: OtterTheme.subtleBorder, location: 0.2),
+                            .init(color: OtterTheme.subtleBorder, location: 1.0)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1.0
+                )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: OtterTheme.heroCornerRadius, style: .continuous))
+    }
+
+    private var headerView: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "info.circle.fill")
+                .font(.title3)
+                .foregroundStyle(OtterTheme.oceanicTeal)
+                .frame(width: 32, height: 32)
+                .background(OtterTheme.oceanicTeal.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(L10n.t(.aboutWindowTitle))
+                    .font(.headline.bold())
+                Text("v\(CoreEngine.version) (Build 1000)")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button {
+                closeAction()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(.cancelAction)
+            .help(L10n.t(.cancel))
+        }
     }
 
     private func architectureBadge(icon: String, color: Color, title: String, subtitle: String) -> some View {
@@ -209,7 +266,7 @@ private struct LinkButton: View {
     }
 }
 
-/// Dedicated macOS NSWindowController presenting the About window as a clean floating utility panel.
+/// Dedicated macOS NSWindowController presenting the About window as a clean floating modal panel without OS traffic lights.
 @MainActor
 public final class AboutWindowController: NSObject {
     public static let shared = AboutWindowController()
@@ -222,12 +279,14 @@ public final class AboutWindowController: NSObject {
             return
         }
 
-        let aboutView = OtterAboutView()
+        let aboutView = OtterAboutView(onClose: { [weak self] in
+            self?.close()
+        })
         let hostingController = NSHostingController(rootView: aboutView)
 
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 550),
-            styleMask: [.titled, .closable, .fullSizeContentView, .nonactivatingPanel],
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 580),
+            styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
@@ -238,6 +297,15 @@ public final class AboutWindowController: NSObject {
         panel.isMovableByWindowBackground = true
         panel.isFloatingPanel = true
         panel.level = .floating
+
+        // Hide standard OS window controls (traffic lights) so only the in-app close button is shown
+        panel.standardWindowButton(.closeButton)?.isHidden = true
+        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+        panel.standardWindowButton(.zoomButton)?.isHidden = true
+
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = true
         panel.contentViewController = hostingController
         panel.center()
         panel.isReleasedWhenClosed = false
@@ -245,5 +313,11 @@ public final class AboutWindowController: NSObject {
         self.window = panel
         panel.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    public func close() {
+        window?.orderOut(nil)
+        window?.close()
+        window = nil
     }
 }
