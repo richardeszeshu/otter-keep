@@ -1,0 +1,64 @@
+name: Feature Request
+description: Suggest an idea, enhancement, or new feature for the application
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting an idea! Please explain the problem you are facing and what solution you envision.
+
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: Problem Statement
+      description: What limitation or workflow obstacle are you encountering? Please explain using clear, real-world context.
+      placeholder: e.g., I am always frustrated when I need to manually convert files before importing them...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the feature, behavior, or user interface improvement you would like to see implemented.
+      placeholder: e.g., Add native support for `.xyz` files directly in the open dialog, automatically converting them on the fly.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives-considered
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or workarounds you have tried or considered.
+      placeholder: e.g., Using an external CLI tool or third-party converter beforehand.
+
+  - type: dropdown
+    id: macos-integration
+    attributes:
+      label: Target macOS Integration (Optional)
+      description: Does this feature leverage or depend on a specific macOS system API or capability?
+      options:
+        - "None / Standard UI"
+        - "Menu Bar / Status Item"
+        - "Finder / Context Menu Integration"
+        - "Shortcuts app / AppleScript integration"
+        - "Spotlight / Quick Look"
+        - "Notifications / Widgets"
+        - "Other"
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Mockups or Additional Context
+      description: Drag and drop mockups, sketches, reference screenshots, or relevant links directly here.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Verification
+      options:
+        - label: I searched open and closed issues/discussions to verify this has not already been requested.
+          required: false
+        - label: This request aligns with the scope of a native macOS utility application.
+          required: true

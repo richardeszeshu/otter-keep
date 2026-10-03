@@ -1,0 +1,55 @@
+name: Other / General Inquiry
+description: Ask a question, suggest an unclassified topic, or report something not covered by bug reports or feature requests
+title: "[Query]: "
+labels: ["triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for general questions, documentation improvements, build issues, or topics that do not fit into a standard Bug Report or Feature Request.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Provide a clear and detailed explanation of your topic, question, or proposal.
+      placeholder: Describe the context, details, and what you are trying to achieve or clarify.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      description: Select the category that best matches your issue.
+      options:
+        - "Question / Usage Help"
+        - "Documentation"
+        - "Build / Compilation"
+        - "Localization / Translation"
+        - "Other"
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment Details (Optional)
+      description: If relevant, mention your macOS version, Xcode version, or app version.
+      placeholder: e.g., macOS 15 Sequoia, Xcode 16.0, App 1.2.0
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Attach logs, configuration snippets, terminal output, or screenshots if applicable.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Verification
+      options:
+        - label: I searched open and closed issues/discussions to ensure this topic has not been addressed.
+          required: false
+        - label: This issue does not contain sensitive personal credentials, private API keys, or proprietary data.
+          required: true
