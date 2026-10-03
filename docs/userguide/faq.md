@@ -86,6 +86,6 @@ OtterKeep uses macOS `IOPMAssertion` power management assertions to prevent your
 
 ## Support & Contributing
 
-- **GitHub Issues**: [Report a Bug or Request a Feature](https://github.com/richardeszes/OtterKeep/issues)
+- **GitHub Issues**: [Report a Bug or Request a Feature](https://github.com/richardeszeshu/otter-keep/issues)
 - **Developer Documentation**: See the technical guides under [`docs/dev/`](../dev/)
 - **License**: OtterKeep is open source under the MIT License.

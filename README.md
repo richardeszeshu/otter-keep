@@ -8,7 +8,7 @@
 [![Swift](https://img.shields.io/badge/Swift-6.0-FA7343?style=flat&logo=swift&logoColor=white)](https://swift.org)
 [![Architecture](https://img.shields.io/badge/Architecture-Apple%20Silicon%20%7C%20Intel-000000?style=flat&logo=apple)](https://apple.com)
 [![License](https://img.shields.io/badge/License-MIT-teal.svg?style=flat)](LICENSE)
-[![Status](https://img.shields.io/badge/Release-1.0.0%20Production-2EA043?style=flat)](https://github.com/richardeszes/OtterKeep/releases)
+[![Status](https://img.shields.io/badge/Release-1.0.0%20Production-2EA043?style=flat)](https://github.com/richardeszeshu/otter-keep/releases)
 
 <br/>
 
@@ -18,7 +18,7 @@
 <br/>
 
 [**Explore User Guides**](docs/userguide/getting-started.md) • 
-[**Download v1.0.0**](https://github.com/richardeszes/OtterKeep/releases) • 
+[**Download v1.0.0**](https://github.com/richardeszeshu/otter-keep/releases) • 
 [**Apple Photos Protection**](docs/userguide/photos-protection.md) • 
 [**Developer Docs**](docs/dev/architecture.md) • 
 [**Brand Guidelines**](docs/BRAND.md)
@@ -104,11 +104,11 @@ flowchart TD
 
 #### Homebrew Cask (Recommended)
 ```bash
-brew install --cask richardeszes/tap/otterkeep
+brew install --cask richardeszeshu/otterkeep/otterkeep
 ```
 
 #### Manual Download
-1. Download the latest release from [Releases](https://github.com/richardeszes/OtterKeep/releases).
+1. Download the latest release from [Releases](https://github.com/richardeszeshu/otter-keep/releases).
 2. Move `OtterKeep.app` to `/Applications`.
 3. Launch OtterKeep and grant **Full Disk Access** when prompted.
 

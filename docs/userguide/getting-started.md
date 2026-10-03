@@ -26,12 +26,12 @@ You can install OtterKeep either via Homebrew Cask or via direct standalone DMG/
 Run the following command in Terminal:
 
 ```bash
-brew install --cask richardeszes/tap/otterkeep
+brew install --cask richardeszeshu/otterkeep/otterkeep
 ```
 
 ### Option B: Standalone Application Bundle
 
-1. Download the latest release (`OtterKeep-1.0.0.zip` or `.dmg`) from the [Official Releases](https://github.com/richardeszes/OtterKeep/releases).
+1. Download the latest release (`OtterKeep-1.0.0.zip` or `.dmg`) from the [Official Releases](https://github.com/richardeszeshu/otter-keep/releases).
 2. Open the downloaded archive and drag **OtterKeep.app** into your `/Applications` folder.
 3. Launch OtterKeep from Launchpad, Spotlight, or Finder.
 

@@ -18,8 +18,8 @@ OtterKeep uses standard Swift Package Manager (SPM):
 
 ```bash
 # Clone the repository
-git clone https://github.com/richardeszes/OtterKeep.git
-cd OtterKeep
+git clone https://github.com/richardeszeshu/otter-keep.git
+cd otter-keep
 
 # Build the release targets
 swift build -c release

@@ -107,9 +107,8 @@ xcrun notarytool submit OtterKeep.dmg --keychain-profile "AC_NOTARY" --wait
 
 ## 5. Homebrew Distribution
 
-OtterKeep distributes through a custom Homebrew tap:
+OtterKeep distributes through a custom Homebrew tap (`homebrew-otterkeep`):
 ```bash
-brew tap richardeszes/tap
-brew install --cask otterkeep
+brew install --cask richardeszeshu/otterkeep/otterkeep
 ```
-Cask definition is maintained in `Distribution/otterkeep.rb`.
+Cask definition is maintained in repository `richardeszeshu/homebrew-otterkeep`.
