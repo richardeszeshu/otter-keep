@@ -2,7 +2,7 @@
 //  OtterAboutView.swift
 //  OtterKeepUI
 //
-//  Created for OtterKeep 1.0.0 (Build 1000).
+//  Created for OtterKeep 1.1.0 (Build 1100).
 //  Copyright © 2026 OtterKeep. All rights reserved.
 //
 
@@ -61,7 +61,7 @@ public struct OtterAboutView: View {
                             .foregroundStyle(.primary)
 
                         HStack(spacing: 6) {
-                            Text("v\(CoreEngine.version) (Build 1000)")
+                            Text("v\(CoreEngine.version) (Build \(CoreEngine.buildNumber))")
                                 .font(.system(size: 11, weight: .bold, design: .monospaced))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 2.5)
@@ -193,7 +193,7 @@ public struct OtterAboutView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(L10n.t(.aboutWindowTitle))
                     .font(.headline.bold())
-                Text("v\(CoreEngine.version) (Build 1000)")
+                Text("v\(CoreEngine.version) (Build \(CoreEngine.buildNumber))")
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(.secondary)
             }

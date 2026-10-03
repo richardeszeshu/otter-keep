@@ -94,12 +94,12 @@ public actor SoftwareUpdateCoordinator {
 
     /// Current running application version.
     public nonisolated var currentVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? CoreEngine.version
     }
 
     /// Current running application build number.
     public nonisolated var currentBuild: String {
-        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1000"
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? CoreEngine.buildNumber
     }
 
     /// Injects mock update info for automated testing without network access.

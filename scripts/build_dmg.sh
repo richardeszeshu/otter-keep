@@ -8,7 +8,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-VERSION="${1:-1.0.0}"
+VERSION="${1:-1.1.0}"
 CONFIGURATION="${2:-release}"
 OUTPUT_DIR="$PROJECT_ROOT/.build/dist/"
 DMG_NAME="OtterKeep-${VERSION}.dmg"
@@ -30,7 +30,7 @@ mkdir -p "$OUTPUT_DIR"
 
 # 2. Package the .app bundle into staging
 echo "📦 1. Building and packaging OtterKeep.app..."
-SKIP_REGISTER=1 "$SCRIPT_DIR/package_app.sh" "$CONFIGURATION" "$APP_TARGET_DIR"
+SKIP_REGISTER=1 "$SCRIPT_DIR/package_app.sh" "$CONFIGURATION" "$APP_TARGET_DIR" "$VERSION" "1100"
 
 SOURCE_APP="$APP_TARGET_DIR/OtterKeep.app"
 if [ ! -d "$SOURCE_APP" ]; then

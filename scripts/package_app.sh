@@ -10,6 +10,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CONFIGURATION="${1:-release}"
 TARGET_DIR="${2:-$HOME/Applications}"
+APP_VERSION="${3:-1.1.0}"
+BUILD_VERSION="${4:-1100}"
 
 echo "======================================================="
 echo "📦 Packaging OtterKeep.app ($CONFIGURATION mode)"
@@ -102,7 +104,7 @@ if [ -n "$UI_BUNDLE" ]; then
 fi
 
 echo "📄 4. Writing Info.plist manifests..."
-cat << 'EOF' > "$APP_BUNDLE/Contents/Info.plist"
+cat << EOF > "$APP_BUNDLE/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -122,9 +124,9 @@ cat << 'EOF' > "$APP_BUNDLE/Contents/Info.plist"
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>${APP_VERSION}</string>
     <key>CFBundleVersion</key>
-    <string>1.0.0</string>
+    <string>${BUILD_VERSION}</string>
     <key>LSMinimumSystemVersion</key>
     <string>15.0</string>
     <key>LSMultipleInstancesProhibited</key>
@@ -173,7 +175,7 @@ cat << 'EOF' > "$APP_BUNDLE/Contents/Info.plist"
 </plist>
 EOF
 
-cat << 'EOF' > "$APPEX_BUNDLE/Contents/Info.plist"
+cat << EOF > "$APPEX_BUNDLE/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -189,9 +191,9 @@ cat << 'EOF' > "$APPEX_BUNDLE/Contents/Info.plist"
     <key>CFBundlePackageType</key>
     <string>XPC!</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>${APP_VERSION}</string>
     <key>CFBundleVersion</key>
-    <string>1.0.0</string>
+    <string>${BUILD_VERSION}</string>
     <key>LSMinimumSystemVersion</key>
     <string>15.0</string>
     <key>LSUIElement</key>
