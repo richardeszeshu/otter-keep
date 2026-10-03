@@ -120,11 +120,7 @@ struct OtterKeepApplication: App {
         .windowStyle(.hiddenTitleBar)
         .handlesExternalEvents(matching: Set(["*"]))
         .commands {
-            CommandGroup(replacing: .appInfo) {
-                Button(L10n.t(.aboutWindowTitle)) {
-                    AboutWindowController.shared.show()
-                }
-            }
+            OtterKeepMenuCommands(appState: appState)
         }
 
         MenuBarExtra {
