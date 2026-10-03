@@ -3,7 +3,7 @@
 //  OtterKeepTestRunner
 //
 //  Comprehensive End-to-End Deterministic System Test Suite & Benchmark
-//  for OtterKeep 1.1.0 (Build 1100).
+//  for OtterKeep 1.1.1 (Build 1110).
 //
 //  Covers Modules 1 through 10:
 //  - Module 1: System & Version Integrity
@@ -125,7 +125,7 @@ final class OtterKeepTestSuite {
 
     func runAll() async throws {
         print("\n================================================================================")
-        print("🦦 OTTERKEEP 1.1.0 (BUILD 1100) SYSTEM INTEGRATION TEST SUITE & BENCHMARK")
+        print("🦦 OTTERKEEP 1.1.1 (BUILD 1110) SYSTEM INTEGRATION TEST SUITE & BENCHMARK")
         print("================================================================================\n")
 
         let suiteStart = ContinuousClock().now
@@ -230,7 +230,7 @@ final class OtterKeepTestSuite {
     // =========================================================================
 
     func testCoreEngineMetadataAndSlogans() async throws {
-        try assertEqual(CoreEngine.version, "1.1.0", "CoreEngine version must be exactly 1.1.0")
+        try assertEqual(CoreEngine.version, "1.1.1", "CoreEngine version must be exactly 1.1.1")
         try assertEqual(CoreEngine.appName, "OtterKeep", "CoreEngine appName must be OtterKeep")
         try assertEqual(CoreEngine.bundleIdentifier, "com.otterkeep.desktop", "Bundle ID must match")
 
@@ -269,8 +269,8 @@ final class OtterKeepTestSuite {
 
     func testSparkleAppcastCoordinatorLogic() async throws {
         let coordinator = SoftwareUpdateCoordinator.shared
-        try assertEqual(coordinator.currentVersion, "1.1.0")
-        try assertEqual(coordinator.currentBuild, "1100")
+        try assertEqual(coordinator.currentVersion, "1.1.1")
+        try assertEqual(coordinator.currentBuild, "1110")
 
         // Verify default public endpoints
         try assertTrue(SoftwareUpdateCoordinator.defaultAppcastURL.absoluteString.contains("richardeszeshu/otter-keep"), "Appcast URL must point to richardeszeshu/otter-keep")
@@ -357,8 +357,8 @@ final class OtterKeepTestSuite {
             guard let repoAppcast = parsedRepoAppcast else {
                 throw TestFailure(message: "Failed to parse repository Distribution/appcast.xml")
             }
-            try assertEqual(repoAppcast.version, "1.1.0", "Repository appcast must have version 1.1.0 as latest")
-            try assertEqual(repoAppcast.buildNumber, "1100", "Repository appcast must have build 1100")
+            try assertEqual(repoAppcast.version, "1.1.1", "Repository appcast must have version 1.1.1 as latest")
+            try assertEqual(repoAppcast.buildNumber, "1110", "Repository appcast must have build 1110")
             try assertTrue(repoAppcast.downloadURL.absoluteString.contains("richardeszeshu/otter-keep"), "Download URL must point to richardeszeshu/otter-keep")
         }
     }
