@@ -1,0 +1,73 @@
+# ==============================================================================
+# OtterKeep / DataSquirrel - .gitignore
+# Senior Swift Developer Standard
+# ==============================================================================
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+Icon\r\r
+
+# Swift Package Manager (SPM) artifacts & caches
+.build/
+.build*/
+.cache/
+Packages/
+Package.pins
+Package.resolved
+
+# Xcode & workspace files
+DerivedData/
+build/
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserdatad/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+.swiftpm/xcode/
+.swiftpm/configuration/
+
+# Code Coverage & Profiling
+*.profdata
+*.profraw
+*.xcresult/
+
+# Logs & scratch directories
+*.log
+scratch/
+test-scratch/
+test-backup-root/
+tmp/
+temp/
+
+# Database files & SQLite journals (runtime / tests)
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+# Secrets, certificates, and provisioning profiles
+*.env
+*.env.*
+!*.env.example
+*.p12
+*.cer
+*.key
+*.pem
+*.mobileprovision

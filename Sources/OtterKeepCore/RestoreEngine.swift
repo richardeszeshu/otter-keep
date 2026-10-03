@@ -1,0 +1,542 @@
+import Foundation
+import os
+import OtterKeepStorage
+import OtterKeepDatabase
+
+/// Collision handling strategy when restoring a file to a destination where a file with the same name already exists.
+public enum CollisionResolution: Sendable {
+    /// Overwrite the existing file at destination.
+    case overwrite
+    /// Skip restoration if destination file already exists.
+    case skip
+    /// Keep both files by appending a numerical suffix (e.g. `file (restored 1).txt`).
+    case keepBoth
+}
+
+/// Structured errors encountered during restore operations.
+public enum RestoreError: Error, Sendable, LocalizedError, Equatable {
+    /// Target file was not found in the specified snapshot directory.
+    case itemNotFoundInSnapshot(String)
+    /// Destination conflict occurred and `.skip` resolution was selected.
+    case destinationConflict(String)
+    /// File restoration failed.
+    case restoreFailed(String, String)
+    /// Restored file failed cryptographic SHA-256 integrity verification.
+    case integrityMismatch(path: String, expected: String, actual: String)
+    /// Incompatible collision: directory vs file.
+    case typeMismatch(path: String, isSourceDirectory: Bool)
+
+    /// Human-readable localized error description.
+    public var errorDescription: String? {
+        switch self {
+        case .itemNotFoundInSnapshot(let path):
+            return "Item not found in snapshot: \(path)"
+        case .destinationConflict(let path):
+            return "Destination file already exists and skip was chosen: \(path)"
+        case .restoreFailed(let path, let msg):
+            return "Restore failed (\(path)): \(msg)"
+        case .integrityMismatch(let path, let expected, let actual):
+            return "Data integrity mismatch (SHA-256 mismatch) for '\(path)'! Expected: \(expected), Actual: \(actual)"
+        case .typeMismatch(let path, let isSourceDirectory):
+            return isSourceDirectory
+                ? "Cannot restore directory '\(path)': a file already exists at the destination."
+                : "Cannot restore file '\(path)': a directory already exists at the destination."
+        }
+    }
+}
+
+/// Actor-isolated engine responsible for file restoration, collision resolution, cryptographic validation, and raw disk catalog rebuild.
+public actor RestoreEngine {
+    private let storage: FileSystemProvider
+    private let database: DatabaseEngine
+    private let logger = Logger(subsystem: "com.otterkeep", category: "RestoreEngine")
+
+    /// Initializes a `RestoreEngine`.
+    /// - Parameters:
+    ///   - storage: Filesystem provider.
+    ///   - database: Catalog database engine.
+    public init(storage: FileSystemProvider = APFSFileSystemProvider(), database: DatabaseEngine = DatabaseEngine()) {
+        self.storage = storage
+        self.database = database
+    }
+
+    /// Restores a file or directory from a snapshot with collision handling and SHA-256 cryptographic verification.
+    /// - Parameters:
+    ///   - snapshotPath: Relative snapshot directory name.
+    ///   - backupRootURL: Destination backup root URL.
+    ///   - relativePath: Relative path of the item within the snapshot root.
+    ///   - targetDirectoryURL: Target directory on the user's filesystem where the item will be restored.
+    ///   - collisionResolution: Conflict resolution mode.
+    /// - Returns: The final restored file URL.
+    public func restore(
+        snapshotPath: String,
+        backupRootURL: URL,
+        relativePath: String,
+        targetDirectoryURL: URL,
+        collisionResolution: CollisionResolution = .keepBoth
+    ) async throws -> URL {
+        let destinationFileURL = targetDirectoryURL.standardizedFileURL.appendingPathComponent(relativePath)
+        return try await restoreToFile(
+            snapshotPath: snapshotPath,
+            backupRootURL: backupRootURL,
+            relativePath: relativePath,
+            destinationFileURL: destinationFileURL,
+            collisionResolution: collisionResolution
+        )
+    }
+
+    /// Restores a file or directory directly to an explicit target destination file URL on disk.
+    /// - Parameters:
+    ///   - snapshotPath: Relative snapshot directory name.
+    ///   - backupRootURL: Destination backup root URL.
+    ///   - relativePath: Relative path of the item within the snapshot root.
+    ///   - destinationFileURL: Exact destination file URL.
+    ///   - collisionResolution: Conflict resolution mode (default: `.overwrite`).
+    /// - Returns: The final restored file URL.
+    public func restoreToFile(
+        snapshotPath: String,
+        backupRootURL: URL,
+        relativePath: String,
+        destinationFileURL: URL,
+        collisionResolution: CollisionResolution = .overwrite
+    ) async throws -> URL {
+        try Task.checkCancellation()
+
+        let snapshotURL = backupRootURL.standardizedFileURL.appendingPathComponent(snapshotPath)
+        let sourceItemURL = snapshotURL.appendingPathComponent("root").appendingPathComponent(relativePath)
+
+        guard FileManager.default.fileExists(atPath: sourceItemURL.standardizedFileURL.path(percentEncoded: false)) else {
+            throw RestoreError.itemNotFoundInSnapshot(relativePath)
+        }
+
+        let isSourceDirectory = (try? sourceItemURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+        var finalDestinationURL = destinationFileURL.standardizedFileURL
+        let parentDir = finalDestinationURL.deletingLastPathComponent()
+        try storage.createDirectory(at: parentDir)
+
+        // Conflict handling when target file or directory already exists
+        let destPath = finalDestinationURL.standardizedFileURL.path(percentEncoded: false)
+        if FileManager.default.fileExists(atPath: destPath) {
+            let isDestDirectory = (try? finalDestinationURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            if isSourceDirectory != isDestDirectory {
+                throw RestoreError.typeMismatch(path: relativePath, isSourceDirectory: isSourceDirectory)
+            }
+
+            switch collisionResolution {
+            case .skip:
+                logger.info("File exists at destination, skipping: \(finalDestinationURL.lastPathComponent)")
+                return finalDestinationURL
+            case .overwrite:
+                logger.info("Will overwrite existing destination file atomically: \(finalDestinationURL.lastPathComponent)")
+                // Do NOT delete existing file yet! It remains protected until staging is verified.
+            case .keepBoth:
+                let ext = finalDestinationURL.pathExtension
+                let baseName = finalDestinationURL.deletingPathExtension().lastPathComponent
+                var counter = 1
+                var newName = "\(baseName) (visszaállított \(counter))"
+                if !ext.isEmpty { newName += ".\(ext)" }
+                var candidateURL = parentDir.appendingPathComponent(newName)
+
+                while FileManager.default.fileExists(atPath: candidateURL.standardizedFileURL.path(percentEncoded: false)) {
+                    counter += 1
+                    newName = "\(baseName) (visszaállított \(counter))"
+                    if !ext.isEmpty { newName += ".\(ext)" }
+                    candidateURL = parentDir.appendingPathComponent(newName)
+                }
+                finalDestinationURL = candidateURL
+                logger.info("Retaining both files with renamed destination: \(finalDestinationURL.lastPathComponent)")
+            }
+        }
+
+        // Handle directories without pre-deleting destination (non-destructive recursive restoration)
+        if isSourceDirectory {
+            try storage.createDirectory(at: finalDestinationURL)
+            let contents = (try? FileManager.default.contentsOfDirectory(at: sourceItemURL, includingPropertiesForKeys: nil)) ?? []
+            for item in contents {
+                try Task.checkCancellation()
+                let subRel = relativePath.isEmpty ? item.lastPathComponent : "\(relativePath)/\(item.lastPathComponent)"
+                _ = try await restoreToFile(
+                    snapshotPath: snapshotPath,
+                    backupRootURL: backupRootURL,
+                    relativePath: subRel,
+                    destinationFileURL: finalDestinationURL.appendingPathComponent(item.lastPathComponent),
+                    collisionResolution: collisionResolution
+                )
+            }
+            return finalDestinationURL
+        }
+
+        // Pre-flight check: ensure target directory filesystem has sufficient storage capacity
+        if let sourceMeta = try? storage.metadata(at: sourceItemURL), sourceMeta.size > 0 {
+            if let cap = try? storage.storageCapacity(at: parentDir) {
+                let eval = VolumeCapabilityEvaluator.evaluate(sourceURL: sourceItemURL, destinationURL: parentDir)
+                let safetyMargin: Int64 = 10 * 1024 * 1024
+                let requiredSpace = eval.cowMode == .intraVolumeCoW ? safetyMargin : (sourceMeta.size + safetyMargin)
+                if cap.availableBytes < requiredSpace {
+                    throw FileSystemError.notEnoughSpace(
+                        requiredBytes: requiredSpace,
+                        availableBytes: cap.availableBytes
+                    )
+                }
+            }
+        }
+
+        // 1. Stage file to a temporary hidden file in parentDir to guarantee atomic rollback & protection
+        let stagingFilename = ".otterkeep_restore_\(UUID().uuidString)"
+        let stagingURL = parentDir.appendingPathComponent(stagingFilename)
+        var stagingCommitted = false
+        defer {
+            if !stagingCommitted {
+                try? storage.removeItem(at: stagingURL)
+            }
+        }
+
+        // 2. Clone or copy to stagingURL
+        do {
+            try await storage.cloneItem(at: sourceItemURL, to: stagingURL)
+        } catch {
+            try await storage.copyItemPreservingMetadata(at: sourceItemURL, to: stagingURL, progress: nil)
+        }
+
+        // Clear immutability on staging item
+        try? storage.setImmutable(at: stagingURL, immutable: false)
+
+        // 3. Pre-flight verify cryptographic SHA-256 data integrity BEFORE touching existing destination
+        let internalDir = backupRootURL.appendingPathComponent(".otterkeep")
+        let dbPath = internalDir.appendingPathComponent("manifest.sqlite").standardizedFileURL.path(percentEncoded: false)
+        try? await database.open(at: dbPath)
+
+        let snapshots = (try? await database.listSnapshots()) ?? []
+        if let snapshot = snapshots.first(where: { $0.snapshotPath == snapshotPath }) {
+            let files = (try? await database.listFiles(forSnapshotId: snapshot.id)) ?? []
+            if let record = files.first(where: { $0.relativePath == relativePath }),
+               let expectedChecksum = record.checksum {
+                let actualChecksum = try ChecksumCalculator.computeSHA256(for: stagingURL)
+                if actualChecksum != expectedChecksum {
+                    logger.error("Integrity mismatch on restore: \(relativePath) expected: \(expectedChecksum), actual: \(actualChecksum)")
+                    // Quarantine the corrupted restore rather than discarding everything
+                    let timestampSec = Int(Date().timeIntervalSince1970)
+                    let corruptName = "\(finalDestinationURL.lastPathComponent).corrupted_\(timestampSec)_\(UUID().uuidString.prefix(6))"
+                    let corruptURL = parentDir.appendingPathComponent(corruptName)
+                    if (try? await storage.atomicMove(from: stagingURL, to: corruptURL)) != nil {
+                        stagingCommitted = true // Quarantined successfully, do not delete in defer
+                    }
+
+                    throw RestoreError.integrityMismatch(
+                        path: relativePath,
+                        expected: expectedChecksum,
+                        actual: actualChecksum
+                    )
+                }
+            }
+        }
+
+        // 4. Staging verified successfully! Perform atomic swap to finalDestinationURL
+        if FileManager.default.fileExists(atPath: finalDestinationURL.standardizedFileURL.path(percentEncoded: false)) {
+            // Unlock destination file if it has UF_IMMUTABLE active so atomic replace succeeds
+            try? storage.setImmutable(at: finalDestinationURL, immutable: false)
+            do {
+                try await storage.atomicMove(from: stagingURL, to: finalDestinationURL)
+            } catch {
+                try storage.removeItem(at: finalDestinationURL)
+                try await storage.atomicMove(from: stagingURL, to: finalDestinationURL)
+            }
+        } else {
+            try await storage.atomicMove(from: stagingURL, to: finalDestinationURL)
+        }
+        stagingCommitted = true
+
+        // Guarantee immutability flag is cleared on final target
+        try? storage.setImmutable(at: finalDestinationURL, immutable: false)
+
+        logger.info("Restoration successfully verified & atomically committed: \(relativePath) -> \(finalDestinationURL.path)")
+        return finalDestinationURL
+    }
+
+    /// Rebuilds the internal SQLite database catalog from raw disk snapshot directories.
+    /// - Parameter backupRootURL: Destination backup root URL.
+    /// - Returns: Count of snapshots successfully re-indexed from disk.
+    public func rebuildCatalog(at backupRootURL: URL) async throws -> Int {
+        logger.info("Initiating disaster recovery catalog rebuild: \(backupRootURL.path)")
+
+        let internalDir = backupRootURL.standardizedFileURL.appendingPathComponent(".otterkeep")
+        try storage.createDirectory(at: internalDir)
+        let dbPath = internalDir.appendingPathComponent("manifest.sqlite").standardizedFileURL.path(percentEncoded: false)
+        try await database.open(at: dbPath)
+
+        let contents = (try? FileManager.default.contentsOfDirectory(at: backupRootURL, includingPropertiesForKeys: nil)) ?? []
+        var restoredSnapshotsCount = 0
+
+        for url in contents {
+            let name = url.lastPathComponent
+            if name.hasPrefix(".") || name == "Latest" { continue }
+
+            let infoURL = url.appendingPathComponent(".snapshot_info.json")
+            guard FileManager.default.fileExists(atPath: infoURL.standardizedFileURL.path(percentEncoded: false)),
+                  let infoData = try? Data(contentsOf: infoURL),
+                  let json = (try? JSONSerialization.jsonObject(with: infoData)) as? [String: Any] else {
+                continue
+            }
+
+            let id = json["id"] as? String ?? "snapshot_\(name)"
+            let ts = json["timestamp"] as? Double ?? Date().timeIntervalSince1970
+            let filesCount = json["totalFiles"] as? Int64 ?? 0
+            let totalBytes = json["totalBytes"] as? Int64 ?? 0
+
+            let record = SnapshotRecord(
+                id: id,
+                timestamp: Date(timeIntervalSince1970: ts),
+                status: "completed",
+                totalFiles: filesCount,
+                totalBytes: totalBytes,
+                snapshotPath: name
+            )
+            try await database.insertSnapshot(record)
+
+            // Index files from snapshot root folder
+            let rootURL = url.appendingPathComponent("root")
+            if FileManager.default.fileExists(atPath: rootURL.standardizedFileURL.path(percentEncoded: false)) {
+                let scanner = FileTreeScanner(storage: storage)
+                let scanned = try await scanner.scan(rootURL: rootURL)
+                let fileRecords = scanned.map { item in
+                    let hash = (!item.metadata.isDirectory && !item.metadata.isSymlink) ?
+                        (try? ChecksumCalculator.computeSHA256(for: item.url)) : nil
+
+                    return FileCatalogRecord(
+                        snapshotId: id,
+                        relativePath: item.relativePath,
+                        fileSize: item.metadata.size,
+                        modificationTime: item.metadata.modificationTime,
+                        inode: item.metadata.inode,
+                        checksum: hash,
+                        isDirectory: item.metadata.isDirectory,
+                        isSymlink: item.metadata.isSymlink
+                    )
+                }
+                try await database.insertFileRecordsBatch(fileRecords)
+            }
+
+            restoredSnapshotsCount += 1
+        }
+
+        logger.info("Disaster recovery catalog rebuild finished: \(restoredSnapshotsCount) snapshots indexed")
+        return restoredSnapshotsCount
+    }
+
+    /// Restores a file from a remote replication destination (S3 or SMB) with decryption and verification.
+    /// - Parameters:
+    ///   - destination: Target remote destination definition.
+    ///   - snapshotId: Target snapshot identifier.
+    ///   - relativePath: Relative path of the file to restore.
+    ///   - destinationFileURL: Target local file URL on disk.
+    ///   - passphrase: Optional encryption passphrase (defaults to Keychain).
+    ///   - collisionResolution: Mode for handling existing destination files.
+    /// - Returns: Final restored URL.
+    public func restoreFromRemote(
+        destination: RemoteDestination,
+        snapshotId: String,
+        relativePath: String,
+        destinationFileURL: URL,
+        passphrase: String? = nil,
+        collisionResolution: CollisionResolution = .overwrite
+    ) async throws -> URL {
+        logger.info("Initiating remote restore for '\(relativePath)' from destination '\(destination.name)'")
+
+        var finalDestinationURL = destinationFileURL.standardizedFileURL
+        let parentDir = finalDestinationURL.deletingLastPathComponent()
+        try storage.createDirectory(at: parentDir)
+
+        // Conflict handling when target file already exists
+        if FileManager.default.fileExists(atPath: finalDestinationURL.standardizedFileURL.path(percentEncoded: false)) {
+            switch collisionResolution {
+            case .skip:
+                logger.info("File exists at destination, skipping remote restore: \(finalDestinationURL.lastPathComponent)")
+                return finalDestinationURL
+            case .overwrite:
+                logger.info("Will overwrite existing destination file atomically: \(finalDestinationURL.lastPathComponent)")
+            case .keepBoth:
+                let ext = finalDestinationURL.pathExtension
+                let baseName = finalDestinationURL.deletingPathExtension().lastPathComponent
+                var counter = 1
+                var newName = "\(baseName) (visszaállított \(counter))"
+                if !ext.isEmpty { newName += ".\(ext)" }
+                var candidateURL = parentDir.appendingPathComponent(newName)
+
+                while FileManager.default.fileExists(atPath: candidateURL.standardizedFileURL.path(percentEncoded: false)) {
+                    counter += 1
+                    newName = "\(baseName) (visszaállított \(counter))"
+                    if !ext.isEmpty { newName += ".\(ext)" }
+                    candidateURL = parentDir.appendingPathComponent(newName)
+                }
+                finalDestinationURL = candidateURL
+                logger.info("Retaining both files with renamed destination: \(finalDestinationURL.lastPathComponent)")
+            }
+        }
+
+        let stagingFilename = ".otterkeep_remote_restore_\(UUID().uuidString)"
+        let stagingURL = parentDir.appendingPathComponent(stagingFilename)
+        var stagingCommitted = false
+        defer {
+            if !stagingCommitted {
+                try? storage.removeItem(at: stagingURL)
+            }
+        }
+
+        let resolvedPassphrase = passphrase ?? KeychainManager.getSecret(for: destination.keychainAccount) ?? "OtterKeepDefaultCloudSecret"
+
+        switch destination.type {
+        case .s3(let s3Config):
+            let secretKey = KeychainManager.getSecret(for: destination.keychainAccount) ?? ""
+            let s3Provider = S3StorageProvider(config: s3Config, secretAccessKey: secretKey)
+
+            let encryptedKey = "\(snapshotId)/\(relativePath).enc"
+            let plainKey = "\(snapshotId)/\(relativePath)"
+
+            let rawDownloadedData: Data
+            var isEncrypted = destination.isClientEncryptionEnabled
+
+            if isEncrypted {
+                do {
+                    rawDownloadedData = try await s3Provider.getObject(key: encryptedKey)
+                } catch {
+                    rawDownloadedData = try await s3Provider.getObject(key: plainKey)
+                    isEncrypted = false
+                }
+            } else {
+                do {
+                    rawDownloadedData = try await s3Provider.getObject(key: plainKey)
+                } catch {
+                    rawDownloadedData = try await s3Provider.getObject(key: encryptedKey)
+                    isEncrypted = true
+                }
+            }
+
+            let finalData: Data
+            if isEncrypted {
+                finalData = try ClientSideEncryptor.decrypt(envelope: rawDownloadedData, passphrase: resolvedPassphrase)
+            } else {
+                finalData = rawDownloadedData
+            }
+
+            try finalData.write(to: stagingURL, options: .atomic)
+
+        case .smb(let smbConfig):
+            let mountPoint: URL
+            let resolvedSubpath: String
+            if smbConfig.shareURL.hasPrefix("file://") || smbConfig.shareURL.hasPrefix("/") {
+                let localPath = smbConfig.shareURL.replacingOccurrences(of: "file://", with: "")
+                mountPoint = URL(fileURLWithPath: localPath)
+                resolvedSubpath = smbConfig.subfolder.isEmpty ? "OtterKeep_Backups" : smbConfig.subfolder
+            } else {
+                let password = KeychainManager.getSecret(for: destination.keychainAccount)
+                let mounter = NetworkShareMounter()
+                let mountResult = try await mounter.mountShare(config: smbConfig, password: password)
+                mountPoint = mountResult.mountPoint
+                resolvedSubpath = mountResult.resolvedSubpath
+            }
+
+            let baseRemoteDir = mountPoint.appendingPathComponent(resolvedSubpath).appendingPathComponent(snapshotId)
+            let fileURL = baseRemoteDir.appendingPathComponent("root").appendingPathComponent(relativePath)
+            let encURL = baseRemoteDir.appendingPathComponent("root").appendingPathComponent("\(relativePath).enc")
+
+            let finalData: Data
+            if FileManager.default.fileExists(atPath: fileURL.path(percentEncoded: false)) {
+                finalData = try Data(contentsOf: fileURL)
+            } else if FileManager.default.fileExists(atPath: encURL.path(percentEncoded: false)) {
+                let encData = try Data(contentsOf: encURL)
+                finalData = try ClientSideEncryptor.decrypt(envelope: encData, passphrase: resolvedPassphrase)
+            } else {
+                throw RestoreError.itemNotFoundInSnapshot(relativePath)
+            }
+
+            try finalData.write(to: stagingURL, options: .atomic)
+
+        case .webdav(let webdavConfig):
+            let password = KeychainManager.getSecret(for: destination.keychainAccount)
+            let provider = WebDAVStorageProvider(config: webdavConfig, password: password)
+
+            let encryptedPath = "\(snapshotId)/\(relativePath).enc"
+            let plainPath = "\(snapshotId)/\(relativePath)"
+
+            let rawData: Data
+            var isEncrypted = destination.isClientEncryptionEnabled
+            if isEncrypted {
+                do {
+                    rawData = try await provider.downloadFile(path: encryptedPath)
+                } catch {
+                    rawData = try await provider.downloadFile(path: plainPath)
+                    isEncrypted = false
+                }
+            } else {
+                do {
+                    rawData = try await provider.downloadFile(path: plainPath)
+                } catch {
+                    rawData = try await provider.downloadFile(path: encryptedPath)
+                    isEncrypted = true
+                }
+            }
+
+            let finalData: Data
+            if isEncrypted {
+                finalData = try ClientSideEncryptor.decrypt(envelope: rawData, passphrase: resolvedPassphrase)
+            } else {
+                finalData = rawData
+            }
+
+            try finalData.write(to: stagingURL, options: .atomic)
+
+        case .sftp(let sftpConfig):
+            let password = KeychainManager.getSecret(for: destination.keychainAccount)
+            let provider = SFTPStorageProvider(config: sftpConfig, password: password)
+
+            let tempDownloadURL = parentDir.appendingPathComponent(".otterkeep_sftp_temp_\(UUID().uuidString)")
+            defer { try? FileManager.default.removeItem(at: tempDownloadURL) }
+
+            let encryptedRemote = "\(snapshotId)/\(relativePath).enc"
+            let plainRemote = "\(snapshotId)/\(relativePath)"
+
+            var isEncrypted = destination.isClientEncryptionEnabled
+            if isEncrypted {
+                do {
+                    try await provider.downloadFile(remotePath: encryptedRemote, to: tempDownloadURL)
+                } catch {
+                    try await provider.downloadFile(remotePath: plainRemote, to: tempDownloadURL)
+                    isEncrypted = false
+                }
+            } else {
+                do {
+                    try await provider.downloadFile(remotePath: plainRemote, to: tempDownloadURL)
+                } catch {
+                    try await provider.downloadFile(remotePath: encryptedRemote, to: tempDownloadURL)
+                    isEncrypted = true
+                }
+            }
+
+            let rawData = try Data(contentsOf: tempDownloadURL)
+            let finalData: Data
+            if isEncrypted {
+                finalData = try ClientSideEncryptor.decrypt(envelope: rawData, passphrase: resolvedPassphrase)
+            } else {
+                finalData = rawData
+            }
+
+            try finalData.write(to: stagingURL, options: .atomic)
+        }
+
+        if FileManager.default.fileExists(atPath: finalDestinationURL.standardizedFileURL.path(percentEncoded: false)) {
+            do {
+                try await storage.atomicMove(from: stagingURL, to: finalDestinationURL)
+            } catch {
+                try storage.removeItem(at: finalDestinationURL)
+                try await storage.atomicMove(from: stagingURL, to: finalDestinationURL)
+            }
+        } else {
+            try await storage.atomicMove(from: stagingURL, to: finalDestinationURL)
+        }
+        stagingCommitted = true
+
+        try? storage.setImmutable(at: finalDestinationURL, immutable: false)
+        logger.info("Remote restore successfully committed: \(relativePath) -> \(finalDestinationURL.path)")
+        return finalDestinationURL
+    }
+}

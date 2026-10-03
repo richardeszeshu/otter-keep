@@ -1,0 +1,245 @@
+import Foundation
+import AppKit
+import Darwin
+import OtterKeepStorage
+
+/// Categorized Copy-on-Write operational modes based on source and destination volume capabilities.
+public enum CoWMode: Sendable, Equatable {
+    /// Zero-copy instantaneous APFS clone within the same APFS volume.
+    case intraVolumeCoW
+    /// Incremental backup to an external APFS drive with target-side deduplicated cloning.
+    case targetSideSnapshotCoW
+    /// Standard fallback copying to non-APFS drives (FAT, exFAT, NTFS, network shares).
+    case nonAPFS
+
+    /// UI badge localization key.
+    public var badgeKey: L10n.Key {
+        switch self {
+        case .intraVolumeCoW: return .cowBadgeIntraVolume
+        case .targetSideSnapshotCoW: return .cowBadgeSnapshotTarget
+        case .nonAPFS: return .cowBadgeNonAPFS
+        }
+    }
+
+    /// UI description localization key.
+    public var descriptionKey: L10n.Key {
+        switch self {
+        case .intraVolumeCoW: return .cowDescIntraVolume
+        case .targetSideSnapshotCoW: return .cowDescSnapshotTarget
+        case .nonAPFS: return .cowDescNonAPFS
+        }
+    }
+}
+
+/// Evaluation summary describing source and destination volume filesystem relationships.
+public struct VolumeEvaluationResult: Sendable, Equatable {
+    /// True if source and destination reside on the exact same physical volume.
+    public let isSameVolume: Bool
+    /// True if destination volume is formatted as APFS.
+    public let isTargetAPFS: Bool
+    /// Filesystem type name string of destination.
+    public let targetFSType: String
+    /// Determined Copy-on-Write mode.
+    public let cowMode: CoWMode
+
+    /// Initializes a `VolumeEvaluationResult`.
+    public init(isSameVolume: Bool, isTargetAPFS: Bool, targetFSType: String, cowMode: CoWMode) {
+        self.isSameVolume = isSameVolume
+        self.isTargetAPFS = isTargetAPFS
+        self.targetFSType = targetFSType
+        self.cowMode = cowMode
+    }
+}
+
+/// Evaluator analyzing volume capabilities via Darwin `statfs` filesystem identifiers.
+public enum VolumeCapabilityEvaluator {
+    /// Evaluates volume relationship and CoW capabilities between source and destination folders.
+    /// - Parameters:
+    ///   - sourceURL: Source directory URL.
+    ///   - destinationURL: Destination directory URL.
+    /// - Returns: A `VolumeEvaluationResult` categorization.
+    public static func evaluate(sourceURL: URL, destinationURL: URL) -> VolumeEvaluationResult {
+        var srcFs = statfs()
+        var dstFs = statfs()
+
+        let srcPath = sourceURL.standardizedFileURL.path(percentEncoded: false)
+        let dstPath = destinationURL.standardizedFileURL.path(percentEncoded: false)
+
+        let srcRes = statfs(srcPath, &srcFs)
+        let dstRes = statfs(dstPath, &dstFs)
+
+        var isSame = false
+        var targetFSType = "unknown"
+        var isTargetAPFS = false
+
+        if dstRes == 0 {
+            targetFSType = withUnsafePointer(to: &dstFs.f_fstypename) { ptr -> String in
+                let rawPtr = UnsafeRawPointer(ptr).assumingMemoryBound(to: CChar.self)
+                return String(cString: rawPtr)
+            }
+            isTargetAPFS = targetFSType.lowercased() == "apfs"
+        }
+
+        if srcRes == 0 && dstRes == 0 {
+            // Compare fsid values to determine whether both paths share the identical volume
+            isSame = (srcFs.f_fsid.val.0 == dstFs.f_fsid.val.0 && srcFs.f_fsid.val.1 == dstFs.f_fsid.val.1)
+        }
+
+        let mode: CoWMode
+        if !isTargetAPFS {
+            mode = .nonAPFS
+        } else if isSame {
+            mode = .intraVolumeCoW
+        } else {
+            mode = .targetSideSnapshotCoW
+        }
+
+        return VolumeEvaluationResult(
+            isSameVolume: isSame,
+            isTargetAPFS: isTargetAPFS,
+            targetFSType: targetFSType,
+            cowMode: mode
+        )
+    }
+
+    /// Checks whether a given path is currently accessible on the mounted filesystem.
+    /// - Parameter url: Path URL.
+    /// - Returns: True if file or directory exists.
+    public static func isPathAccessible(_ url: URL) -> Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.standardizedFileURL.path(percentEncoded: false), isDirectory: &isDir)
+    }
+}
+
+/// Thread-safe monitor listening to macOS volume mount and unmount notifications.
+public final class VolumeMonitor: @unchecked Sendable {
+    /// Shared singleton instance.
+    public static let shared = VolumeMonitor()
+
+    /// Handler closure invoked when a volume mount change occurs.
+    public typealias VolumeChangeHandler = @Sendable (_ mountedURL: URL?) -> Void
+
+    /// Handler closure invoked when an automated backup trigger is requested for a profile.
+    public typealias AutoBackupTriggerHandler = @Sendable (_ profile: BackupProfile) -> Void
+
+    private let lock = NSLock()
+    private var mountObserver: NSObjectProtocol?
+    private var unmountObserver: NSObjectProtocol?
+    private var handlers: [VolumeChangeHandler] = []
+    private var autoBackupHandler: AutoBackupTriggerHandler?
+    private var lastTriggeredPerVolume: [String: Date] = [:]
+
+    private init() {
+        startListening()
+    }
+
+    deinit {
+        stopListening()
+    }
+
+    /// Registers a volume change observer handler.
+    /// - Parameter handler: Callback closure.
+    public func addHandler(_ handler: @escaping VolumeChangeHandler) {
+        lock.lock()
+        defer { lock.unlock() }
+        handlers.append(handler)
+    }
+
+    /// Sets the handler invoked when a profile should automatically start backup on volume mount.
+    public func setAutoBackupHandler(_ handler: @escaping AutoBackupTriggerHandler) {
+        lock.lock()
+        defer { lock.unlock() }
+        autoBackupHandler = handler
+    }
+
+    /// Evaluates whether a mounted volume corresponds to any profile's destination with mount trigger enabled.
+    /// Enforces a cooldown (default: 15 minutes / 900 seconds) to prevent redundant runs.
+    public func evaluateMountForAutoBackup(
+        mountedURL: URL,
+        profiles: [BackupProfile],
+        cooldownSeconds: TimeInterval = 900
+    ) -> [BackupProfile] {
+        lock.lock()
+        defer { lock.unlock() }
+
+        let mountedPath = BackupProfile.canonicalizePath(mountedURL.standardizedFileURL.path(percentEncoded: false))
+        var triggeredProfiles: [BackupProfile] = []
+        let now = Date()
+
+        for profile in profiles where profile.backupOnVolumeMount {
+            let destPath = BackupProfile.canonicalizePath(profile.destinationURL.standardizedFileURL.path(percentEncoded: false))
+            let matches = destPath == mountedPath || destPath.hasPrefix(mountedPath + "/")
+            if matches {
+                let cacheKey = "\(profile.id.uuidString)_\(mountedPath)"
+                if let lastDate = lastTriggeredPerVolume[cacheKey], now.timeIntervalSince(lastDate) < cooldownSeconds {
+                    LogManager.shared.log("Skipping mount backup trigger for '\(profile.name)': Cooldown active (\(Int(now.timeIntervalSince(lastDate)))s elapsed).", level: .debug, category: "Storage")
+                    continue
+                }
+                lastTriggeredPerVolume[cacheKey] = now
+                triggeredProfiles.append(profile)
+            }
+        }
+        return triggeredProfiles
+    }
+
+    /// Evaluates and dispatches automated backups for profiles matching the mounted volume.
+    public func handleMountedVolume(
+        _ mountedURL: URL,
+        profiles: [BackupProfile],
+        cooldownSeconds: TimeInterval = 900
+    ) {
+        let matching = evaluateMountForAutoBackup(mountedURL: mountedURL, profiles: profiles, cooldownSeconds: cooldownSeconds)
+        for profile in matching {
+            LogManager.shared.log("Mounted volume '\(mountedURL.lastPathComponent)' matched profile '\(profile.name)'. Initiating automatic backup...", level: .info, category: "Storage")
+            NotificationDeliveryService.shared.notifyVolumeMountTrigger(profileName: profile.name, volumeName: mountedURL.lastPathComponent)
+            autoBackupHandler?(profile)
+        }
+    }
+
+    private func notifyHandlers(with url: URL?) {
+        lock.lock()
+        let currentHandlers = handlers
+        lock.unlock()
+
+        for handler in currentHandlers {
+            handler(url)
+        }
+    }
+
+    private func startListening() {
+        let center = NSWorkspace.shared.notificationCenter
+
+        mountObserver = center.addObserver(
+            forName: NSWorkspace.didMountNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notif in
+            guard let self = self else { return }
+            let mountedURL = notif.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL
+            LogManager.shared.log("Volume mounted: \(mountedURL?.path ?? "unknown")", level: .info, category: "Storage")
+            self.notifyHandlers(with: mountedURL)
+        }
+
+        unmountObserver = center.addObserver(
+            forName: NSWorkspace.didUnmountNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notif in
+            guard let self = self else { return }
+            let unmountedURL = notif.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL
+            LogManager.shared.log("Volume unmounted: \(unmountedURL?.path ?? "unknown")", level: .warning, category: "Storage")
+            self.notifyHandlers(with: nil)
+        }
+    }
+
+    private func stopListening() {
+        if let obs = mountObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(obs)
+        }
+        if let obs = unmountObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(obs)
+        }
+        mountObserver = nil
+        unmountObserver = nil
+    }
+}
