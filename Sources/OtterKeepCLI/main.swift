@@ -429,9 +429,19 @@ struct OtterKeepCLI {
                 targetSnapshotId: snap.id
             )
 
+            let statusDisplay: String
+            switch summary.status {
+            case "completed":
+                statusDisplay = "completed"
+            case "completed_with_errors":
+                statusDisplay = "completed_with_errors"
+            default:
+                statusDisplay = "failed"
+            }
+
             print("\n")
             print("✅ 3-2-1 Replication Completed:")
-            print("   • Status:                  \(summary.status)")
+            print("   • Status:                  \(statusDisplay)")
             print("   • Successful Destinations: \(summary.successfulDestinations)/\(summary.totalDestinations)")
             print("   • Replicated Files:        \(summary.replicatedFiles)")
             print("   • Replicated Bytes:        \(formatBytes(summary.replicatedBytes))")
