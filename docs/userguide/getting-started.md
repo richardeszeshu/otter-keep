@@ -12,7 +12,7 @@ Inspired by sea otters who safeguard their most precious pebble tucked securely 
 |---|---|---|
 | **Operating System** | macOS 14.0 Sonoma or later | macOS 15.0 Sequoia or later |
 | **Architecture** | Apple Silicon (M1/M2/M3/M4) or Intel x86_64 | Apple Silicon (Native arm64) |
-| **File System** | Primary: APFS (Apple File System) | Destination: APFS (SSD/HDD) or S3/SFTP/WebDAV |
+| **File System** | APFS, exFAT, NTFS (Source), FAT32 | Primary: APFS (for CoW reflinks) or Remote S3/SFTP/WebDAV |
 | **Permissions** | Full Disk Access (FDA), Photos Access | Background Daemon + Finder Sync Extension |
 
 ---
@@ -31,7 +31,7 @@ brew install --cask richardeszeshu/otterkeep/otterkeep
 
 ### Option B: Standalone Application Bundle
 
-1. Download the latest release (`OtterKeep-1.0.0.zip` or `.dmg`) from the [Official Releases](https://github.com/richardeszeshu/otter-keep/releases).
+1. Download the latest release (`OtterKeep-1.3.0.dmg` or `.zip`) from the [Official Releases](https://github.com/richardeszeshu/otter-keep/releases).
 2. Open the downloaded archive and drag **OtterKeep.app** into your `/Applications` folder.
 3. Launch OtterKeep from Launchpad, Spotlight, or Finder.
 

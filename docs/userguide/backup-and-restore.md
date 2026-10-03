@@ -27,6 +27,10 @@ flowchart TD
 * When you subsequently modify or delete a file in your source folder, only the newly written blocks occupy disk space.
 * Every snapshot remains a **100% complete, fully traversable folder tree** in the Finder, without requiring slow extraction or reassembly steps.
 
+### Multi-Filesystem Support (exFAT & NTFS)
+* **exFAT Drives**: When backing up to external exFAT drives, OtterKeep automatically switches to high-speed stream copying with metadata preservation. A 10ms timestamp tolerance is applied so files are not marked as changed due to exFAT timestamp rounding.
+* **NTFS Drives**: Fully supported as backup sources. When an NTFS drive is selected as a destination, OtterKeep checks writeability upfront and provides clear warnings if macOS has mounted the drive in read-only mode.
+
 ---
 
 ## 2. Navigating the Restore Explorer

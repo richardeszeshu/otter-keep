@@ -13,8 +13,12 @@ OtterKeep is built specifically for modular, user-controlled folder profiles, de
 ### Does OtterKeep consume twice the disk space if my source and destination are on the same APFS drive?
 **No.** On APFS volumes, OtterKeep uses Apple's native `clonefile()` (reflink cloning). Unmodified files share the exact same physical disk blocks. A 50 GB folder backup on the same APFS container takes almost **0 bytes of additional disk space**, creating an instantaneous, point-in-time snapshot.
 
-### Can I back up to non-APFS drives (such as ExFAT, NTFS, or Ext4)?
-Yes. While APFS CoW reflink cloning is exclusive to APFS volumes, OtterKeep includes an intelligent fallback file provider. On non-APFS volumes, it performs incremental file copies while maintaining complete historical integrity in the local SQLite catalog.
+### Can I back up to or from non-APFS drives (such as exFAT, NTFS, or FAT32)?
+**Yes.** OtterKeep v1.3.0 features dedicated filesystem drivers:
+* **exFAT Targets & Sources**: OtterKeep uses high-performance chunked streaming with full metadata preservation and applies a **10ms timestamp tolerance** in change detection so untouched files are never re-copied unnecessarily.
+* **NTFS Sources**: Fully supported for reading and backing up to APFS/cloud destinations.
+* **NTFS Targets**: Since macOS mounts NTFS volumes in read-only mode by default without third-party drivers, OtterKeep includes pre-flight write validation that alerts you with clear guidance before attempting to write.
+* **SQLite on Removable Disks**: The catalog database automatically adapts its journaling mode (WAL or TRUNCATE) to remain rock-solid on external flash drives.
 
 ---
 

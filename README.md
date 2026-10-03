@@ -8,7 +8,7 @@
 [![Swift](https://img.shields.io/badge/Swift-6.0-FA7343?style=flat&logo=swift&logoColor=white)](https://swift.org)
 [![Architecture](https://img.shields.io/badge/Architecture-Apple%20Silicon%20%7C%20Intel-000000?style=flat&logo=apple)](https://apple.com)
 [![License](https://img.shields.io/badge/License-MIT-teal.svg?style=flat)](LICENSE)
-[![Status](https://img.shields.io/badge/Release-1.2.0%20Production-2EA043?style=flat)](https://github.com/richardeszeshu/otter-keep/releases)
+[![Status](https://img.shields.io/badge/Release-1.3.0%20Production-2EA043?style=flat)](https://github.com/richardeszeshu/otter-keep/releases)
 
 <br/>
 
@@ -18,7 +18,7 @@
 <br/>
 
 [**Explore User Guides**](docs/userguide/getting-started.md) • 
-[**Download v1.2.0**](https://github.com/richardeszeshu/otter-keep/releases) • 
+[**Download v1.3.0**](https://github.com/richardeszeshu/otter-keep/releases) • 
 [**Apple Photos Protection**](docs/userguide/photos-protection.md) • 
 [**Developer Docs**](docs/dev/architecture.md) • 
 [**Brand Guidelines**](docs/BRAND.md)
@@ -41,6 +41,7 @@ Traditional backup solutions on macOS are heavy, slow, and opaque. Full-disk Tim
 
 **OtterKeep** is engineered from the ground up for modern macOS:
 * **Zero-Cost Reflink Cloning**: Unmodified files take **0 additional bytes** on APFS drives using kernel-level `clonefile()` Copy-on-Write.
+* **Multi-Filesystem Driver Engine**: Unified strategy architecture supporting **APFS**, **exFAT** (with 10ms timestamp tolerance), **NTFS** (native source read & read-only pre-flight protection), and legacy FAT.
 * **Apple Photos Supercharged**: Full incremental backups for `.photoslibrary` with **iCloud Eviction Guard**—downloading full-res originals temporarily and evicting local cache so your Mac never runs out of disk space.
 * **True 3-2-1 Compliance**: Local point-in-time snapshots, external SSD mounts, and client-side encrypted replication to AWS S3, Cloudflare R2, MinIO, SFTP, and WebDAV.
 * **Active Ransomware Shield**: Detects suspicious mass file mutations or file deletions and aborts backups before snapshots can be compromised.
@@ -50,9 +51,10 @@ Traditional backup solutions on macOS are heavy, slow, and opaque. Full-disk Tim
 
 ## 📊 Feature Comparison Matrix
 
-| Feature | OtterKeep 1.0.0 | Apple Time Machine | Traditional Cloud / Rsync |
+| Feature | OtterKeep 1.3.0 | Apple Time Machine | Traditional Cloud / Rsync |
 |---|:---:|:---:|:---:|
 | **Zero-Storage APFS CoW Reflinks** | ✅ **Yes (Kernel Native)** | ⚠️ Limited | ❌ No (Full Copies) |
+| **Multi-Filesystem Drivers (exFAT/NTFS)** | ✅ **Yes (Dedicated Drivers)** | ❌ APFS/HFS+ Only | ⚠️ Manual Scripting |
 | **Apple Photos Incremental & iCloud Guard** | ✅ **Yes (Full-Res + Evict)** | ❌ Cloud-only skipped | ❌ Broken Bundles |
 | **Encrypted 3-2-1 Offsite Replication** | ✅ **S3 / SFTP / WebDAV** | ❌ Local Only | ⚠️ Requires 3rd-party CLI |
 | **Ransomware & Anomaly Interceptor** | ✅ **Real-Time Guard** | ❌ No | ❌ No |
