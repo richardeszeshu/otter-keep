@@ -356,10 +356,10 @@ public final class FileTreeScanner: Sendable {
                 }
             }
 
-            let isSymlink = (try? fileURL.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true
+            let isSymlink = (try? itemAbsoluteURL.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true
 
             // Verify POSIX and effective readability (skip access check on symlinks as access follows targets)
-            let filePath = fileURL.standardizedFileURL.path(percentEncoded: false)
+            let filePath = itemAbsoluteURL.standardizedFileURL.path(percentEncoded: false)
             if !isSymlink && access(filePath, R_OK) != 0 {
                 // access() evaluates real UID/GID; check effective access and FileManager before declaring unreadable
                 let isEffectiveReadable = faccessat(AT_FDCWD, filePath, R_OK, AT_EACCESS) == 0 || fileManager.isReadableFile(atPath: filePath)
@@ -369,13 +369,13 @@ public final class FileTreeScanner: Sendable {
                     LogManager.shared.log("Skipping unreadable item '\(relativePath)': \(String(cString: strerror(err)))", level: .debug, category: "Scanner")
                     skippedCollector.withLock {
                         $0.append(SkippedItem(
-                            url: fileURL,
+                            url: itemAbsoluteURL,
                             relativePath: relativePath,
                             reason: String(cString: strerror(err)),
                             isPermissionError: isPerm
                         ))
                     }
-                    if (try? fileURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+                    if (try? itemAbsoluteURL.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
                         enumerator.skipDescendants()
                     }
                     continue
@@ -385,7 +385,7 @@ public final class FileTreeScanner: Sendable {
             // Query filesystem metadata
             let meta: FileMetadata
             do {
-                meta = try storage.metadata(at: fileURL)
+                meta = try storage.metadata(at: itemAbsoluteURL)
             } catch {
                 let isPerm: Bool
                 if case FileSystemError.permissionDenied = error {
@@ -396,7 +396,7 @@ public final class FileTreeScanner: Sendable {
                 }
                 skippedCollector.withLock {
                     $0.append(SkippedItem(
-                        url: fileURL,
+                        url: itemAbsoluteURL,
                         relativePath: relativePath,
                         reason: error.localizedDescription,
                         isPermissionError: isPerm
@@ -406,7 +406,7 @@ public final class FileTreeScanner: Sendable {
             }
 
             var isDataless = false
-            let resValues = try? fileURL.resourceValues(forKeys: [.isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey, .isPackageKey])
+            let resValues = try? itemAbsoluteURL.resourceValues(forKeys: [.isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey, .isPackageKey])
             let isUbiq = resValues?.isUbiquitousItem == true
             let downloadStatus = resValues?.ubiquitousItemDownloadingStatus
 
@@ -433,7 +433,7 @@ public final class FileTreeScanner: Sendable {
             }
 
             results.append(ScannedItem(
-                url: fileURL,
+                url: itemAbsoluteURL,
                 relativePath: relativePath,
                 metadata: meta,
                 isDatalessICloud: isDataless
