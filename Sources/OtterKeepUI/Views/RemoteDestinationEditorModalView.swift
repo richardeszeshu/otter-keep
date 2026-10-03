@@ -374,9 +374,16 @@ public struct RemoteDestinationEditorModalView: View {
                 }
             }
 
-            Toggle(L10n.t(.remoteDestEditorForcePathStyle), isOn: s3ForcePathStyleBinding)
-                .toggleStyle(.checkbox)
-                .font(.caption)
+            HStack {
+                Text(L10n.t(.remoteDestEditorForcePathStyle))
+                    .font(.caption)
+                Spacer()
+                Toggle("", isOn: s3ForcePathStyleBinding)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .labelsHidden()
+                    .fixedSize()
+            }
         }
         .otterCard(padding: 14)
     }
@@ -613,7 +620,7 @@ public struct RemoteDestinationEditorModalView: View {
     // MARK: - Section 3: Archive Packaging (Tar.Zst / Tar.Gz)
     private var archivePackagingCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Toggle(isOn: archivePackagingBinding) {
+            HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Image(systemName: "archivebox.fill")
@@ -625,8 +632,13 @@ public struct RemoteDestinationEditorModalView: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
+                Spacer(minLength: 12)
+                Toggle("", isOn: archivePackagingBinding)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .labelsHidden()
+                    .fixedSize()
             }
-            .toggleStyle(.checkbox)
 
             if appState.destinationEditorArchivePackagingEnabled {
                 Divider()
@@ -672,7 +684,7 @@ public struct RemoteDestinationEditorModalView: View {
     // MARK: - Section 4: Security & Options
     private var securityOptionsCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Toggle(isOn: isClientEncryptionBinding) {
+            HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Image(systemName: "lock.shield.fill")
@@ -684,16 +696,26 @@ public struct RemoteDestinationEditorModalView: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
+                Spacer(minLength: 12)
+                Toggle("", isOn: isClientEncryptionBinding)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .labelsHidden()
+                    .fixedSize()
             }
-            .toggleStyle(.checkbox)
 
             Divider()
 
-            Toggle(isOn: isEnabledBinding) {
+            HStack {
                 Text(L10n.t(.remoteDestEditorEnabledToggle))
                     .font(.caption.weight(.medium))
+                Spacer(minLength: 12)
+                Toggle("", isOn: isEnabledBinding)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .labelsHidden()
+                    .fixedSize()
             }
-            .toggleStyle(.checkbox)
         }
         .otterCard(padding: 14)
     }

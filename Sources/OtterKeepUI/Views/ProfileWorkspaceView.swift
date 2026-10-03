@@ -74,7 +74,7 @@ public struct ProfileWorkspaceView: View {
             }
             .pickerStyle(.segmented)
             .controlSize(.regular)
-            .frame(width: 420)
+            .frame(maxWidth: 420)
 
             Spacer()
 

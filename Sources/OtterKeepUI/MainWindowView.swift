@@ -243,13 +243,21 @@ public struct MainWindowView: View {
                 // MARK: 3. System Section
                 Section {
                     NavigationLink(value: NavigationSection.logs) {
-                        Label(L10n.t(.navLogs), systemImage: "terminal")
-                            .foregroundStyle(.primary)
+                        Label {
+                            Text(L10n.t(.navLogs))
+                        } icon: {
+                            Image(systemName: "terminal.fill")
+                                .foregroundStyle(OtterTheme.accentPurple)
+                        }
                     }
 
                     NavigationLink(value: NavigationSection.settings) {
-                        Label(L10n.t(.navSettings), systemImage: "gearshape")
-                            .foregroundStyle(.primary)
+                        Label {
+                            Text(L10n.t(.navSettings))
+                        } icon: {
+                            Image(systemName: "gearshape.fill")
+                                .foregroundStyle(OtterTheme.oceanicTeal)
+                        }
                     }
                 } header: {
                     Text(L10n.t(.sidebarSectionSystem))
