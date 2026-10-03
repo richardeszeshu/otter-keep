@@ -3,7 +3,7 @@
 //  OtterKeepTestRunner
 //
 //  Comprehensive End-to-End Deterministic System Test Suite & Benchmark
-//  for OtterKeep 1.0.0 (Build 1000).
+//  for OtterKeep 1.1.0 (Build 1100).
 //
 //  Covers Modules 1 through 10:
 //  - Module 1: System & Version Integrity
@@ -125,7 +125,7 @@ final class OtterKeepTestSuite {
 
     func runAll() async throws {
         print("\n================================================================================")
-        print("🦦 OTTERKEEP 1.0.0 (BUILD 1000) SYSTEM INTEGRATION TEST SUITE & BENCHMARK")
+        print("🦦 OTTERKEEP 1.1.0 (BUILD 1100) SYSTEM INTEGRATION TEST SUITE & BENCHMARK")
         print("================================================================================\n")
 
         let suiteStart = ContinuousClock().now
@@ -230,7 +230,7 @@ final class OtterKeepTestSuite {
     // =========================================================================
 
     func testCoreEngineMetadataAndSlogans() async throws {
-        try assertEqual(CoreEngine.version, "1.0.0", "CoreEngine version must be exactly 1.0.0")
+        try assertEqual(CoreEngine.version, "1.1.0", "CoreEngine version must be exactly 1.1.0")
         try assertEqual(CoreEngine.appName, "OtterKeep", "CoreEngine appName must be OtterKeep")
         try assertEqual(CoreEngine.bundleIdentifier, "com.otterkeep.desktop", "Bundle ID must match")
 
@@ -269,15 +269,15 @@ final class OtterKeepTestSuite {
 
     func testSparkleAppcastCoordinatorLogic() async throws {
         let coordinator = SoftwareUpdateCoordinator.shared
-        try assertEqual(coordinator.currentVersion, "1.0.0")
-        try assertEqual(coordinator.currentBuild, "1000")
+        try assertEqual(coordinator.currentVersion, "1.1.0")
+        try assertEqual(coordinator.currentBuild, "1100")
 
         // Mock an update
         let mockInfo = SoftwareUpdateInfo(
-            version: "1.1.0",
-            buildNumber: "1100",
+            version: "1.2.0",
+            buildNumber: "1200",
             releaseNotes: "Performance improvements & APFS CoW tuning",
-            downloadURL: URL(string: "https://github.com/richardeszes/OtterKeep/releases/tag/v1.1.0")!,
+            downloadURL: URL(string: "https://github.com/richardeszes/OtterKeep/releases/tag/v1.2.0")!,
             publicationDate: Date(),
             isCritical: false
         )

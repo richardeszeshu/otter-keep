@@ -43,7 +43,9 @@ public struct WebhookSettingsCardView: View {
                     }
                 ))
                 .toggleStyle(.switch)
+                .controlSize(.small)
                 .labelsHidden()
+                .fixedSize()
             }
 
             if profile.webhookConfig.isEnabled {

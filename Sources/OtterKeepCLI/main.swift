@@ -44,7 +44,7 @@ struct OtterKeepCLI {
 
         // 3. Handle version query
         if args.contains("--version") || args.contains("-v") || args.first == "version" {
-            print("OtterKeep v\(CoreEngine.version) (Core Engine: \(CoreEngine.version))")
+            print("OtterKeep v\(CoreEngine.version) (GUI: v\(CoreEngine.uiVersion), Core: v\(CoreEngine.coreVersion), CLI: v\(CoreEngine.cliVersion))")
             exitCLI(0)
         }
 

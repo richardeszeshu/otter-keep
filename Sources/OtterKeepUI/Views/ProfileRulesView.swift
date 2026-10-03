@@ -807,6 +807,7 @@ public struct ProfileRulesView: View {
                                     HStack(spacing: 6) {
                                         Text(dest.name)
                                             .font(.body.weight(.medium))
+                                            .lineLimit(1)
                                         if dest.isClientEncryptionEnabled {
                                             HStack(spacing: 3) {
                                                 Image(systemName: "lock.fill")
@@ -844,42 +845,46 @@ public struct ProfileRulesView: View {
                                     .lineLimit(1)
                                     .truncationMode(.middle)
                                 }
+                                .frame(maxWidth: .infinity, alignment: .leading)
 
-                                Spacer()
-
-                                Button {
-                                    appState.openDestinationEditor(destination: dest)
-                                } label: {
-                                    Image(systemName: "pencil")
-                                        .font(.caption)
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .help(L10n.t(.editRemoteDestination))
-
-                                Button {
-                                    appState.deleteDestinationEditor(destinationId: dest.id)
-                                } label: {
-                                    Image(systemName: "trash")
-                                        .font(.caption)
-                                        .foregroundStyle(OtterTheme.statusError)
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .help(L10n.t(.deleteRemoteDestination))
-
-                                Toggle("", isOn: Binding(
-                                    get: { dest.isEnabled },
-                                    set: { enabled in
-                                        var updated = profile
-                                        if let idx = updated.copyJobConfig.destinations.firstIndex(where: { $0.id == dest.id }) {
-                                            updated.copyJobConfig.destinations[idx].isEnabled = enabled
-                                            appState.selectedProfile = updated
-                                        }
+                                HStack(spacing: 6) {
+                                    Button {
+                                        appState.openDestinationEditor(destination: dest)
+                                    } label: {
+                                        Image(systemName: "pencil")
+                                            .font(.caption)
                                     }
-                                ))
-                                .toggleStyle(.switch)
-                                .controlSize(.small)
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                    .help(L10n.t(.editRemoteDestination))
+
+                                    Button {
+                                        appState.deleteDestinationEditor(destinationId: dest.id)
+                                    } label: {
+                                        Image(systemName: "trash")
+                                            .font(.caption)
+                                            .foregroundStyle(OtterTheme.statusError)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.small)
+                                    .help(L10n.t(.deleteRemoteDestination))
+
+                                    Toggle("", isOn: Binding(
+                                        get: { dest.isEnabled },
+                                        set: { enabled in
+                                            var updated = profile
+                                            if let idx = updated.copyJobConfig.destinations.firstIndex(where: { $0.id == dest.id }) {
+                                                updated.copyJobConfig.destinations[idx].isEnabled = enabled
+                                                appState.selectedProfile = updated
+                                            }
+                                        }
+                                    ))
+                                    .toggleStyle(.switch)
+                                    .controlSize(.small)
+                                    .labelsHidden()
+                                    .fixedSize()
+                                }
+                                .fixedSize(horizontal: true, vertical: false)
                             }
                             .otterCard(padding: 10, cornerRadius: 8)
                         }
@@ -914,6 +919,9 @@ public struct ProfileRulesView: View {
                     }
                 ))
                 .toggleStyle(.switch)
+                .controlSize(.small)
+                .labelsHidden()
+                .fixedSize()
             }
 
             if profile.enableRateOfChangeGuard {

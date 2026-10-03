@@ -141,11 +141,11 @@ public enum OtterTheme {
     // MARK: - Border & Stroke Tokens
     public static let cardBorderWidth: CGFloat = 0.5
 
-    // MARK: - Corner Radius Tokens (Continuous Curvature)
-    public static let cardCornerRadius: CGFloat = 12
-    public static let heroCornerRadius: CGFloat = 16
-    public static let badgeCornerRadius: CGFloat = 6
-    public static let squircleRadius: CGFloat = 12
+    // MARK: - Corner Radius Tokens (Standardized macOS Golden Gate Geometry)
+    public static let cardCornerRadius: CGFloat = 10
+    public static let heroCornerRadius: CGFloat = 14
+    public static let badgeCornerRadius: CGFloat = 5
+    public static let squircleRadius: CGFloat = 10
 
     // MARK: - Native Materials & Colors
     public static var cardBackground: Color {
@@ -154,8 +154,16 @@ public enum OtterTheme {
 
     public static var subtleBorder: Color {
         dynamicColor(
-            light: (red: 0.0, green: 0.0, blue: 0.0, alpha: 0.06),
-            dark: (red: 1.0, green: 1.0, blue: 1.0, alpha: 0.10)
+            light: (red: 0.0, green: 0.0, blue: 0.0, alpha: 0.07),
+            dark: (red: 1.0, green: 1.0, blue: 1.0, alpha: 0.11)
+        )
+    }
+
+    /// macOS Golden Gate specular top highlight color for Liquid Glass depth
+    public static var specularHighlight: Color {
+        dynamicColor(
+            light: (red: 1.0, green: 1.0, blue: 1.0, alpha: 0.65),
+            dark: (red: 1.0, green: 1.0, blue: 1.0, alpha: 0.16)
         )
     }
 
@@ -188,13 +196,13 @@ public enum OtterTheme {
     public static let smoothEase = Animation.easeInOut(duration: 0.2)
 }
 
-// MARK: - View Modifiers for Modern macOS UI
+// MARK: - View Modifiers for Modern macOS UI (macOS Golden Gate)
 
 public struct OtterCardModifier: ViewModifier {
     public let padding: CGFloat
     public let cornerRadius: CGFloat
 
-    public init(padding: CGFloat = 16, cornerRadius: CGFloat = OtterTheme.cardCornerRadius) {
+    public init(padding: CGFloat = 14, cornerRadius: CGFloat = OtterTheme.cardCornerRadius) {
         self.padding = padding
         self.cornerRadius = cornerRadius
     }
@@ -202,18 +210,33 @@ public struct OtterCardModifier: ViewModifier {
     public func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(OtterTheme.cardBackground, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(OtterTheme.cardBackground)
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(OtterTheme.subtleBorder, lineWidth: 0.5)
+                    .strokeBorder(
+                        LinearGradient(
+                            stops: [
+                                .init(color: OtterTheme.specularHighlight, location: 0.0),
+                                .init(color: OtterTheme.subtleBorder, location: 0.25),
+                                .init(color: OtterTheme.subtleBorder, location: 1.0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 0.75
+                    )
             )
+            .shadow(color: Color.black.opacity(0.025), radius: 3, x: 0, y: 1)
     }
 }
 
 public struct OtterHeroCardModifier: ViewModifier {
     public let padding: CGFloat
 
-    public init(padding: CGFloat = 20) {
+    public init(padding: CGFloat = 18) {
         self.padding = padding
     }
 
@@ -226,20 +249,31 @@ public struct OtterHeroCardModifier: ViewModifier {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: OtterTheme.heroCornerRadius, style: .continuous)
-                    .stroke(OtterTheme.subtleBorder, lineWidth: 0.5)
+                    .strokeBorder(
+                        LinearGradient(
+                            stops: [
+                                .init(color: OtterTheme.specularHighlight, location: 0.0),
+                                .init(color: OtterTheme.subtleBorder, location: 0.2),
+                                .init(color: OtterTheme.subtleBorder, location: 1.0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 1.0
+                    )
             )
-            .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
+            .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
     }
 }
 
 public extension View {
-    /// Applies the standard modern macOS card styling.
-    func otterCard(padding: CGFloat = 16, cornerRadius: CGFloat = OtterTheme.cardCornerRadius) -> some View {
+    /// Applies the refined macOS Golden Gate card styling with specular highlight.
+    func otterCard(padding: CGFloat = 14, cornerRadius: CGFloat = OtterTheme.cardCornerRadius) -> some View {
         modifier(OtterCardModifier(padding: padding, cornerRadius: cornerRadius))
     }
 
-    /// Applies the prominent modern macOS hero card styling with subtle depth.
-    func otterHeroCard(padding: CGFloat = 20) -> some View {
+    /// Applies the prominent macOS Golden Gate hero card styling with subtle depth.
+    func otterHeroCard(padding: CGFloat = 18) -> some View {
         modifier(OtterHeroCardModifier(padding: padding))
     }
 

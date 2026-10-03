@@ -69,7 +69,7 @@ public struct UnifiedPhotosWorkspaceView: View {
             }
             .pickerStyle(.segmented)
             .controlSize(.regular)
-            .frame(width: 320)
+            .frame(maxWidth: 320)
 
             Spacer()
 

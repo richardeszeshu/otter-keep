@@ -191,23 +191,27 @@ public struct MainWindowView: View {
                             }
                         }
                     }
-                } header: {
-                    HStack {
-                        Text(L10n.t(.sidebarSectionFolders))
-                            .font(.caption.bold())
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Button {
-                            appState.resetNewProfileDraft()
-                            appState.showNewProfileSheet = true
-                        } label: {
+
+                    // Prominent Add Profile Action Row
+                    Button {
+                        appState.resetNewProfileDraft()
+                        appState.showNewProfileSheet = true
+                    } label: {
+                        Label {
+                            Text(L10n.t(.newProfileButton))
+                                .font(.body.weight(.medium))
+                                .foregroundStyle(OtterTheme.otterAmber)
+                        } icon: {
                             Image(systemName: "plus.circle.fill")
-                                .font(.body)
                                 .foregroundStyle(OtterTheme.otterAmber)
                         }
-                        .buttonStyle(.plain)
-                        .help(L10n.t(.newProfileButton))
                     }
+                    .buttonStyle(.plain)
+                    .help(L10n.t(.newProfileButton))
+                } header: {
+                    Text(L10n.t(.sidebarSectionFolders))
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
                 }
 
                 // MARK: 2. Apple Photos Section
@@ -243,13 +247,21 @@ public struct MainWindowView: View {
                 // MARK: 3. System Section
                 Section {
                     NavigationLink(value: NavigationSection.logs) {
-                        Label(L10n.t(.navLogs), systemImage: "terminal")
-                            .foregroundStyle(.primary)
+                        Label {
+                            Text(L10n.t(.navLogs))
+                        } icon: {
+                            Image(systemName: "terminal.fill")
+                                .foregroundStyle(OtterTheme.accentPurple)
+                        }
                     }
 
                     NavigationLink(value: NavigationSection.settings) {
-                        Label(L10n.t(.navSettings), systemImage: "gearshape")
-                            .foregroundStyle(.primary)
+                        Label {
+                            Text(L10n.t(.navSettings))
+                        } icon: {
+                            Image(systemName: "gearshape.fill")
+                                .foregroundStyle(OtterTheme.oceanicTeal)
+                        }
                     }
                 } header: {
                     Text(L10n.t(.sidebarSectionSystem))
@@ -301,6 +313,19 @@ public struct MainWindowView: View {
             }
 
             Spacer()
+
+            Button {
+                appState.resetNewProfileDraft()
+                appState.showNewProfileSheet = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(OtterTheme.otterAmber)
+                    .frame(width: 24, height: 24)
+                    .background(OtterTheme.otterAmber.opacity(0.12), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .help(L10n.t(.newProfileButton))
         }
     }
 
