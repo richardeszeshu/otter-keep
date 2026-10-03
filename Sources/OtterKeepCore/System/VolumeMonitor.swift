@@ -9,7 +9,13 @@ public enum CoWMode: Sendable, Equatable {
     case intraVolumeCoW
     /// Incremental backup to an external APFS drive with target-side deduplicated cloning.
     case targetSideSnapshotCoW
-    /// Standard fallback copying to non-APFS drives (FAT, exFAT, NTFS, network shares).
+    /// Physical fallback stream copying to exFAT external drives.
+    case exFATFallback
+    /// Read-only NTFS volume (macOS native driver, usable only as backup source).
+    case ntfsReadOnly
+    /// Writable NTFS volume via 3rd party driver (e.g. Paragon, Tuxera).
+    case ntfsReadWrite
+    /// Standard fallback copying to other non-APFS drives (FAT, SMB, NFS, network shares).
     case nonAPFS
 
     /// UI badge localization key.
@@ -17,6 +23,9 @@ public enum CoWMode: Sendable, Equatable {
         switch self {
         case .intraVolumeCoW: return .cowBadgeIntraVolume
         case .targetSideSnapshotCoW: return .cowBadgeSnapshotTarget
+        case .exFATFallback: return .cowBadgeExFAT
+        case .ntfsReadOnly: return .cowBadgeNTFSReadOnly
+        case .ntfsReadWrite: return .cowBadgeNTFS
         case .nonAPFS: return .cowBadgeNonAPFS
         }
     }
@@ -26,6 +35,9 @@ public enum CoWMode: Sendable, Equatable {
         switch self {
         case .intraVolumeCoW: return .cowDescIntraVolume
         case .targetSideSnapshotCoW: return .cowDescSnapshotTarget
+        case .exFATFallback: return .cowDescExFAT
+        case .ntfsReadOnly: return .cowDescNTFSReadOnly
+        case .ntfsReadWrite: return .cowDescNTFS
         case .nonAPFS: return .cowDescNonAPFS
         }
     }
@@ -39,14 +51,35 @@ public struct VolumeEvaluationResult: Sendable, Equatable {
     public let isTargetAPFS: Bool
     /// Filesystem type name string of destination.
     public let targetFSType: String
+    /// Filesystem type name string of source.
+    public let sourceFSType: String
+    /// True if destination is mounted in read-only mode.
+    public let isTargetReadOnly: Bool
+    /// True if target is Microsoft exFAT.
+    public var isTargetExFAT: Bool { targetFSType.lowercased() == "exfat" }
+    /// True if target is Microsoft NTFS.
+    public var isTargetNTFS: Bool { targetFSType.lowercased() == "ntfs" || targetFSType.lowercased().contains("ntfs") }
+    /// True if source is Microsoft exFAT.
+    public var isSourceExFAT: Bool { sourceFSType.lowercased() == "exfat" }
+    /// True if source is Microsoft NTFS.
+    public var isSourceNTFS: Bool { sourceFSType.lowercased() == "ntfs" || sourceFSType.lowercased().contains("ntfs") }
     /// Determined Copy-on-Write mode.
     public let cowMode: CoWMode
 
     /// Initializes a `VolumeEvaluationResult`.
-    public init(isSameVolume: Bool, isTargetAPFS: Bool, targetFSType: String, cowMode: CoWMode) {
+    public init(
+        isSameVolume: Bool,
+        isTargetAPFS: Bool,
+        targetFSType: String,
+        sourceFSType: String = "unknown",
+        isTargetReadOnly: Bool = false,
+        cowMode: CoWMode
+    ) {
         self.isSameVolume = isSameVolume
         self.isTargetAPFS = isTargetAPFS
         self.targetFSType = targetFSType
+        self.sourceFSType = sourceFSType
+        self.isTargetReadOnly = isTargetReadOnly
         self.cowMode = cowMode
     }
 }
@@ -70,7 +103,16 @@ public enum VolumeCapabilityEvaluator {
 
         var isSame = false
         var targetFSType = "unknown"
+        var sourceFSType = "unknown"
         var isTargetAPFS = false
+        var isTargetReadOnly = false
+
+        if srcRes == 0 {
+            sourceFSType = withUnsafePointer(to: &srcFs.f_fstypename) { ptr -> String in
+                let rawPtr = UnsafeRawPointer(ptr).assumingMemoryBound(to: CChar.self)
+                return String(cString: rawPtr)
+            }
+        }
 
         if dstRes == 0 {
             targetFSType = withUnsafePointer(to: &dstFs.f_fstypename) { ptr -> String in
@@ -78,6 +120,7 @@ public enum VolumeCapabilityEvaluator {
                 return String(cString: rawPtr)
             }
             isTargetAPFS = targetFSType.lowercased() == "apfs"
+            isTargetReadOnly = (dstFs.f_flags & UInt32(MNT_RDONLY)) != 0
         }
 
         if srcRes == 0 && dstRes == 0 {
@@ -85,8 +128,13 @@ public enum VolumeCapabilityEvaluator {
             isSame = (srcFs.f_fsid.val.0 == dstFs.f_fsid.val.0 && srcFs.f_fsid.val.1 == dstFs.f_fsid.val.1)
         }
 
+        let targetTypeLower = targetFSType.lowercased()
         let mode: CoWMode
-        if !isTargetAPFS {
+        if targetTypeLower == "exfat" {
+            mode = .exFATFallback
+        } else if targetTypeLower == "ntfs" || targetTypeLower.contains("ntfs") {
+            mode = isTargetReadOnly ? .ntfsReadOnly : .ntfsReadWrite
+        } else if !isTargetAPFS {
             mode = .nonAPFS
         } else if isSame {
             mode = .intraVolumeCoW
@@ -98,9 +146,12 @@ public enum VolumeCapabilityEvaluator {
             isSameVolume: isSame,
             isTargetAPFS: isTargetAPFS,
             targetFSType: targetFSType,
+            sourceFSType: sourceFSType,
+            isTargetReadOnly: isTargetReadOnly,
             cowMode: mode
         )
     }
+
 
     /// Checks whether a given path is currently accessible on the mounted filesystem.
     /// - Parameter url: Path URL.

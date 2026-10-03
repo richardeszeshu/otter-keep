@@ -1,23 +1,93 @@
-# Storage Engine & Provider Internals
+# Storage Engine & Filesystem Driver Internals
 
-OtterKeep abstracts local and remote storage via a unified provider protocol (`StorageProvider`), enabling transparent switching between local APFS cloning, network shares, and cloud object stores.
+OtterKeep v1.3.0 abstracts local and remote storage via a decoupled, driver-oriented architecture (`FileSystemDriver` & `FileSystemDriverRegistry`), enabling transparent switching and optimized I/O across APFS, exFAT, NTFS, FAT, network shares, and cloud object stores.
 
 ---
 
-## 1. APFS Copy-on-Write (Reflink) Engine
+## 1. Filesystem Driver Architecture (`OtterKeepStorage`)
 
-The `APFSFileSystemProvider` leverages Darwin kernel `clonefile()` system calls:
+The storage layer implements a Strategy pattern via the `FileSystemDriver` protocol and `FileSystemDriverRegistry`:
 
-```c
-#include <sys/clonefile.h>
+```mermaid
+classDiagram
+    class FileSystemDriver {
+        <<interface>>
+        +capabilities(at url) FileSystemCapabilities
+        +cloneOrCopyItem(source, destination, progress)
+        +createHardLink(source, destination)
+        +atomicMove(source, destination)
+        +setImmutable(url, isImmutable)
+        +getExtendedAttributes(url)
+        +setExtendedAttributes(attributes, url)
+    }
 
-int clonefile(const char *src, const char *dst, uint32_t flags);
+    class BasePOSIXFileSystemDriver {
+        +statfsInfo(url)
+        +metadata(url)
+        +copyfileStream(source, destination, cloneAllowed, fallback)
+        +darwinGetXattrs(url)
+        +darwinSetXattrs(attributes, url)
+        +darwinSetImmutable(url, isImmutable)
+    }
+
+    class APFSDriver {
+        +cloneOrCopyItem() // Darwin clonefile(2) CoW
+        +setImmutable() // BSD UF_IMMUTABLE
+    }
+
+    class ExFATDriver {
+        +cloneOrCopyItem() // Chunked stream copy
+        +setImmutable() // Non-blocking advisory
+    }
+
+    class NTFSDriver {
+        +cloneOrCopyItem() // Read-only preflight check
+    }
+
+    class FATDriver {
+        +cloneOrCopyItem() // 2.0s timestamp tolerance
+    }
+
+    class GenericPOSIXDriver {
+        +capabilities() // HFS+, NFS, SMB
+    }
+
+    class FileSystemDriverRegistry {
+        +driver(for url: URL) FileSystemDriver
+        +driver(forFSType type: String) FileSystemDriver
+        +register(driver: FileSystemDriver, forFSType: String)
+    }
+
+    FileSystemDriver <|.. BasePOSIXFileSystemDriver
+    BasePOSIXFileSystemDriver <|-- APFSDriver
+    BasePOSIXFileSystemDriver <|-- ExFATDriver
+    BasePOSIXFileSystemDriver <|-- NTFSDriver
+    BasePOSIXFileSystemDriver <|-- FATDriver
+    BasePOSIXFileSystemDriver <|-- GenericPOSIXDriver
+    FileSystemDriverRegistry --> FileSystemDriver : resolves
 ```
 
-### Cloning Semantics
-1. **Intra-Volume Reflink**: When the source and destination are on the same APFS container, `clonefile()` creates an instantaneous block clone. No data extents are copied; disk allocation is 0 bytes.
-2. **Snapshot CoW Target**: When backing up from an internal disk to an external APFS drive, the engine copies only newly created/modified data blocks. Unchanged files across historical snapshots are reflink-cloned from the preceding snapshot on the destination volume.
-3. **Fallback File System Provider**: For non-APFS volumes (HFS+, ExFAT, SMB mounts), `FallbackFileSystemProvider` performs streaming POSIX file copies with SHA-256 validation.
+### Specialized Drivers
+
+1. **`APFSDriver` (Apple File System)**:
+   - Utilizes kernel-level `clonefile(2)` for instantaneous 0-byte block cloning across historical snapshots.
+   - Preserves nanosecond timestamp precision, full Darwin extended attributes (`xattrs`), and BSD `UF_IMMUTABLE` file flags.
+
+2. **`ExFATDriver` (Microsoft exFAT)**:
+   - Handles flash drives and cross-platform external storage devices.
+   - Provides resilient chunked streaming copies via `COPYFILE_DATA | COPYFILE_STAT | COPYFILE_NOFOLLOW`.
+   - Incorporates **10ms timestamp tolerance** (`timestampToleranceSeconds = 0.02`) in `ChangeDetector` to prevent false positive delta detections caused by exFAT timestamp rounding.
+   - Gracefully manages the absence of POSIX hardlinks, symlinks, and BSD chflags.
+
+3. **`NTFSDriver` (Microsoft NTFS)**:
+   - Full differential reading when an NTFS volume serves as the backup source.
+   - Pre-flight writeability check blocks target backups on macOS when native read-only mounting is active, throwing localized error `.errNTFSTargetReadOnly`.
+
+4. **`FATDriver` (MS-DOS / FAT32)**:
+   - Legacy FAT compatibility with 2.0-second timestamp comparison tolerance.
+
+5. **`GenericPOSIXDriver`**:
+   - Universal fallback for HFS+, NFS, SMB, and alternative UNIX mounts.
 
 ---
 
@@ -33,7 +103,15 @@ OtterKeep supports offsite replication for 3-2-1 compliance:
 
 ---
 
-## 3. Data Scrubber & Integrity Verification
+## 3. SQLite Storage Resilience on Removable Media
+
+When the catalog database is initialized on external or non-POSIX filesystems:
+- SQLite `journal_mode = WAL;` is attempted first for high-performance concurrent reads and writes.
+- If shared memory locking (`.shm` via `mmap`) is unsupported on the underlying volume (common on certain external flash drives), `DatabaseEngine` automatically falls back to `journal_mode = TRUNCATE;` to ensure transactional safety without crashes.
+
+---
+
+## 4. Data Scrubber & Integrity Verification
 
 The `DataScrubberEngine` and `ChecksumCalculator` continuously verify snapshot integrity:
 * Calculates hardware-accelerated SHA-256 checksums using CommonCrypto.
@@ -42,8 +120,8 @@ The `DataScrubberEngine` and `ChecksumCalculator` continuously verify snapshot i
 
 ---
 
-## 4. WORM Immutability (Write-Once, Read-Many)
+## 5. WORM Immutability (Write-Once, Read-Many)
 
 To protect historical snapshots against accidental deletion, tampering, or ransomware attacks, OtterKeep applies Darwin POSIX file flags (`chflags`):
 * `UF_IMMUTABLE` (0x0002): Prevents file modification, renaming, or deletion even by administrator accounts until explicitly unlocked.
-* Snapshot folders are marked immutable immediately upon completion, and unlocked only during policy-governed pruning by `RetentionManager`.
+* Snapshot folders on supported filesystems (APFS/HFS+) are marked immutable immediately upon completion, and unlocked only during policy-governed pruning by `RetentionManager`.

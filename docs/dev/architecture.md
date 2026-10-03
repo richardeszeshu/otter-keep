@@ -18,17 +18,17 @@ graph TD
     CORE --> DB["OtterKeepDatabase (SQLite Snapshot Catalog)"]
 ```
 
-### Module Breakdown
-
-| Module | Responsibility | Key Components |
-|---|---|---|
-| `OtterKeepApp` | Application lifecycle, Menu Bar item, Sparkle updater | `main.swift`, `MenuBarContentView.swift`, `AppDelegate.swift` |
-| `OtterKeepUI` | SwiftUI interface, design system, modals, animations, About popup | `AppState.swift`, `OtterTheme.swift`, `MainWindowView.swift`, `OtterAboutView.swift` |
-| `OtterKeepCore` | Business logic, backup coordination, scheduling, security | `CoreEngine.swift`, `BackupSessionCoordinator.swift`, `RansomwareAnomalyGuard.swift`, `SingleInstanceManager.swift` |
-| `OtterKeepStorage` | Storage backends, APFS CoW reflink provider, S3/SFTP/WebDAV | `APFSFileSystemProvider.swift`, `S3StorageProvider.swift`, `SFTPStorageProvider.swift`, `EncryptedStorageManager.swift` |
-| `OtterKeepDatabase` | Snapshot indexing, metadata storage, diff engine | `DatabaseEngine.swift`, `SnapshotDiffEngine.swift` |
-| `OtterKeepCLI` | Native command-line interface | `main.swift` |
-| `OtterKeepFinderSync` | macOS Finder contextual menu & status badge extension | `OtterKeepFinderSync.swift` |
+### Module Breakdown & Subsystem Versions
+ 
+| Module | Version | Responsibility | Key Components |
+|---|:---:|---|---|
+| `OtterKeepApp` | `1.3.0` | Application lifecycle, Menu Bar item, Sparkle updater | `main.swift`, `MenuBarContentView.swift`, `AppDelegate.swift` |
+| `OtterKeepUI` | `1.3.0` | SwiftUI interface, design system, modals, animations, About popup | `AppState.swift`, `OtterTheme.swift`, `MainWindowView.swift`, `OtterAboutView.swift` |
+| `OtterKeepCore` | `1.2.0` | Business logic, backup coordination, scheduling, security | `CoreEngine.swift`, `BackupSessionCoordinator.swift`, `RansomwareAnomalyGuard.swift`, `SingleInstanceManager.swift` |
+| `OtterKeepStorage` | `1.1.0` | Filesystem drivers (APFS CoW, exFAT, NTFS, FAT), S3/SFTP/WebDAV | `FileSystemDriver.swift`, `FileSystemDriverRegistry.swift`, `APFSDriver.swift`, `ExFATDriver.swift`, `NTFSDriver.swift`, `APFSFileSystemProvider.swift` |
+| `OtterKeepDatabase` | `1.1.0` | Snapshot indexing, metadata storage, WAL/TRUNCATE diff engine | `DatabaseEngine.swift`, `SnapshotDiffEngine.swift` |
+| `OtterKeepCLI` | `1.1.0` | Native command-line interface & diagnostics | `main.swift` |
+| `OtterKeepFinderSync` | `1.0.0` | macOS Finder contextual menu & status badge extension | `OtterKeepFinderSync.swift` |
 
 ---
 

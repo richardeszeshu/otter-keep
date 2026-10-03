@@ -298,6 +298,8 @@ public struct MainWindowView: View {
                         .padding(.vertical, 1)
                         .background(OtterTheme.otterAmber.opacity(0.15), in: RoundedRectangle(cornerRadius: 3))
                         .foregroundStyle(OtterTheme.otterAmber)
+                        .help("OtterKeep v\(CoreEngine.version) (Build \(CoreEngine.buildNumber))\n\(CoreEngine.componentVersionsFormatted)")
+
                 }
 
                 HStack(spacing: 4) {

@@ -23,7 +23,7 @@ public struct StorageCapacity: Sendable, Equatable {
 
 /// Volume capabilities and supported filesystem features.
 public struct FileSystemCapabilities: Sendable, Equatable {
-    /// Name of the underlying filesystem format (e.g. "apfs", "hfs", "msdos", "exfat").
+    /// Name of the underlying filesystem format (e.g. "apfs", "hfs", "msdos", "exfat", "ntfs").
     public let fsTypeName: String
     /// Indicates whether block-level Copy-on-Write (APFS cloning / reflink) is supported.
     public let supportsAPFSClone: Bool
@@ -31,8 +31,45 @@ public struct FileSystemCapabilities: Sendable, Equatable {
     public let supportsHardLinks: Bool
     /// Indicates whether extended attributes (xattrs) are supported.
     public let supportsExtendedAttributes: Bool
+    /// Indicates whether symbolic links are natively supported on the volume.
+    public let supportsSymlinks: Bool
+    /// Indicates whether BSD file immutability flags (UF_IMMUTABLE / chflags) are supported.
+    public let supportsFileFlags: Bool
     /// Indicates whether the volume is mounted in read-only mode.
     public let isReadOnly: Bool
+
+    /// True if the filesystem is Apple APFS.
+    public var isAPFS: Bool {
+        fsTypeName.lowercased() == "apfs"
+    }
+
+    /// True if the filesystem is Microsoft exFAT.
+    public var isExFAT: Bool {
+        fsTypeName.lowercased() == "exfat"
+    }
+
+    /// True if the filesystem is Microsoft NTFS.
+    public var isNTFS: Bool {
+        let name = fsTypeName.lowercased()
+        return name == "ntfs" || name.contains("ntfs")
+    }
+
+    /// True if the filesystem is legacy MS-DOS / FAT32.
+    public var isFAT: Bool {
+        let name = fsTypeName.lowercased()
+        return name == "msdos" || name == "fat32" || name == "fat"
+    }
+
+    /// Modification timestamp comparison tolerance in seconds for differential change detection.
+    public var timestampToleranceSeconds: Double {
+        if isFAT {
+            return 2.0 // FAT32 has 2-second timestamp resolution
+        } else if isExFAT {
+            return 0.02 // exFAT has 10-millisecond timestamp resolution
+        } else {
+            return 0.001 // APFS, HFS+, and NTFS have sub-millisecond / nanosecond precision
+        }
+    }
 
     /// Initializes a new `FileSystemCapabilities` instance.
     /// - Parameters:
@@ -40,21 +77,28 @@ public struct FileSystemCapabilities: Sendable, Equatable {
     ///   - supportsAPFSClone: True if native APFS block cloning is supported.
     ///   - supportsHardLinks: True if POSIX hard links are supported.
     ///   - supportsExtendedAttributes: True if Darwin xattrs are supported.
+    ///   - supportsSymlinks: True if symbolic links are supported.
+    ///   - supportsFileFlags: True if BSD chflags (UF_IMMUTABLE) are supported.
     ///   - isReadOnly: True if the target volume is read-only.
     public init(
         fsTypeName: String,
         supportsAPFSClone: Bool,
         supportsHardLinks: Bool,
         supportsExtendedAttributes: Bool,
+        supportsSymlinks: Bool = true,
+        supportsFileFlags: Bool = true,
         isReadOnly: Bool
     ) {
         self.fsTypeName = fsTypeName
         self.supportsAPFSClone = supportsAPFSClone
         self.supportsHardLinks = supportsHardLinks
         self.supportsExtendedAttributes = supportsExtendedAttributes
+        self.supportsSymlinks = supportsSymlinks
+        self.supportsFileFlags = supportsFileFlags
         self.isReadOnly = isReadOnly
     }
 }
+
 
 /// Fundamental metadata attributes of a file, directory, or symbolic link.
 public struct FileMetadata: Sendable, Equatable {

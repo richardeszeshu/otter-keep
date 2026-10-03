@@ -626,7 +626,7 @@ public struct SettingsView: View {
                             Text("OtterKeep")
                                 .font(.headline.bold())
 
-                            Text("v\(CoreEngine.version)")
+                            Text("v\(CoreEngine.version) (Build \(CoreEngine.buildNumber))")
                                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 1.5)
@@ -638,9 +638,10 @@ public struct SettingsView: View {
                             .font(.caption.italic())
                             .foregroundStyle(OtterTheme.otterAmber)
 
-                        Text("Zero-telemetry APFS CoW backup engine for macOS.")
-                            .font(.caption2)
+                        Text("Subsystems: Storage v\(CoreEngine.storageVersion) • DB v\(CoreEngine.databaseVersion) • Core v\(CoreEngine.coreVersion) • UI v\(CoreEngine.uiVersion) • CLI v\(CoreEngine.cliVersion)")
+                            .font(.system(size: 9.5, design: .monospaced))
                             .foregroundStyle(.secondary)
+
                     }
 
                     Spacer()

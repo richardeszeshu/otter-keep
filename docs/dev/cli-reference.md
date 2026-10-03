@@ -15,9 +15,21 @@ otterkeep [global-options] <command> [command-options]
 | Option | Description |
 |---|---|
 | `-h, --help` | Display general or command-specific help documentation |
-| `-v, --version` | Display version and build information |
+| `-v, --version` | Display main application version, build number, and individual subsystem component versions |
 | `--lang <en|hu>` | Override UI/CLI localization language |
 | `--debug` | Enable verbose diagnostic logging to stdout |
+
+#### Version Output Sample
+```
+OtterKeep 1.3.0 (Build 1300)
+Subsystem Components:
+  ├── OtterKeepCore: 1.2.0
+  ├── OtterKeepStorage: 1.1.0
+  ├── OtterKeepDatabase: 1.1.0
+  ├── OtterKeepUI: 1.3.0
+  ├── OtterKeepCLI: 1.1.0
+  └── FinderSync: 1.0.0
+```
 
 ---
 

@@ -133,7 +133,32 @@ public struct OtterAboutView: View {
                     )
                 }
 
+                // 4.5. Subsystem Component Versions
+                VStack(spacing: 6) {
+                    HStack {
+                        Text("Subsystem Components")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+
+                    HStack(spacing: 6) {
+                        componentVersionChip(name: "Storage", version: CoreEngine.storageVersion, icon: "internaldrive")
+                        componentVersionChip(name: "Database", version: CoreEngine.databaseVersion, icon: "cylinder.split.1x2")
+                        componentVersionChip(name: "Core", version: CoreEngine.coreVersion, icon: "cpu")
+                        componentVersionChip(name: "UI", version: CoreEngine.uiVersion, icon: "macwindow")
+                        componentVersionChip(name: "CLI", version: CoreEngine.cliVersion, icon: "terminal")
+                    }
+                }
+                .padding(10)
+                .background(Color.primary.opacity(0.025), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(OtterTheme.subtleBorder, lineWidth: 0.5)
+                )
+
                 // 5. Interactive Resource Links
+
                 HStack(spacing: 8) {
                     LinkButton(title: "Website", icon: "globe", url: "https://otterkeep.app")
                     LinkButton(title: "GitHub", icon: "chevron.left.forwardslash.chevron.right", url: "https://github.com/richardeszeshu/otter-keep")
@@ -240,7 +265,28 @@ public struct OtterAboutView: View {
                 .stroke(OtterTheme.subtleBorder, lineWidth: 0.5)
         )
     }
+
+    private func componentVersionChip(name: String, version: String, icon: String) -> some View {
+        VStack(spacing: 2) {
+            HStack(spacing: 3) {
+                Image(systemName: icon)
+                    .font(.system(size: 8))
+                    .foregroundStyle(OtterTheme.oceanicTeal)
+                Text(name)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.primary)
+            }
+            Text("v\(version)")
+                .font(.system(size: 8.5, weight: .bold, design: .monospaced))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
+        .padding(.horizontal, 2)
+        .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 5))
+    }
 }
+
 
 private struct LinkButton: View {
     let title: String
