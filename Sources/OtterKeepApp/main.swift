@@ -40,6 +40,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+
+        // Automatically check for software updates in the background if enabled
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            if AppContext.shared.appState.automaticallyChecksForUpdates {
+                AppContext.shared.appState.checkForSoftwareUpdates(silent: true)
+            }
+        }
     }
 
     // MARK: - macOS Services Context Menu Handler

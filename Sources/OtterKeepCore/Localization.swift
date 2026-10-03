@@ -1003,6 +1003,8 @@ public enum L10n {
         case settingsUpdateStatusUpToDate
         case settingsUpdateStatusAvailableFormat
         case settingsUpdateStatusFailedFormat
+        case notifUpdateAvailableTitle
+        case notifUpdateAvailableBodyFormat
 
         // MARK: - v1.7.0: WebDAV & SFTP Storage Providers
         case remoteDestEditorTypeWebDAV
@@ -1815,6 +1817,8 @@ public enum L10n {
         .settingsUpdateStatusUpToDate: "Az OtterKeep naprakész. A legfrissebb verziót használja.",
         .settingsUpdateStatusAvailableFormat: "Új verzió érhető el: v%@!",
         .settingsUpdateStatusFailedFormat: "Nem sikerült ellenőrizni a frissítéseket: %@",
+        .notifUpdateAvailableTitle: "Új OtterKeep frissítés érhető el",
+        .notifUpdateAvailableBodyFormat: "Az OtterKeep v%@ elérhető. Kattintson a megtekintéshez vagy letöltéshez.",
 
         // MARK: - v1.7.0: WebDAV & SFTP Storage Providers
         .remoteDestEditorTypeWebDAV: "WebDAV",
@@ -2620,6 +2624,8 @@ public enum L10n {
         .settingsUpdateStatusUpToDate: "OtterKeep is up to date. You are running the latest version.",
         .settingsUpdateStatusAvailableFormat: "New update available: v%@!",
         .settingsUpdateStatusFailedFormat: "Failed to check for updates: %@",
+        .notifUpdateAvailableTitle: "New OtterKeep Update Available",
+        .notifUpdateAvailableBodyFormat: "OtterKeep v%@ is available. Click to view or download.",
 
         // MARK: - v1.7.0: WebDAV & SFTP Storage Providers
         .remoteDestEditorTypeWebDAV: "WebDAV",

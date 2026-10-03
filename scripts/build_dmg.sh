@@ -79,6 +79,40 @@ rm -f "$ZIP_PATH"
 (cd "$APP_TARGET_DIR" && zip -r -y -q "$ZIP_PATH" "OtterKeep.app")
 shasum -a 256 "$ZIP_PATH" > "$ZIP_PATH.sha256"
 
+# 7. Maintain Sparkle Distribution/appcast.xml
+echo "📡 6. Checking Sparkle Appcast feed at Distribution/appcast.xml..."
+mkdir -p "$PROJECT_ROOT/Distribution"
+if [ ! -f "$PROJECT_ROOT/Distribution/appcast.xml" ]; then
+    ZIP_SIZE=$(stat -f%z "$ZIP_PATH" 2>/dev/null || echo "0")
+    PUB_DATE=$(date -u +"%a, %d %b %Y %H:%M:%S +0000")
+    cat << EOF > "$PROJECT_ROOT/Distribution/appcast.xml"
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/sparrow/rss" xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>OtterKeep Changelog</title>
+        <link>https://github.com/richardeszeshu/otter-keep</link>
+        <description>Most recent updates and releases for OtterKeep on macOS.</description>
+        <language>en</language>
+        <item>
+            <title>Version ${VERSION}</title>
+            <pubDate>${PUB_DATE}</pubDate>
+            <sparkle:releaseNotesLink>https://github.com/richardeszeshu/otter-keep/releases/tag/v${VERSION}</sparkle:releaseNotesLink>
+            <description><![CDATA[OtterKeep ${VERSION} release.]]></description>
+            <enclosure
+                url="https://github.com/richardeszeshu/otter-keep/releases/download/v${VERSION}/${ZIP_NAME}"
+                sparkle:version="1100"
+                sparkle:shortVersionString="${VERSION}"
+                length="${ZIP_SIZE}"
+                type="application/octet-stream" />
+        </item>
+    </channel>
+</rss>
+EOF
+    echo "   ✅ Generated initial Distribution/appcast.xml"
+else
+    echo "   ℹ️ Distribution/appcast.xml verified"
+fi
+
 echo "======================================================="
 echo "🎉 Distribution artifacts successfully created!"
 echo "   DMG:      $DMG_PATH"
@@ -88,4 +122,6 @@ echo "   ---"
 echo "   ZIP:      $ZIP_PATH"
 echo "   Size:     $(du -h "$ZIP_PATH" | cut -f1)"
 echo "   SHA256:   $(cat "$ZIP_PATH.sha256")"
+echo "   ---"
+echo "   Appcast:  $PROJECT_ROOT/Distribution/appcast.xml"
 echo "======================================================="

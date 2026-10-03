@@ -542,7 +542,7 @@ public struct SettingsView: View {
 
                         Spacer()
 
-                        Text(String(format: L10n.t(.settingsCurrentVersionFormat), SoftwareUpdateCoordinator.shared.currentVersion, "170"))
+                        Text(String(format: L10n.t(.settingsCurrentVersionFormat), SoftwareUpdateCoordinator.shared.currentVersion, SoftwareUpdateCoordinator.shared.currentBuild))
                             .font(.subheadline.monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
@@ -550,6 +550,16 @@ public struct SettingsView: View {
                     Text(L10n.t(.settingsUpdatesDesc))
                         .font(.body)
                         .foregroundStyle(.secondary)
+
+                    Toggle(isOn: Binding(
+                        get: { appState.automaticallyChecksForUpdates },
+                        set: { appState.automaticallyChecksForUpdates = $0 }
+                    )) {
+                        Text(L10n.t(.settingsAutoUpdateToggle))
+                            .font(.body.weight(.medium))
+                    }
+                    .toggleStyle(.switch)
+                    .padding(.vertical, 2)
 
                     HStack(spacing: 12) {
                         Button {

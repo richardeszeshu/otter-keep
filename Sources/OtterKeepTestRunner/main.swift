@@ -272,12 +272,17 @@ final class OtterKeepTestSuite {
         try assertEqual(coordinator.currentVersion, "1.1.0")
         try assertEqual(coordinator.currentBuild, "1100")
 
+        // Verify default public endpoints
+        try assertTrue(SoftwareUpdateCoordinator.defaultAppcastURL.absoluteString.contains("richardeszeshu/otter-keep"), "Appcast URL must point to richardeszeshu/otter-keep")
+        try assertTrue(SoftwareUpdateCoordinator.defaultReleasesURL.absoluteString.contains("richardeszeshu/otter-keep"), "Releases URL must point to richardeszeshu/otter-keep")
+        try assertTrue(SoftwareUpdateCoordinator.defaultGitHubReleasesAPIURL.absoluteString.contains("richardeszeshu/otter-keep"), "GitHub Releases API URL must point to richardeszeshu/otter-keep")
+
         // Mock an update
         let mockInfo = SoftwareUpdateInfo(
             version: "1.2.0",
             buildNumber: "1200",
             releaseNotes: "Performance improvements & APFS CoW tuning",
-            downloadURL: URL(string: "https://github.com/richardeszes/OtterKeep/releases/tag/v1.2.0")!,
+            downloadURL: URL(string: "https://github.com/richardeszeshu/otter-keep/releases/tag/v1.2.0")!,
             publicationDate: Date(),
             isCritical: false
         )
@@ -299,6 +304,63 @@ final class OtterKeepTestSuite {
 
         // Clear mock
         await coordinator.setMockUpdateInfo(nil)
+
+        // Test Appcast XML parsing with multi-version feed
+        let testAppcastXML = """
+        <?xml version="1.0" encoding="utf-8"?>
+        <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/sparrow/rss">
+            <channel>
+                <title>OtterKeep Feed</title>
+                <item>
+                    <title>Version 1.0.0</title>
+                    <description><![CDATA[Initial production release.]]></description>
+                    <enclosure url="https://github.com/richardeszeshu/otter-keep/releases/download/v1.0.0/OtterKeep-1.0.0.zip"
+                               sparkle:version="1000"
+                               sparkle:shortVersionString="1.0.0" />
+                </item>
+                <item>
+                    <title>Version 1.2.5</title>
+                    <description><![CDATA[Critical security patch and snapshot performance fix.]]></description>
+                    <enclosure url="https://github.com/richardeszeshu/otter-keep/releases/download/v1.2.5/OtterKeep-1.2.5.zip"
+                               sparkle:version="1250"
+                               sparkle:shortVersionString="1.2.5" />
+                </item>
+                <item>
+                    <title>Version 1.1.0</title>
+                    <description><![CDATA[Design refresh.]]></description>
+                    <enclosure url="https://github.com/richardeszeshu/otter-keep/releases/download/v1.1.0/OtterKeep-1.1.0.zip"
+                               sparkle:version="1100"
+                               sparkle:shortVersionString="1.1.0" />
+                </item>
+            </channel>
+        </rss>
+        """.data(using: .utf8)!
+
+        let parsedBest = await coordinator.parseAppcastXML(data: testAppcastXML)
+        guard let best = parsedBest else {
+            throw TestFailure(message: "Failed to parse test appcast XML")
+        }
+        try assertEqual(best.version, "1.2.5", "Appcast parser must select the highest candidate version (1.2.5)")
+        try assertEqual(best.buildNumber, "1250", "Build number should be 1250")
+        try assertTrue(best.releaseNotes.contains("Critical security patch"), "Release notes must match highest version item")
+        try assertEqual(best.downloadURL.absoluteString, "https://github.com/richardeszeshu/otter-keep/releases/download/v1.2.5/OtterKeep-1.2.5.zip")
+
+        // Test SemVer comparison with prerelease
+        try assertEqual(SoftwareUpdateCoordinator.compareVersions("1.2.0-beta1", "1.2.0"), .orderedAscending)
+        try assertEqual(SoftwareUpdateCoordinator.compareVersions("1.2.0", "1.2.0-beta1"), .orderedDescending)
+        try assertTrue(SoftwareUpdateCoordinator.isVersion("1.2.0", newerThan: "1.2.0-beta1"))
+
+        // Test parsing the repository's Distribution/appcast.xml
+        let projectAppcastURL = URL(fileURLWithPath: "Distribution/appcast.xml")
+        if let appcastData = try? Data(contentsOf: projectAppcastURL) {
+            let parsedRepoAppcast = await coordinator.parseAppcastXML(data: appcastData)
+            guard let repoAppcast = parsedRepoAppcast else {
+                throw TestFailure(message: "Failed to parse repository Distribution/appcast.xml")
+            }
+            try assertEqual(repoAppcast.version, "1.1.0", "Repository appcast must have version 1.1.0 as latest")
+            try assertEqual(repoAppcast.buildNumber, "1100", "Repository appcast must have build 1100")
+            try assertTrue(repoAppcast.downloadURL.absoluteString.contains("richardeszeshu/otter-keep"), "Download URL must point to richardeszeshu/otter-keep")
+        }
     }
 
     // =========================================================================

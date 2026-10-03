@@ -270,6 +270,16 @@ public final class NotificationDeliveryService: NSObject, @unchecked Sendable, U
         dispatchNotification(identifier: "com.otterkeep.volumemount.\(profileName).\(UUID().uuidString)", content: content)
     }
 
+    /// Delivers a notification when a new software update is available.
+    public func notifySoftwareUpdateAvailable(version: String) {
+        let content = UNMutableNotificationContent()
+        content.title = L10n.t(.notifUpdateAvailableTitle)
+        content.body = String(format: L10n.t(.notifUpdateAvailableBodyFormat), version)
+        content.sound = .default
+
+        dispatchNotification(identifier: "com.otterkeep.update.available.\(version)", content: content)
+    }
+
     // MARK: - UNUserNotificationCenterDelegate
 
     public func userNotificationCenter(

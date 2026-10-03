@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/sparrow/rss" xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>OtterKeep Changelog</title>
+        <link>https://github.com/richardeszeshu/otter-keep</link>
+        <description>Most recent updates and releases for OtterKeep on macOS.</description>
+        <language>en</language>
+        <item>
+            <title>Version 1.1.0</title>
+            <pubDate>Sat, 03 Oct 2026 09:19:43 +0000</pubDate>
+            <sparkle:releaseNotesLink>https://github.com/richardeszeshu/otter-keep/releases/tag/v1.1.0</sparkle:releaseNotesLink>
+            <description><![CDATA[OtterKeep 1.1.0 — macOS Golden Gate Design System Refresh. Features liquid glass materials, responsive 4-tile destination selector, refined floating About window, and CLI version breakdown.]]></description>
+            <enclosure
+                url="https://github.com/richardeszeshu/otter-keep/releases/download/v1.1.0/OtterKeep-1.1.0.zip"
+                sparkle:version="1100"
+                sparkle:shortVersionString="1.1.0"
+                length="9919084"
+                type="application/octet-stream" />
+        </item>
+        <item>
+            <title>Version 1.0.0</title>
+            <pubDate>Sat, 03 Oct 2026 08:12:53 +0000</pubDate>
+            <sparkle:releaseNotesLink>https://github.com/richardeszeshu/otter-keep/releases/tag/v1.0.0</sparkle:releaseNotesLink>
+            <description><![CDATA[OtterKeep 1.0.0 — Official Production Release. Zero-cost APFS copy-on-write backups, Apple Photos incremental archiving, ransomware shield, and client-side AES-256-GCM encrypted replication.]]></description>
+            <enclosure
+                url="https://github.com/richardeszeshu/otter-keep/releases/download/v1.0.0/OtterKeep-1.0.0.zip"
+                sparkle:version="1000"
+                sparkle:shortVersionString="1.0.0"
+                length="9885028"
+                type="application/octet-stream" />
+        </item>
+    </channel>
+</rss>

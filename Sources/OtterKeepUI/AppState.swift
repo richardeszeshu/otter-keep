@@ -1195,10 +1195,24 @@ public final class AppState: Sendable {
 
     // MARK: - Software Updates Management
 
-    public func checkForSoftwareUpdates() {
+    public var automaticallyChecksForUpdates: Bool {
+        get {
+            if UserDefaults.standard.object(forKey: "OtterKeep.AutoCheckForUpdates") == nil {
+                return true
+            }
+            return UserDefaults.standard.bool(forKey: "OtterKeep.AutoCheckForUpdates")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "OtterKeep.AutoCheckForUpdates")
+        }
+    }
+
+    public func checkForSoftwareUpdates(silent: Bool = false) {
         guard !isCheckingForSoftwareUpdates else { return }
         isCheckingForSoftwareUpdates = true
-        softwareUpdateStatusMessage = L10n.t(.settingsUpdateStatusChecking)
+        if !silent {
+            softwareUpdateStatusMessage = L10n.t(.settingsUpdateStatusChecking)
+        }
         softwareUpdateAvailableInfo = nil
 
         Task { @MainActor [weak self] in
@@ -1208,10 +1222,17 @@ public final class AppState: Sendable {
             case .updateAvailable(let info):
                 self.softwareUpdateAvailableInfo = info
                 self.softwareUpdateStatusMessage = L10n.format(.settingsUpdateStatusAvailableFormat, info.version)
+                if silent {
+                    NotificationDeliveryService.shared.notifySoftwareUpdateAvailable(version: info.version)
+                }
             case .upToDate:
-                self.softwareUpdateStatusMessage = L10n.t(.settingsUpdateStatusUpToDate)
+                if !silent {
+                    self.softwareUpdateStatusMessage = L10n.t(.settingsUpdateStatusUpToDate)
+                }
             case .failed(let err):
-                self.softwareUpdateStatusMessage = L10n.format(.settingsUpdateStatusFailedFormat, err)
+                if !silent {
+                    self.softwareUpdateStatusMessage = L10n.format(.settingsUpdateStatusFailedFormat, err)
+                }
             case .checking, .idle:
                 break
             }
