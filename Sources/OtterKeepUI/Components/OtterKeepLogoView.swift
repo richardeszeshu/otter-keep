@@ -94,23 +94,27 @@ public struct OtterKeepLogoView: View {
 
     /// Universal resource resolver supporting SPM module bundle, main bundle, nested bundles and development filesystem.
     public static func resolveResourceImage(named name: String, ext: String) -> NSImage? {
-        // 1. Search within Swift Package module resources
-        #if SWIFT_PACKAGE
-        if let url = Bundle.module.url(forResource: name, withExtension: ext),
-           let img = NSImage(contentsOf: url) {
-            return img
-        }
-        #endif
-
-        // 2. Search in main application bundle resources
+        // 1. Search in main application bundle resources
         if let url = Bundle.main.url(forResource: name, withExtension: ext),
            let img = NSImage(contentsOf: url) {
             return img
         }
 
-        // 3. Search in nested SPM bundle within Contents/Resources
-        if let resourceURL = Bundle.main.resourceURL {
-            let bundleURL = resourceURL.appendingPathComponent("OtterKeep_OtterKeepUI.bundle")
+        // 2. Search in SPM resource bundle candidates safely without triggering fatalError
+        let bundleName = "OtterKeep_OtterKeepUI"
+        var candidateURLs: [URL] = []
+        if let resURL = Bundle.main.resourceURL {
+            candidateURLs.append(resURL.appendingPathComponent("\(bundleName).bundle"))
+        }
+        candidateURLs.append(Bundle.main.bundleURL.appendingPathComponent("\(bundleName).bundle"))
+        candidateURLs.append(Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/\(bundleName).bundle"))
+        candidateURLs.append(Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("\(bundleName).bundle"))
+        if let envPath = ProcessInfo.processInfo.environment["PACKAGE_RESOURCE_BUNDLE_PATH"] {
+            candidateURLs.append(URL(fileURLWithPath: envPath).appendingPathComponent("\(bundleName).bundle"))
+            candidateURLs.append(URL(fileURLWithPath: envPath))
+        }
+
+        for bundleURL in candidateURLs {
             if let bundle = Bundle(url: bundleURL),
                let url = bundle.url(forResource: name, withExtension: ext),
                let img = NSImage(contentsOf: url) {
@@ -118,7 +122,24 @@ public struct OtterKeepLogoView: View {
             }
         }
 
-        // 4. Development filesystem fallback
+        // 3. Search in loaded framework/module bundles
+        for bundle in Bundle.allBundles where bundle.bundlePath.contains("OtterKeep") {
+            if let url = bundle.url(forResource: name, withExtension: ext),
+               let img = NSImage(contentsOf: url) {
+                return img
+            }
+        }
+
+        // 4. Source tree filesystem fallbacks (compile-time source path and working directory)
+        let sourceRelativeURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // Components
+            .deletingLastPathComponent() // OtterKeepUI
+            .appendingPathComponent("Resources/\(name).\(ext)")
+        if FileManager.default.fileExists(atPath: sourceRelativeURL.path),
+           let img = NSImage(contentsOf: sourceRelativeURL) {
+            return img
+        }
+
         let devRelativePath = "Sources/OtterKeepUI/Resources/\(name).\(ext)"
         if FileManager.default.fileExists(atPath: devRelativePath),
            let img = NSImage(contentsOfFile: devRelativePath) {

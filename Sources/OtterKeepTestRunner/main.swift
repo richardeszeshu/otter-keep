@@ -250,12 +250,12 @@ final class OtterKeepTestSuite {
     // =========================================================================
 
     func testCoreEngineMetadataAndSlogans() async throws {
-        try assertEqual(CoreEngine.version, "1.3.0", "CoreEngine version must be exactly 1.3.0")
-        try assertEqual(CoreEngine.buildNumber, "1300", "CoreEngine buildNumber must be exactly 1300")
+        try assertEqual(CoreEngine.version, "1.3.1", "CoreEngine version must be exactly 1.3.1")
+        try assertEqual(CoreEngine.buildNumber, "1310", "CoreEngine buildNumber must be exactly 1310")
         try assertEqual(CoreEngine.storageVersion, "1.1.0", "Storage version must be 1.1.0")
         try assertEqual(CoreEngine.databaseVersion, "1.1.0", "Database version must be 1.1.0")
-        try assertEqual(CoreEngine.coreVersion, "1.2.0", "Core version must be 1.2.0")
-        try assertEqual(CoreEngine.uiVersion, "1.3.0", "UI version must be 1.3.0")
+        try assertEqual(CoreEngine.coreVersion, "1.2.1", "Core version must be 1.2.1")
+        try assertEqual(CoreEngine.uiVersion, "1.3.1", "UI version must be 1.3.1")
         try assertEqual(CoreEngine.cliVersion, "1.1.0", "CLI version must be 1.1.0")
         try assertEqual(CoreEngine.finderSyncVersion, "1.0.0", "FinderSync version must be 1.0.0")
         try assertEqual(CoreEngine.appName, "OtterKeep", "CoreEngine appName must be OtterKeep")
@@ -297,8 +297,8 @@ final class OtterKeepTestSuite {
 
     func testSparkleAppcastCoordinatorLogic() async throws {
         let coordinator = SoftwareUpdateCoordinator.shared
-        try assertEqual(coordinator.currentVersion, "1.3.0")
-        try assertEqual(coordinator.currentBuild, "1300")
+        try assertEqual(coordinator.currentVersion, "1.3.1")
+        try assertEqual(coordinator.currentBuild, "1310")
 
         // Verify default public endpoints
         try assertTrue(SoftwareUpdateCoordinator.defaultAppcastURL.absoluteString.contains("richardeszeshu/otter-keep"), "Appcast URL must point to richardeszeshu/otter-keep")
@@ -1730,6 +1730,8 @@ final class OtterKeepTestSuite {
 @main
 struct OtterKeepTestRunnerMain {
     static func main() async {
+        setlinebuf(stdout)
+        setlinebuf(stderr)
         let suite = OtterKeepTestSuite()
         do {
             try await suite.runAll()
