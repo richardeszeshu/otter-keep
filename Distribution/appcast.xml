@@ -6,6 +6,18 @@
         <description>Most recent updates and releases for OtterKeep on macOS.</description>
         <language>en</language>
         <item>
+            <title>Version 1.3.1</title>
+            <pubDate>Sun, 04 Oct 2026 08:46:25 +0000</pubDate>
+            <sparkle:releaseNotesLink>https://github.com/richardeszeshu/otter-keep/releases/tag/v1.3.1</sparkle:releaseNotesLink>
+            <description><![CDATA[OtterKeep 1.3.1 release.]]></description>
+            <enclosure
+                url="https://github.com/richardeszeshu/otter-keep/releases/download/v1.3.1/OtterKeep-1.3.1.zip"
+                sparkle:version="1310"
+                sparkle:shortVersionString="1.3.1"
+                length="11539008"
+                type="application/octet-stream" />
+        </item>
+        <item>
             <title>Version 1.3.0</title>
             <pubDate>Sat, 03 Oct 2026 14:26:00 +0000</pubDate>
             <sparkle:releaseNotesLink>https://github.com/richardeszeshu/otter-keep/releases/tag/v1.3.0</sparkle:releaseNotesLink>
