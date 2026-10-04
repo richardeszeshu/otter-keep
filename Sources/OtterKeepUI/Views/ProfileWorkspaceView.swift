@@ -92,12 +92,12 @@ public struct ProfileWorkspaceView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
-                .disabled(appState.isBackupRunning || appState.isDryRunRunning)
+                .disabled(appState.isBackupRunning(for: profile.id) || appState.isDryRunRunning)
 
                 // Backup Now / Stop Button
-                if appState.isBackupRunning {
+                if appState.isBackupRunning(for: profile.id) {
                     Button(role: .destructive) {
-                        appState.cancelBackup()
+                        appState.cancelBackup(for: profile.id)
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "stop.circle.fill")
@@ -110,7 +110,7 @@ public struct ProfileWorkspaceView: View {
                     .controlSize(.regular)
                 } else {
                     Button {
-                        appState.startBackup()
+                        appState.startBackup(for: profile)
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "arrow.clockwise.circle.fill")

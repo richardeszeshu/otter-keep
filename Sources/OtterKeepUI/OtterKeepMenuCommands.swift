@@ -79,13 +79,13 @@ public struct OtterKeepMenuCommands: Commands {
                 appState.startBackup()
             }
             .keyboardShortcut("b", modifiers: .command)
-            .disabled(appState.isBackupRunning || appState.selectedProfile == nil)
+            .disabled(appState.selectedProfile.map { appState.isBackupRunning(for: $0.id) } ?? true)
 
             Button(L10n.t(.menuRunAllBackups)) {
                 appState.startBackupAll()
             }
             .keyboardShortcut("b", modifiers: [.shift, .command])
-            .disabled(appState.isBackupRunning || appState.profiles.isEmpty)
+            .disabled(appState.profiles.isEmpty)
 
             Button(L10n.t(.menuRunPhotosBackup)) {
                 appState.startPhotosBackup()
@@ -100,7 +100,7 @@ public struct OtterKeepMenuCommands: Commands {
                 WindowManager.showAndFocusMainWindow()
             }
             .keyboardShortcut("d", modifiers: [.option, .command])
-            .disabled(appState.isBackupRunning || appState.isDryRunRunning || appState.selectedProfile == nil)
+            .disabled(appState.selectedProfile.map { appState.isBackupRunning(for: $0.id) } ?? true || appState.isDryRunRunning)
 
             Button(L10n.t(.menuCancelBackup)) {
                 appState.cancelBackup()

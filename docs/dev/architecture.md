@@ -22,9 +22,9 @@ graph TD
  
 | Module | Version | Responsibility | Key Components |
 |---|:---:|---|---|
-| `OtterKeepApp` | `1.3.0` | Application lifecycle, Menu Bar item, Sparkle updater | `main.swift`, `MenuBarContentView.swift`, `AppDelegate.swift` |
-| `OtterKeepUI` | `1.3.0` | SwiftUI interface, design system, modals, animations, About popup | `AppState.swift`, `OtterTheme.swift`, `MainWindowView.swift`, `OtterAboutView.swift` |
-| `OtterKeepCore` | `1.2.0` | Business logic, backup coordination, scheduling, security | `CoreEngine.swift`, `BackupSessionCoordinator.swift`, `RansomwareAnomalyGuard.swift`, `SingleInstanceManager.swift` |
+| `OtterKeepApp` | `1.3.1` | Application lifecycle, Menu Bar item, Sparkle updater | `main.swift`, `MenuBarContentView.swift`, `AppDelegate.swift` |
+| `OtterKeepUI` | `1.3.1` | SwiftUI interface, design system, modals, animations, About popup | `AppState.swift`, `OtterTheme.swift`, `MainWindowView.swift`, `OtterAboutView.swift` |
+| `OtterKeepCore` | `1.2.1` | Business logic, backup coordination, scheduling, security | `CoreEngine.swift`, `BackupSessionCoordinator.swift`, `RansomwareAnomalyGuard.swift`, `SingleInstanceManager.swift` |
 | `OtterKeepStorage` | `1.1.0` | Filesystem drivers (APFS CoW, exFAT, NTFS, FAT), S3/SFTP/WebDAV | `FileSystemDriver.swift`, `FileSystemDriverRegistry.swift`, `APFSDriver.swift`, `ExFATDriver.swift`, `NTFSDriver.swift`, `APFSFileSystemProvider.swift` |
 | `OtterKeepDatabase` | `1.1.0` | Snapshot indexing, metadata storage, WAL/TRUNCATE diff engine | `DatabaseEngine.swift`, `SnapshotDiffEngine.swift` |
 | `OtterKeepCLI` | `1.1.0` | Native command-line interface & diagnostics | `main.swift` |

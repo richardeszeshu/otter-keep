@@ -98,6 +98,40 @@ public enum RestoreBrowseMode: String, CaseIterable, Identifiable, Sendable {
 }
 
 
+/// Modal feedback payload presenting Ottie mascot illustrations and actionable guidance.
+public struct OperationFeedback: Identifiable, Sendable {
+    public enum FeedbackType: Sendable {
+        case success
+        case failure
+    }
+
+    public let id: UUID
+    public let type: FeedbackType
+    public let title: String
+    public let message: String
+    public let detailedReason: String?
+    public let profileName: String?
+    public let summary: BackupSessionSummary?
+
+    public init(
+        id: UUID = UUID(),
+        type: FeedbackType,
+        title: String,
+        message: String,
+        detailedReason: String? = nil,
+        profileName: String? = nil,
+        summary: BackupSessionSummary? = nil
+    ) {
+        self.id = id
+        self.type = type
+        self.title = title
+        self.message = message
+        self.detailedReason = detailedReason
+        self.profileName = profileName
+        self.summary = summary
+    }
+}
+
 /// Central `@Observable` view-model orchestrating application state, profile switching, background backup execution, and restore operations on the `@MainActor`.
 @MainActor
 @Observable
@@ -114,11 +148,70 @@ public final class AppState: Sendable {
     /// Currently active tab within the Apple Photos workspace.
     public var activePhotosTab: PhotosWorkspaceTab = .syncAndBackup
 
-    /// Indicates whether a backup operation is currently executing.
-    public var isBackupRunning: Bool = false
-    /// Live telemetry progress state.
-    public var progressState: BackupProgressState = BackupProgressState()
-    private var activeBackupTask: Task<Void, Never>?
+    // MARK: - Per-Profile Parallel Backup Operations State (1.3.1)
+    /// Active background backup tasks keyed by profile UUID.
+    private var activeBackupTasks: [UUID: Task<Void, Never>] = [:]
+
+    /// Live telemetry progress states keyed by profile UUID.
+    public private(set) var profileProgressStates: [UUID: BackupProgressState] = [:]
+
+    /// Last session summaries keyed by profile UUID.
+    public private(set) var profileLastSummaries: [UUID: BackupSessionSummary] = [:]
+
+    /// Indicates whether a backup operation is currently executing for any profile.
+    public var isBackupRunning: Bool {
+        !activeBackupTasks.isEmpty
+    }
+
+    /// Checks if a specific profile is currently backing up.
+    public func isBackupRunning(for profileId: UUID) -> Bool {
+        activeBackupTasks[profileId] != nil
+    }
+
+    /// Retrieves the live progress state for a specific profile (or idle if not running).
+    public func progressState(for profileId: UUID) -> BackupProgressState {
+        profileProgressStates[profileId] ?? BackupProgressState(phase: .idle)
+    }
+
+    /// Backward-compatible progress state resolving to the currently selected profile (or first active).
+    public var progressState: BackupProgressState {
+        get {
+            if let selectedId = selectedProfileId, let state = profileProgressStates[selectedId] {
+                return state
+            }
+            if let firstActive = profileProgressStates.values.first(where: { $0.phase != .idle }) {
+                return firstActive
+            }
+            return BackupProgressState(phase: .idle)
+        }
+        set {
+            if let selectedId = selectedProfileId {
+                profileProgressStates[selectedId] = newValue
+            }
+        }
+    }
+
+    // MARK: - Testing State Helpers
+    /// Simulates or sets running state for testing profile lockout and multi-profile parallelism.
+    public func setBackupRunningForTesting(profileId: UUID, running: Bool) {
+        if running {
+            activeBackupTasks[profileId] = Task { try? await Task.sleep(nanoseconds: 10_000_000_000) }
+            profileProgressStates[profileId] = BackupProgressState(phase: .copying)
+        } else {
+            activeBackupTasks[profileId]?.cancel()
+            activeBackupTasks.removeValue(forKey: profileId)
+            profileProgressStates.removeValue(forKey: profileId)
+        }
+    }
+
+    /// Sets simulated system dark mode state for theme switcher testing.
+    public func setSystemDarkModeForTesting(_ isDark: Bool) {
+        self.isSystemDarkMode = isDark
+    }
+
+    // MARK: - Modal Operation Feedback State (1.3.1)
+    public var activeFeedback: OperationFeedback? = nil
+    public var showFeedbackModal: Bool = false
 
     // MARK: - 3-2-1 Replication State
     public var isReplicationRunning: Bool = false
@@ -345,6 +438,33 @@ public final class AppState: Sendable {
     public var logFilterQuery: String = ""
 
     // MARK: - Language, Theme & Settings State
+    public private(set) var isSystemDarkMode: Bool = false
+
+    /// Computes the active SwiftUI color scheme, dynamically synchronizing system mode with the OS interface style.
+    public var effectiveColorScheme: ColorScheme {
+        switch currentTheme {
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        case .system:
+            return isSystemDarkMode ? .dark : .light
+        }
+    }
+
+    /// Evaluates the true operating system appearance setting.
+    public func updateSystemDarkMode() {
+        let isDark: Bool
+        if let match = NSApplication.shared.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) {
+            isDark = (match == .darkAqua)
+        } else if let style = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") {
+            isDark = (style.caseInsensitiveCompare("Dark") == .orderedSame)
+        } else {
+            isDark = false
+        }
+        self.isSystemDarkMode = isDark
+    }
+
     public var currentTheme: AppThemeMode = LocalizationManager.shared.currentTheme {
         didSet {
             LocalizationManager.shared.currentTheme = currentTheme
@@ -354,13 +474,20 @@ public final class AppState: Sendable {
 
     /// Synchronizes the global macOS application appearance with the selected theme mode.
     public func applyThemeAppearance(_ theme: AppThemeMode) {
+        updateSystemDarkMode()
+        let targetAppearance: NSAppearance?
         switch theme {
         case .system:
-            NSApplication.shared.appearance = nil
+            targetAppearance = nil
         case .light:
-            NSApplication.shared.appearance = NSAppearance(named: .aqua)
+            targetAppearance = NSAppearance(named: .aqua)
         case .dark:
-            NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
+            targetAppearance = NSAppearance(named: .darkAqua)
+        }
+
+        NSApplication.shared.appearance = targetAppearance
+        for window in NSApplication.shared.windows {
+            window.appearance = targetAppearance
         }
     }
 
@@ -462,6 +589,22 @@ public final class AppState: Sendable {
         refreshPhotosLibraryStats()
         loadPhotosSnapshots()
         applyThemeAppearance(self.currentTheme)
+
+        // Observe macOS system theme changes (Auto mode live switching)
+        DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("AppleInterfaceThemeChangedNotification"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                self.updateSystemDarkMode()
+                if self.currentTheme == .system {
+                    self.applyThemeAppearance(.system)
+                }
+            }
+        }
+
         startScheduler()
     }
 
@@ -553,7 +696,7 @@ public final class AppState: Sendable {
         intervalMinutes: Int,
         catchUp: Bool
     ) {
-        guard var profile = selectedProfile else { return }
+        guard var profile = selectedProfile, !isBackupRunning(for: profile.id) else { return }
         profile.schedule.isEnabled = isEnabled
         profile.schedule.frequency = frequency
         profile.schedule.hour = hour
@@ -589,7 +732,7 @@ public final class AppState: Sendable {
     // MARK: - Auto-Pruning Policy Configuration
 
     public func updateAutoPruning(isEnabled: Bool, maxKeep: Int) {
-        guard var profile = selectedProfile else { return }
+        guard var profile = selectedProfile, !isBackupRunning(for: profile.id) else { return }
         profile.pruningPolicy.isAutoPruningEnabled = isEnabled
         profile.pruningPolicy.maxSnapshotsToKeep = maxKeep
         self.selectedProfile = profile
@@ -611,7 +754,7 @@ public final class AppState: Sendable {
 
     @MainActor
     public func selectSourceDirectory() {
-        guard let profile = selectedProfile else { return }
+        guard let profile = selectedProfile, !isBackupRunning(for: profile.id) else { return }
         pickDirectory(
             title: L10n.t(.selectSourceFolder),
             prompt: L10n.t(.selectFolderConfirm),
@@ -624,7 +767,7 @@ public final class AppState: Sendable {
 
     @MainActor
     public func selectDestinationDirectory() {
-        guard let profile = selectedProfile else { return }
+        guard let profile = selectedProfile, !isBackupRunning(for: profile.id) else { return }
         pickDirectory(
             title: L10n.t(.selectDestinationFolder),
             prompt: L10n.t(.selectFolderConfirm),
@@ -676,7 +819,7 @@ public final class AppState: Sendable {
     // MARK: - Source, Destination & Exclusions Persistence
 
     public func updateSourceURL(_ url: URL) {
-        guard var profile = selectedProfile else { return }
+        guard var profile = selectedProfile, !isBackupRunning(for: profile.id) else { return }
         guard validateFolderPair(sourceURL: url, destinationURL: profile.destinationURL) else {
             showError(L10n.t(.invalidFolderSelectionMessage))
             return
@@ -690,7 +833,7 @@ public final class AppState: Sendable {
     }
 
     public func updateDestinationURL(_ url: URL) {
-        guard var profile = selectedProfile else { return }
+        guard var profile = selectedProfile, !isBackupRunning(for: profile.id) else { return }
         guard validateFolderPair(sourceURL: profile.sourceURL, destinationURL: url) else {
             showError(L10n.t(.invalidFolderSelectionMessage))
             return
@@ -706,7 +849,7 @@ public final class AppState: Sendable {
 
     public func addExcludePattern(_ pattern: String) {
         let trimmed = pattern.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, var profile = selectedProfile else { return }
+        guard !trimmed.isEmpty, var profile = selectedProfile, !isBackupRunning(for: profile.id) else { return }
         if !profile.excludePatterns.contains(trimmed) {
             profile.excludePatterns.append(trimmed)
             self.selectedProfile = profile
@@ -717,7 +860,7 @@ public final class AppState: Sendable {
     }
 
     public func removeExcludePattern(_ pattern: String) {
-        guard var profile = selectedProfile else { return }
+        guard var profile = selectedProfile, !isBackupRunning(for: profile.id) else { return }
         profile.excludePatterns.removeAll(where: { $0 == pattern })
         self.selectedProfile = profile
         saveProfiles()
@@ -785,6 +928,10 @@ public final class AppState: Sendable {
     }
 
     public func renameProfile(id: UUID, newName: String) {
+        guard !isBackupRunning(for: id) else {
+            LogManager.shared.log("Cannot rename profile while backup is actively running [UUID: \(id.uuidString)]", level: .warning, category: "Profile")
+            return
+        }
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, let idx = profiles.firstIndex(where: { $0.id == id }) else { return }
         profiles[idx].name = trimmed
@@ -794,6 +941,10 @@ public final class AppState: Sendable {
     }
 
     public func deleteProfile(id: UUID) {
+        guard !isBackupRunning(for: id) else {
+            LogManager.shared.log("Cannot delete profile while backup is actively running [UUID: \(id.uuidString)]", level: .warning, category: "Profile")
+            return
+        }
         guard profiles.count > 1, let idx = profiles.firstIndex(where: { $0.id == id }) else { return }
         let removedProfile = profiles[idx]
         let removedName = removedProfile.name
@@ -1243,50 +1394,61 @@ public final class AppState: Sendable {
 
     // MARK: - Backup Operations & Analysis
 
-    /// Sequentially executes backups across all configured profiles.
+    /// Parallel executes backups across all configured profiles.
     public func startBackupAll(mode: BackupMode = .incremental) {
-        guard !isBackupRunning else { return }
         let profilesToRun = self.profiles
         guard !profilesToRun.isEmpty else { return }
 
-        LogManager.shared.log("Batch backup requested for all \(profilesToRun.count) profile(s).", level: .info, category: "UI")
+        LogManager.shared.log("Parallel batch backup requested for all \(profilesToRun.count) profile(s).", level: .info, category: "UI")
         refreshLogs()
 
-        Task { @MainActor [weak self] in
-            guard let self = self else { return }
-            for profile in profilesToRun {
-                self.startBackup(for: profile, mode: mode)
-                while self.isBackupRunning {
-                    try? await Task.sleep(nanoseconds: 300_000_000)
-                }
+        for profile in profilesToRun {
+            if !isBackupRunning(for: profile.id) {
+                startBackup(for: profile, mode: mode)
             }
-            LogManager.shared.log("Batch backup completed for all \(profilesToRun.count) profile(s).", level: .info, category: "UI")
-            self.refreshLogs()
         }
     }
 
     public func startBackup(for profileToBackup: BackupProfile? = nil, mode: BackupMode = .incremental) {
-        guard let profile = profileToBackup ?? selectedProfile, !isBackupRunning else { return }
+        guard let profile = profileToBackup ?? selectedProfile else { return }
+        guard !isBackupRunning(for: profile.id) else {
+            LogManager.shared.log("Backup already in progress for profile '\(profile.name)' [UUID: \(profile.id.uuidString)] - skipping duplicate launch.", level: .warning, category: "UI")
+            return
+        }
 
-        isBackupRunning = true
-        progressState = BackupProgressState(phase: .scanning)
+        profileProgressStates[profile.id] = BackupProgressState(phase: .scanning)
         let modeTag = mode == .full ? " (FORCED FULL)" : " (Incremental)"
         LogManager.shared.log("Backup initiated for profile '\(profile.name)' [UUID: \(profile.id.uuidString)]\(modeTag)", level: .info, category: "UI")
         refreshLogs()
 
-        activeBackupTask = Task { [weak self] in
+        // Create dedicated, isolated session coordinator and SQLite database to support zero-contention parallel backups
+        let sessionDb = DatabaseEngine()
+        let sessionRetention = RetentionManager(storage: self.storage, database: sessionDb)
+        let sessionCoordinator = BackupSessionCoordinator(
+            storage: self.storage,
+            database: sessionDb,
+            retentionManager: sessionRetention
+        )
+
+        let task = Task { [weak self] in
             guard let self = self else { return }
             do {
-                _ = try await self.coordinator.performBackup(profile: profile, mode: mode) { [weak self] progress in
+                _ = try await sessionCoordinator.performBackup(profile: profile, mode: mode) { [weak self] progress in
                     Task { @MainActor in
-                        self?.progressState = progress
+                        self?.profileProgressStates[profile.id] = progress
                     }
                 }
-                let coordinatorSummary = await self.coordinator.lastSessionSummary
-                self.lastSessionSummary = coordinatorSummary ?? self.progressState.lastSummary
-                self.isBackupRunning = false
-                self.activeBackupTask = nil
-                self.progressState.phase = .idle
+                let coordinatorSummary = await sessionCoordinator.lastSessionSummary
+                let finalSummary = coordinatorSummary ?? self.profileProgressStates[profile.id]?.lastSummary
+                if let summary = finalSummary {
+                    self.profileLastSummaries[profile.id] = summary
+                }
+                if self.selectedProfileId == profile.id {
+                    self.lastSessionSummary = finalSummary
+                }
+
+                self.activeBackupTasks.removeValue(forKey: profile.id)
+                self.profileProgressStates[profile.id] = BackupProgressState(phase: .idle)
 
                 if let idx = self.profiles.firstIndex(where: { $0.id == profile.id }) {
                     self.profiles[idx].schedule.lastRunDate = Date()
@@ -1297,41 +1459,122 @@ public final class AppState: Sendable {
                 self.refreshLogs()
                 self.loadSnapshots()
 
+                // Trigger Operation Feedback Modal
+                self.activeFeedback = OperationFeedback(
+                    type: .success,
+                    title: L10n.t(.feedbackSuccessTitle),
+                    message: L10n.format(.feedbackSuccessMessage, profile.name),
+                    profileName: profile.name,
+                    summary: finalSummary
+                )
+                self.showFeedbackModal = true
+
                 // Trigger 3-2-1 Replication from UI AppState to provide live telemetry
                 if profile.copyJobConfig.isEnabled && profile.copyJobConfig.trigger == .onPrimarySuccess {
                     self.startReplication(for: profile)
                 }
             } catch is CancellationError {
-                self.isBackupRunning = false
-                self.activeBackupTask = nil
-                self.progressState.phase = .idle
+                self.activeBackupTasks.removeValue(forKey: profile.id)
+                self.profileProgressStates[profile.id] = BackupProgressState(phase: .idle)
                 LogManager.shared.log("Backup cancelled by user for profile '\(profile.name)' [UUID: \(profile.id.uuidString)]", level: .info, category: "UI")
                 self.refreshLogs()
             } catch {
-                self.isBackupRunning = false
-                self.activeBackupTask = nil
-                self.progressState.phase = .failed
+                self.activeBackupTasks.removeValue(forKey: profile.id)
+                self.profileProgressStates[profile.id] = BackupProgressState(phase: .failed)
                 NotificationDeliveryService.shared.notifyBackupFailed(profileName: profile.name, errorMessage: error.localizedDescription)
                 LogManager.shared.log("Backup failed for profile '\(profile.name)' [UUID: \(profile.id.uuidString)]: \(error.localizedDescription)", level: .error, category: "UI")
                 self.refreshLogs()
-                self.showError(error.localizedDescription)
+
+                let analyzed = Self.analyzeBackupError(error, destinationURL: profile.destinationURL, sourceURL: profile.sourceURL)
+                self.activeFeedback = OperationFeedback(
+                    type: .failure,
+                    title: analyzed.title,
+                    message: analyzed.message,
+                    detailedReason: analyzed.detailedReason,
+                    profileName: profile.name
+                )
+                self.showFeedbackModal = true
             }
         }
+
+        activeBackupTasks[profile.id] = task
     }
 
     @MainActor
-    public func cancelBackup() {
-        guard isBackupRunning else { return }
-        LogManager.shared.log("Cancelling backup upon user request...", level: .info, category: "UI")
-        activeBackupTask?.cancel()
-        activeBackupTask = nil
-        isBackupRunning = false
-        progressState.phase = .idle
-        refreshLogs()
+    public func cancelBackup(for profileId: UUID? = nil) {
+        let targetId = profileId ?? selectedProfileId
+        if let id = targetId, let task = activeBackupTasks[id] {
+            let profileName = profiles.first(where: { $0.id == id })?.name ?? id.uuidString
+            LogManager.shared.log("Cancelling backup upon user request for profile '\(profileName)'...", level: .info, category: "UI")
+            task.cancel()
+            activeBackupTasks.removeValue(forKey: id)
+            profileProgressStates[id] = BackupProgressState(phase: .idle)
+            refreshLogs()
+        } else if targetId == nil {
+            LogManager.shared.log("Cancelling all running backups upon user request...", level: .info, category: "UI")
+            for (id, task) in activeBackupTasks {
+                task.cancel()
+                profileProgressStates[id] = BackupProgressState(phase: .idle)
+            }
+            activeBackupTasks.removeAll()
+            refreshLogs()
+        }
+    }
+
+    /// Analyzes backup failure errors to produce precise, non-misleading user guidance.
+    public static func analyzeBackupError(_ error: Error, destinationURL: URL?, sourceURL: URL?) -> (title: String, message: String, detailedReason: String) {
+        let errorDesc = error.localizedDescription
+
+        // 1. External drive disconnected or destination directory vanished
+        if let dest = destinationURL, !FileManager.default.fileExists(atPath: dest.path) {
+            return (
+                title: L10n.t(.feedbackExternalDriveMissingTitle),
+                message: L10n.format(.feedbackExternalDriveMissingMessage, dest.lastPathComponent),
+                detailedReason: L10n.t(.feedbackExternalDriveMissingAdvice)
+            )
+        }
+
+        // 2. Source folder missing or renamed
+        if let src = sourceURL, !FileManager.default.fileExists(atPath: src.path) {
+            return (
+                title: L10n.t(.feedbackSourceFolderMissingTitle),
+                message: L10n.format(.feedbackSourceFolderMissingMessage, src.lastPathComponent),
+                detailedReason: L10n.t(.feedbackSourceFolderMissingAdvice)
+            )
+        }
+
+        // 3. Insufficient disk space
+        if errorDesc.localizedCaseInsensitiveContains("space") ||
+           errorDesc.localizedCaseInsensitiveContains("No space left") ||
+           (error as NSError).code == 28 {
+            return (
+                title: L10n.t(.feedbackDiskFullTitle),
+                message: L10n.t(.feedbackDiskFullMessage),
+                detailedReason: L10n.t(.feedbackDiskFullAdvice)
+            )
+        }
+
+        // 4. macOS Full Disk Access or filesystem permission denied
+        if errorDesc.localizedCaseInsensitiveContains("permission") ||
+           errorDesc.localizedCaseInsensitiveContains("Permission denied") ||
+           (error as NSError).code == 13 {
+            return (
+                title: L10n.t(.feedbackPermissionDeniedTitle),
+                message: L10n.t(.feedbackPermissionDeniedMessage),
+                detailedReason: L10n.t(.feedbackPermissionDeniedAdvice)
+            )
+        }
+
+        // 5. General failure with calm, reassuring advice
+        return (
+            title: L10n.t(.feedbackGeneralErrorTitle),
+            message: errorDesc,
+            detailedReason: L10n.t(.feedbackGeneralErrorAdvice)
+        )
     }
 
     public func performDryRun(mode: BackupMode = .incremental) {
-        guard let profile = selectedProfile, !isBackupRunning, !isDryRunRunning else { return }
+        guard let profile = selectedProfile, !isBackupRunning(for: profile.id), !isDryRunRunning else { return }
 
         isDryRunRunning = true
         let modeTag = mode == .full ? " (FULL)" : " (Incremental)"

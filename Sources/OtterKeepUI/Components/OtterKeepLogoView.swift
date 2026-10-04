@@ -79,32 +79,68 @@ public struct OtterKeepLogoView: View {
 
     /// Resolves the raw OtterKeep mascot logo image from bundle resources or local fallback paths.
     public static func resolveLogoImage() -> NSImage? {
-        // 1. Search within Swift Package module resources
-        #if SWIFT_PACKAGE
-        if let url = Bundle.module.url(forResource: "OtterKeepLogo", withExtension: "jpg"),
+        resolveResourceImage(named: "OtterKeepLogo", ext: "jpg")
+    }
+
+    /// Resolves the OttieSuccess transparent illustration from bundle resources or local fallback paths.
+    public static func resolveSuccessImage() -> NSImage? {
+        resolveResourceImage(named: "OttieSuccess", ext: "png")
+    }
+
+    /// Resolves the OttieFailure transparent illustration from bundle resources or local fallback paths.
+    public static func resolveFailureImage() -> NSImage? {
+        resolveResourceImage(named: "OttieFailure", ext: "png")
+    }
+
+    /// Universal resource resolver supporting SPM module bundle, main bundle, nested bundles and development filesystem.
+    public static func resolveResourceImage(named name: String, ext: String) -> NSImage? {
+        // 1. Search in main application bundle resources
+        if let url = Bundle.main.url(forResource: name, withExtension: ext),
            let img = NSImage(contentsOf: url) {
             return img
         }
-        #endif
 
-        // 2. Search in main application bundle resources
-        if let url = Bundle.main.url(forResource: "OtterKeepLogo", withExtension: "jpg"),
-           let img = NSImage(contentsOf: url) {
-            return img
+        // 2. Search in SPM resource bundle candidates safely without triggering fatalError
+        let bundleName = "OtterKeep_OtterKeepUI"
+        var candidateURLs: [URL] = []
+        if let resURL = Bundle.main.resourceURL {
+            candidateURLs.append(resURL.appendingPathComponent("\(bundleName).bundle"))
+        }
+        candidateURLs.append(Bundle.main.bundleURL.appendingPathComponent("\(bundleName).bundle"))
+        candidateURLs.append(Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/\(bundleName).bundle"))
+        candidateURLs.append(Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("\(bundleName).bundle"))
+        if let envPath = ProcessInfo.processInfo.environment["PACKAGE_RESOURCE_BUNDLE_PATH"] {
+            candidateURLs.append(URL(fileURLWithPath: envPath).appendingPathComponent("\(bundleName).bundle"))
+            candidateURLs.append(URL(fileURLWithPath: envPath))
         }
 
-        // 3. Search in nested SPM bundle within Contents/Resources
-        if let resourceURL = Bundle.main.resourceURL {
-            let bundleURL = resourceURL.appendingPathComponent("OtterKeep_OtterKeepUI.bundle")
+        for bundleURL in candidateURLs {
             if let bundle = Bundle(url: bundleURL),
-               let url = bundle.url(forResource: "OtterKeepLogo", withExtension: "jpg"),
+               let url = bundle.url(forResource: name, withExtension: ext),
                let img = NSImage(contentsOf: url) {
                 return img
             }
         }
 
-        // 4. Development filesystem fallback
-        let devRelativePath = "Sources/OtterKeepUI/Resources/OtterKeepLogo.jpg"
+        // 3. Search in loaded framework/module bundles
+        for bundle in Bundle.allBundles where bundle.bundlePath.contains("OtterKeep") {
+            if let url = bundle.url(forResource: name, withExtension: ext),
+               let img = NSImage(contentsOf: url) {
+                return img
+            }
+        }
+
+        // 4. Source tree filesystem fallbacks (compile-time source path and working directory)
+        let sourceRelativeURL = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent() // Components
+            .deletingLastPathComponent() // OtterKeepUI
+            .appendingPathComponent("Resources/\(name).\(ext)")
+        if FileManager.default.fileExists(atPath: sourceRelativeURL.path),
+           let img = NSImage(contentsOf: sourceRelativeURL) {
+            return img
+        }
+
+        let devRelativePath = "Sources/OtterKeepUI/Resources/\(name).\(ext)"
         if FileManager.default.fileExists(atPath: devRelativePath),
            let img = NSImage(contentsOfFile: devRelativePath) {
             return img
@@ -131,3 +167,56 @@ public struct OtterKeepLogoView: View {
         return outputImage
     }
 }
+
+/// Presentation view for Ottie mascot illustrations in operation feedback modals.
+public struct OttieFeedbackMascotView: View {
+    public enum MascotState {
+        case success
+        case failure
+    }
+
+    public let state: MascotState
+    public let size: CGFloat
+
+    public init(state: MascotState, size: CGFloat = 160) {
+        self.state = state
+        self.size = size
+    }
+
+    public var body: some View {
+        Group {
+            if let image = resolvedImage {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: size, height: size)
+                    .shadow(color: Color.black.opacity(0.10), radius: 10, x: 0, y: 5)
+            } else {
+                fallbackView
+            }
+        }
+    }
+
+    private var resolvedImage: NSImage? {
+        switch state {
+        case .success:
+            return OtterKeepLogoView.resolveSuccessImage()
+        case .failure:
+            return OtterKeepLogoView.resolveFailureImage()
+        }
+    }
+
+    private var fallbackView: some View {
+        ZStack {
+            Circle()
+                .fill(state == .success ? OtterTheme.statusGreen.opacity(0.15) : OtterTheme.statusError.opacity(0.15))
+                .frame(width: size * 0.85, height: size * 0.85)
+
+            Image(systemName: state == .success ? "hand.thumbsup.fill" : "exclamationmark.triangle.fill")
+                .font(.system(size: size * 0.4, weight: .bold))
+                .foregroundStyle(state == .success ? OtterTheme.statusGreen : OtterTheme.statusError)
+        }
+        .frame(width: size, height: size)
+    }
+}
+

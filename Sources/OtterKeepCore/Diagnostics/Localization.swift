@@ -1133,6 +1133,28 @@ public enum L10n {
         case importConfigInvalidFile
         case importConfigConfirmTitle
         case importConfigConfirmMessage
+
+        // MARK: - Operation Feedback & Profile Lockout (1.3.1)
+        case feedbackSuccessTitle
+        case feedbackSuccessMessage
+        case feedbackViewDetails
+        case feedbackViewLogs
+        case feedbackExternalDriveMissingTitle
+        case feedbackExternalDriveMissingMessage
+        case feedbackExternalDriveMissingAdvice
+        case feedbackSourceFolderMissingTitle
+        case feedbackSourceFolderMissingMessage
+        case feedbackSourceFolderMissingAdvice
+        case feedbackDiskFullTitle
+        case feedbackDiskFullMessage
+        case feedbackDiskFullAdvice
+        case feedbackPermissionDeniedTitle
+        case feedbackPermissionDeniedMessage
+        case feedbackPermissionDeniedAdvice
+        case feedbackGeneralErrorTitle
+        case feedbackGeneralErrorAdvice
+        case profileLockedBannerTitle
+        case profileLockedBannerMessage
     }
 
 
@@ -1997,7 +2019,29 @@ public enum L10n {
         .importConfigErrorMessage: "Nem sikerült importálni a konfigurációt: %@",
         .importConfigInvalidFile: "A kiválasztott fájl nem érvényes OtterKeep konfigurációs archívum.",
         .importConfigConfirmTitle: "Konfiguráció felülírásának megerősítése",
-        .importConfigConfirmMessage: "A konfiguráció importálása felülírja a jelenlegi mentési profilokat és beállításokat. Szeretnéd folytatni?"
+        .importConfigConfirmMessage: "A konfiguráció importálása felülírja a jelenlegi mentési profilokat és beállításokat. Szeretnéd folytatni?",
+
+        // MARK: - Operation Feedback & Profile Lockout (1.3.1)
+        .feedbackSuccessTitle: "Mentés sikeresen befejeződött!",
+        .feedbackSuccessMessage: "A(z) '%@' profil biztonsági mentése sikeresen elkészült.",
+        .feedbackViewDetails: "Részletek megtekintése",
+        .feedbackViewLogs: "Hibanapló megnyitása",
+        .feedbackExternalDriveMissingTitle: "A külső tárhely nem található",
+        .feedbackExternalDriveMissingMessage: "A(z) '%@' mentési célmeghajtó lecsatlakozott vagy nem elérhető.",
+        .feedbackExternalDriveMissingAdvice: "Csatlakoztasd újra a külső meghajtót a Mac-hez, majd próbáld újra a mentést. A korábbi mentéseid és a gépen lévő adataid biztonságban vannak.",
+        .feedbackSourceFolderMissingTitle: "A forrásmappa nem található",
+        .feedbackSourceFolderMissingMessage: "A menteni kívánt mappa '%@' nem érhető el.",
+        .feedbackSourceFolderMissingAdvice: "Ellenőrizd, hogy a forrásmappa nem lett-e áthelyezve, átnevezve vagy egy lecsatlakozott lemezen található.",
+        .feedbackDiskFullTitle: "Megtelt a célmeghajtó",
+        .feedbackDiskFullMessage: "A céllemezen nincs elegendő szabad tárhely az új pillanatkép mentéséhez.",
+        .feedbackDiskFullAdvice: "Szabadíts fel helyet a céllemezen vagy állíts be automatikus retenciót a korábbi pillanatképek karbantartásához.",
+        .feedbackPermissionDeniedTitle: "Hozzáférés megtagadva",
+        .feedbackPermissionDeniedMessage: "Az OtterKeep nem kapott engedélyt a kiválasztott fájlok vagy mappák eléréséhez.",
+        .feedbackPermissionDeniedAdvice: "Kérjük, engedélyezd a Teljes lemezhozzáférést (Full Disk Access) az OtterKeep számára a Rendszerbeállítások > Adatvédelem és biztonság menüpontban.",
+        .feedbackGeneralErrorTitle: "A mentési művelet megszakadt",
+        .feedbackGeneralErrorAdvice: "A meglévő adataid és korábbi mentéseid sértetlenek maradtak. Tekintsd meg a hibanaplót a hiba pontos részleteiért.",
+        .profileLockedBannerTitle: "Mentés folyamatban",
+        .profileLockedBannerMessage: "A profil beállításai a mentés befejezéséig zárolva vannak az adatkonzisztencia megőrzése érdekében."
     ]
 
 
@@ -2855,7 +2899,29 @@ public enum L10n {
         .importConfigErrorMessage: "Failed to import configuration: %@",
         .importConfigInvalidFile: "The selected file is not a valid OtterKeep configuration archive.",
         .importConfigConfirmTitle: "Confirm Configuration Import",
-        .importConfigConfirmMessage: "Importing this configuration will replace your current backup profiles and settings. Do you want to proceed?"
+        .importConfigConfirmMessage: "Importing this configuration will replace your current backup profiles and settings. Do you want to proceed?",
+
+        // MARK: - Operation Feedback & Profile Lockout (1.3.1)
+        .feedbackSuccessTitle: "Backup Completed Successfully!",
+        .feedbackSuccessMessage: "The backup for profile '%@' has completed successfully.",
+        .feedbackViewDetails: "View Details",
+        .feedbackViewLogs: "View Diagnostic Logs",
+        .feedbackExternalDriveMissingTitle: "External Drive Not Found",
+        .feedbackExternalDriveMissingMessage: "The backup destination '%@' was disconnected or is unavailable.",
+        .feedbackExternalDriveMissingAdvice: "Reconnect the external drive to your Mac and retry. Your existing snapshots and original Mac files remain safe and sound.",
+        .feedbackSourceFolderMissingTitle: "Source Folder Not Found",
+        .feedbackSourceFolderMissingMessage: "The source directory '%@' could not be found.",
+        .feedbackSourceFolderMissingAdvice: "Verify that the folder was not moved, renamed, or located on a disconnected drive.",
+        .feedbackDiskFullTitle: "Destination Disk is Full",
+        .feedbackDiskFullMessage: "There is not enough free disk space on the destination volume to store this snapshot.",
+        .feedbackDiskFullAdvice: "Free up disk space on the target volume or configure automated retention pruning.",
+        .feedbackPermissionDeniedTitle: "Permission Denied",
+        .feedbackPermissionDeniedMessage: "OtterKeep does not have permission to access the selected files or directories.",
+        .feedbackPermissionDeniedAdvice: "Please grant Full Disk Access to OtterKeep in macOS System Settings > Privacy & Security.",
+        .feedbackGeneralErrorTitle: "Backup Operation Failed",
+        .feedbackGeneralErrorAdvice: "Your existing data and snapshots remain untouched. Check the diagnostic logs for detailed error telemetry.",
+        .profileLockedBannerTitle: "Backup in Progress",
+        .profileLockedBannerMessage: "Profile settings are temporarily locked while backup is running to preserve data consistency."
     ]
 }
 
