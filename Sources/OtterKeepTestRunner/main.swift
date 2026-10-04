@@ -125,7 +125,7 @@ final class OtterKeepTestSuite {
 
     func runAll() async throws {
         print("\n================================================================================")
-        print("🦦 OTTERKEEP 1.3.0 (BUILD 1300) SYSTEM INTEGRATION TEST SUITE & BENCHMARK")
+        print("🦦 OTTERKEEP 1.3.1 (BUILD 1310) SYSTEM INTEGRATION TEST SUITE & BENCHMARK")
         print("================================================================================\n")
 
         let suiteStart = ContinuousClock().now
@@ -211,6 +211,14 @@ final class OtterKeepTestSuite {
         await runTest("11.3 ProfileStore Export & Import with Atomic Persistence", testProfileStoreExportImport)
         await runTest("11.4 AppState Export/Import Pipeline & Settings Propagation", testAppStateExportImportPipeline)
         await runTest("11.5 OtterKeepMenuCommands Structure & Shortcuts", testOtterKeepMenuCommandsInstantiation)
+
+        // MARK: - Module 12: OtterKeep 1.3.1 Concurrency Resilience & Bugfixes
+        print("\n🔹 Module 12: OtterKeep 1.3.1 Concurrency Resilience & Bugfixes")
+        await runTest("12.1 Profile Settings Modification Lockout during Active Backup", testProfileSettingsModificationLockout)
+        await runTest("12.2 Multi-Profile Independent Execution & Parallel Tracking", testMultiProfileParallelBackupIsolation)
+        await runTest("12.3 Theme Switcher OS Auto/System Mode Dynamic Scheme", testThemeSwitcherAutoSystemModeDynamicResolution)
+        await runTest("12.4 Diagnostic Root-Cause Categorization & Advice", testDiagnosticRootCauseCategorization)
+        await runTest("12.5 Ottie Mascot Transparent Graphics & Image Resolvers", testOttieTransparentGraphicsAndResolvers)
 
         // MARK: - Summary & Results
         let totalDuration = ContinuousClock().now - suiteStart
@@ -1541,6 +1549,179 @@ final class OtterKeepTestSuite {
         let exportEn = L10n.t(.menuExportConfig, lang: .english)
         try assertEqual(exportHu, "Konfiguráció exportálása…")
         try assertEqual(exportEn, "Export Configuration…")
+    }
+
+    // MARK: - Module 12: OtterKeep 1.3.1 Concurrency Resilience & Bugfixes
+
+    func testProfileSettingsModificationLockout() async throws {
+        let tempDir = try createTempDirectory(prefix: "LockoutTest")
+        defer { removeTempDirectory(tempDir) }
+
+        let appState = AppState()
+        guard let profile = appState.selectedProfile else {
+            throw TestFailure(message: "Expected selected profile to exist")
+        }
+
+        let initialSrc = profile.sourceURL
+        let initialDst = profile.destinationURL
+        let initialName = profile.name
+        let initialPatterns = profile.excludePatterns
+        let initialSchedule = profile.schedule.isEnabled
+        let initialKeep = profile.pruningPolicy.maxSnapshotsToKeep
+        let initialCount = appState.profiles.count
+
+        // 1. Lockout enabled: Simulate profile actively backing up
+        appState.setBackupRunningForTesting(profileId: profile.id, running: true)
+        try assertTrue(appState.isBackupRunning(for: profile.id), "Profile must be recognized as actively backing up")
+
+        let forbiddenURL = tempDir.appendingPathComponent("ForbiddenFolder")
+        try FileManager.default.createDirectory(at: forbiddenURL, withIntermediateDirectories: true)
+
+        // Modifications must be ignored / rejected
+        appState.updateSourceURL(forbiddenURL)
+        appState.updateDestinationURL(forbiddenURL)
+        appState.renameProfile(id: profile.id, newName: "HackedName")
+        appState.addExcludePattern("*.locked_test")
+        if let first = initialPatterns.first {
+            appState.removeExcludePattern(first)
+        }
+        appState.updateSchedule(
+            isEnabled: !profile.schedule.isEnabled,
+            frequency: profile.schedule.frequency,
+            hour: profile.schedule.hour,
+            minute: profile.schedule.minute,
+            weekday: profile.schedule.weekday,
+            intervalMinutes: profile.schedule.intervalMinutes,
+            catchUp: profile.schedule.catchUpIfMissed
+        )
+        appState.updateAutoPruning(isEnabled: !profile.pruningPolicy.isAutoPruningEnabled, maxKeep: 999)
+        appState.deleteProfile(id: profile.id)
+
+        // Refresh reference
+        guard let lockedProfile = appState.profiles.first(where: { $0.id == profile.id }) else {
+            throw TestFailure(message: "Profile was incorrectly deleted during active backup!")
+        }
+
+        try assertEqual(lockedProfile.sourceURL, initialSrc, "Source URL must not change while running")
+        try assertEqual(lockedProfile.destinationURL, initialDst, "Destination URL must not change while running")
+        try assertEqual(lockedProfile.name, initialName, "Profile name must not change while running")
+        try assertEqual(lockedProfile.excludePatterns, initialPatterns, "Exclude patterns must not change while running")
+        try assertEqual(lockedProfile.schedule.isEnabled, initialSchedule, "Schedule must not change while running")
+        try assertEqual(lockedProfile.pruningPolicy.maxSnapshotsToKeep, initialKeep, "Auto-pruning must not change while running")
+        try assertEqual(appState.profiles.count, initialCount, "Profile count must remain invariant during backup")
+
+        // 2. Lockout disabled: After backup completion, modifications are permitted
+        appState.setBackupRunningForTesting(profileId: profile.id, running: false)
+        try assertFalse(appState.isBackupRunning(for: profile.id), "Profile must be recognized as idle")
+
+        appState.updateSourceURL(forbiddenURL)
+        guard let unlockedProfile = appState.profiles.first(where: { $0.id == profile.id }) else {
+            throw TestFailure(message: "Profile missing")
+        }
+        try assertEqual(unlockedProfile.sourceURL, forbiddenURL, "Source URL update should succeed when idle")
+    }
+
+    func testMultiProfileParallelBackupIsolation() async throws {
+        let tempDir = try createTempDirectory(prefix: "ParallelTest")
+        defer { removeTempDirectory(tempDir) }
+
+        let appState = AppState()
+        // Ensure at least 2 profiles exist
+        if appState.profiles.count < 2 {
+            appState.createProfile(name: "Secondary Profile", sourceURL: tempDir, destinationURL: tempDir)
+        }
+        let profileA = appState.profiles[0]
+        let profileB = appState.profiles[1]
+
+        // Start Profile A
+        appState.setBackupRunningForTesting(profileId: profileA.id, running: true)
+        try assertTrue(appState.isBackupRunning(for: profileA.id), "Profile A must be running")
+        try assertFalse(appState.isBackupRunning(for: profileB.id), "Profile B must remain idle")
+        try assertTrue(appState.isBackupRunning, "Global isBackupRunning must be true")
+
+        // Start Profile B in parallel
+        appState.setBackupRunningForTesting(profileId: profileB.id, running: true)
+        try assertTrue(appState.isBackupRunning(for: profileA.id), "Profile A must still be running")
+        try assertTrue(appState.isBackupRunning(for: profileB.id), "Profile B must be running in parallel")
+
+        // Cancel only Profile A
+        appState.cancelBackup(for: profileA.id)
+        try assertFalse(appState.isBackupRunning(for: profileA.id), "Profile A must be stopped")
+        try assertTrue(appState.isBackupRunning(for: profileB.id), "Profile B must continue running unaffected")
+        try assertTrue(appState.isBackupRunning, "Global isBackupRunning must still be true")
+
+        // Cancel Profile B
+        appState.cancelBackup(for: profileB.id)
+        try assertFalse(appState.isBackupRunning(for: profileB.id), "Profile B must be stopped")
+        try assertFalse(appState.isBackupRunning, "Global isBackupRunning must be false")
+    }
+
+    func testThemeSwitcherAutoSystemModeDynamicResolution() async throws {
+        let appState = AppState()
+
+        // 1. Explicit light mode
+        appState.currentTheme = .light
+        try assertEqual(appState.effectiveColorScheme, .light, "Explicit light theme must produce .light scheme")
+
+        // 2. Explicit dark mode
+        appState.currentTheme = .dark
+        try assertEqual(appState.effectiveColorScheme, .dark, "Explicit dark theme must produce .dark scheme")
+
+        // 3. System auto mode with OS light appearance
+        appState.currentTheme = .system
+        appState.setSystemDarkModeForTesting(false)
+        try assertEqual(appState.effectiveColorScheme, .light, "Auto theme with OS light must resolve to .light")
+
+        // 4. System auto mode with OS dark appearance
+        appState.setSystemDarkModeForTesting(true)
+        try assertEqual(appState.effectiveColorScheme, .dark, "Auto theme with OS dark must resolve to .dark")
+    }
+
+    func testDiagnosticRootCauseCategorization() async throws {
+        // 1. Disconnected external volume
+        let missingVolumeURL = URL(fileURLWithPath: "/Volumes/DisappearedDrive999/backups")
+        let dummySourceURL = URL(fileURLWithPath: "/Users/test/Documents")
+        let dummyError = NSError(domain: NSPOSIXErrorDomain, code: Int(ENOENT), userInfo: [NSLocalizedDescriptionKey: "No such file or directory"])
+
+        let analyzedDrive = AppState.analyzeBackupError(dummyError, destinationURL: missingVolumeURL, sourceURL: dummySourceURL)
+        let expectedDriveTitle = L10n.t(.feedbackExternalDriveMissingTitle)
+        try assertEqual(analyzedDrive.title, expectedDriveTitle, "Drive missing must be categorized with external drive title")
+
+        // 2. Missing source folder
+        let existingDst = FileManager.default.temporaryDirectory
+        let missingSrcURL = URL(fileURLWithPath: "/Users/test/NonExistentSource999")
+        let analyzedSrc = AppState.analyzeBackupError(dummyError, destinationURL: existingDst, sourceURL: missingSrcURL)
+        let expectedSrcTitle = L10n.t(.feedbackSourceFolderMissingTitle)
+        try assertEqual(analyzedSrc.title, expectedSrcTitle, "Missing source folder must be categorized with source folder missing title")
+
+        // 3. Insufficient disk space
+        let diskFullError = NSError(domain: NSPOSIXErrorDomain, code: 28, userInfo: [NSLocalizedDescriptionKey: "No space left on device"])
+        let analyzedDisk = AppState.analyzeBackupError(diskFullError, destinationURL: existingDst, sourceURL: existingDst)
+        let expectedDiskTitle = L10n.t(.feedbackDiskFullTitle)
+        try assertEqual(analyzedDisk.title, expectedDiskTitle, "Disk full error code 28 must be categorized as disk full")
+
+        // 4. Permission denied
+        let permError = NSError(domain: NSPOSIXErrorDomain, code: 13, userInfo: [NSLocalizedDescriptionKey: "Permission denied"])
+        let analyzedPerm = AppState.analyzeBackupError(permError, destinationURL: existingDst, sourceURL: existingDst)
+        let expectedPermTitle = L10n.t(.feedbackPermissionDeniedTitle)
+        try assertEqual(analyzedPerm.title, expectedPermTitle, "Permission denied must be categorized as permission error")
+    }
+
+    func testOttieTransparentGraphicsAndResolvers() async throws {
+        // Verify assets exist in Resources folder
+        let successImage = OtterKeepLogoView.resolveSuccessImage()
+        try assertNotNil(successImage, "OttieSuccess image asset must resolve successfully")
+
+        let failureImage = OtterKeepLogoView.resolveFailureImage()
+        try assertNotNil(failureImage, "OttieFailure image asset must resolve successfully")
+
+        // Verify image dimensions are 1024x1024
+        if let sImg = successImage {
+            try assertTrue(sImg.size.width > 0 && sImg.size.height > 0, "Success image must have valid size")
+        }
+        if let fImg = failureImage {
+            try assertTrue(fImg.size.width > 0 && fImg.size.height > 0, "Failure image must have valid size")
+        }
     }
 }
 

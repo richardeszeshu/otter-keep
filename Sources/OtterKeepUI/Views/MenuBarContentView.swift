@@ -152,6 +152,12 @@ public struct MenuBarContentView: View {
         } else if appState.isReplicationRunning {
             return "3-2-1 Replication"
         } else {
+            let runningProfiles = appState.profiles.filter { appState.isBackupRunning(for: $0.id) }
+            if runningProfiles.count == 1, let single = runningProfiles.first {
+                return single.name
+            } else if runningProfiles.count > 1 {
+                return "\(L10n.t(.menuBarStatusRunning)) (\(runningProfiles.count))"
+            }
             return L10n.t(.menuBarStatusRunning)
         }
     }
@@ -197,7 +203,6 @@ public struct MenuBarContentView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(OtterTheme.otterAmber)
                     .controlSize(.mini)
-                    .disabled(appState.isBackupRunning)
                 }
             }
 
@@ -234,17 +239,30 @@ public struct MenuBarContentView: View {
     }
 
     private func profileRow(for profile: BackupProfile) -> some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(appState.selectedProfileId == profile.id ? OtterTheme.otterAmber : Color.secondary.opacity(0.35))
-                .frame(width: 6, height: 6)
+        let isRunning = appState.isBackupRunning(for: profile.id)
+
+        return HStack(spacing: 8) {
+            if isRunning {
+                ProgressView()
+                    .controlSize(.mini)
+            } else {
+                Circle()
+                    .fill(appState.selectedProfileId == profile.id ? OtterTheme.otterAmber : Color.secondary.opacity(0.35))
+                    .frame(width: 6, height: 6)
+            }
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(profile.name)
                     .font(.caption.weight(.medium))
                     .lineLimit(1)
 
-                if profile.schedule.isEnabled {
+                if isRunning {
+                    let prog = appState.progressState(for: profile.id)
+                    Text(L10n.t(prog.phase.localizedKey))
+                        .font(.caption2)
+                        .foregroundStyle(OtterTheme.otterAmber)
+                        .lineLimit(1)
+                } else if profile.schedule.isEnabled {
                     Text(L10n.t(.menuBarNextRun) + " " + appState.nextScheduledRunDescription(for: profile))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -264,16 +282,28 @@ public struct MenuBarContentView: View {
 
             Spacer()
 
-            Button {
-                appState.startBackup(for: profile)
-            } label: {
-                Image(systemName: "play.fill")
-                    .font(.system(size: 9))
+            if isRunning {
+                Button {
+                    appState.cancelBackup(for: profile.id)
+                } label: {
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: 9))
+                }
+                .buttonStyle(.bordered)
+                .tint(OtterTheme.statusError)
+                .controlSize(.mini)
+                .help(L10n.t(.stopBackupButton))
+            } else {
+                Button {
+                    appState.startBackup(for: profile)
+                } label: {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 9))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
+                .help(L10n.t(.menuBarBackupProfile))
             }
-            .buttonStyle(.bordered)
-            .controlSize(.mini)
-            .disabled(appState.isBackupRunning)
-            .help(L10n.t(.menuBarBackupProfile))
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)

@@ -1,0 +1,174 @@
+import SwiftUI
+import AppKit
+import OtterKeepCore
+
+/// Modern macOS modal dialog presenting visual operation feedback with Ottie the mascot.
+public struct OperationFeedbackModalView: View {
+    public let feedback: OperationFeedback
+    public let onDismiss: () -> Void
+    public let onViewDetails: (() -> Void)?
+    public let onViewLogs: (() -> Void)?
+
+    public init(
+        feedback: OperationFeedback,
+        onDismiss: @escaping () -> Void,
+        onViewDetails: (() -> Void)? = nil,
+        onViewLogs: (() -> Void)? = nil
+    ) {
+        self.feedback = feedback
+        self.onDismiss = onDismiss
+        self.onViewDetails = onViewDetails
+        self.onViewLogs = onViewLogs
+    }
+
+    public var body: some View {
+        VStack(spacing: 0) {
+            // Hero Character Presentation
+            VStack(spacing: OtterTheme.spacing12) {
+                OttieFeedbackMascotView(
+                    state: feedback.type == .success ? .success : .failure,
+                    size: 150
+                )
+                .padding(.top, OtterTheme.spacing16)
+
+                Text(feedback.title)
+                    .font(OtterTheme.heroTitleFont)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(feedback.type == .success ? OtterTheme.statusGreen : OtterTheme.statusError)
+                    .padding(.horizontal, OtterTheme.spacing16)
+
+                Text(feedback.message)
+                    .font(.body)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.primary)
+                    .padding(.horizontal, OtterTheme.spacing24)
+            }
+
+            // Detailed Telemetry or Diagnostic Advice Card
+            VStack(spacing: OtterTheme.spacing12) {
+                if feedback.type == .success, let summary = feedback.summary {
+                    successSummaryCard(summary: summary)
+                } else if let reason = feedback.detailedReason, !reason.isEmpty {
+                    failureAdviceCard(reason: reason)
+                }
+            }
+            .padding(.horizontal, OtterTheme.spacing24)
+            .padding(.top, OtterTheme.spacing16)
+
+            Spacer(minLength: OtterTheme.spacing16)
+
+            Divider()
+
+            // Footer Action Buttons
+            HStack(spacing: OtterTheme.spacing12) {
+                if feedback.type == .success && onViewDetails != nil {
+                    Button {
+                        onDismiss()
+                        onViewDetails?()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "magnifyingglass")
+                            Text(L10n.t(.feedbackViewDetails))
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                } else if feedback.type == .failure && onViewLogs != nil {
+                    Button {
+                        onDismiss()
+                        onViewLogs?()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "doc.text.magnifyingglass")
+                            Text(L10n.t(.feedbackViewLogs))
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.regular)
+                }
+
+                Spacer()
+
+                Button {
+                    onDismiss()
+                } label: {
+                    Text(L10n.t(.okDone))
+                        .frame(minWidth: 80)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(feedback.type == .success ? OtterTheme.statusGreen : OtterTheme.otterAmber)
+                .keyboardShortcut(.defaultAction)
+                .controlSize(.regular)
+            }
+            .padding(.horizontal, OtterTheme.spacing20)
+            .padding(.vertical, OtterTheme.spacing12)
+            .background(OtterTheme.sectionHeaderBackground)
+        }
+        .frame(width: 480, height: 460)
+        .background(OtterTheme.windowBackground)
+    }
+
+    // MARK: - Success Summary Card
+    private func successSummaryCard(summary: BackupSessionSummary) -> some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 16) {
+                statColumn(
+                    title: L10n.t(.telemetryCopied),
+                    value: ByteCountFormatter.string(fromByteCount: summary.copiedBytes, countStyle: .file),
+                    icon: "arrow.down.doc.fill",
+                    color: OtterTheme.statusGreen
+                )
+
+                statColumn(
+                    title: L10n.t(.telemetryCloned),
+                    value: ByteCountFormatter.string(fromByteCount: summary.clonedBytes, countStyle: .file),
+                    icon: "link.badge.plus",
+                    color: OtterTheme.oceanicTeal
+                )
+
+                statColumn(
+                    title: L10n.t(.inspectorDuration),
+                    value: String(format: "%.1fs", summary.durationSeconds),
+                    icon: "clock.fill",
+                    color: .secondary
+                )
+            }
+            .padding(.vertical, 8)
+        }
+        .otterCard(padding: OtterTheme.spacing12)
+    }
+
+    private func statColumn(title: String, value: String, icon: String, color: Color) -> some View {
+        VStack(spacing: 3) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                    .foregroundStyle(color)
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Text(value)
+                .font(.callout.bold().monospacedDigit())
+                .foregroundStyle(.primary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Failure Advice & Reassurance Card
+    private func failureAdviceCard(reason: String) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "info.circle.fill")
+                .font(.title3)
+                .foregroundStyle(OtterTheme.otterAmber)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(reason)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .otterCard(padding: OtterTheme.spacing12)
+    }
+}

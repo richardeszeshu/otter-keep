@@ -79,16 +79,31 @@ public struct OtterKeepLogoView: View {
 
     /// Resolves the raw OtterKeep mascot logo image from bundle resources or local fallback paths.
     public static func resolveLogoImage() -> NSImage? {
+        resolveResourceImage(named: "OtterKeepLogo", ext: "jpg")
+    }
+
+    /// Resolves the OttieSuccess transparent illustration from bundle resources or local fallback paths.
+    public static func resolveSuccessImage() -> NSImage? {
+        resolveResourceImage(named: "OttieSuccess", ext: "png")
+    }
+
+    /// Resolves the OttieFailure transparent illustration from bundle resources or local fallback paths.
+    public static func resolveFailureImage() -> NSImage? {
+        resolveResourceImage(named: "OttieFailure", ext: "png")
+    }
+
+    /// Universal resource resolver supporting SPM module bundle, main bundle, nested bundles and development filesystem.
+    public static func resolveResourceImage(named name: String, ext: String) -> NSImage? {
         // 1. Search within Swift Package module resources
         #if SWIFT_PACKAGE
-        if let url = Bundle.module.url(forResource: "OtterKeepLogo", withExtension: "jpg"),
+        if let url = Bundle.module.url(forResource: name, withExtension: ext),
            let img = NSImage(contentsOf: url) {
             return img
         }
         #endif
 
         // 2. Search in main application bundle resources
-        if let url = Bundle.main.url(forResource: "OtterKeepLogo", withExtension: "jpg"),
+        if let url = Bundle.main.url(forResource: name, withExtension: ext),
            let img = NSImage(contentsOf: url) {
             return img
         }
@@ -97,14 +112,14 @@ public struct OtterKeepLogoView: View {
         if let resourceURL = Bundle.main.resourceURL {
             let bundleURL = resourceURL.appendingPathComponent("OtterKeep_OtterKeepUI.bundle")
             if let bundle = Bundle(url: bundleURL),
-               let url = bundle.url(forResource: "OtterKeepLogo", withExtension: "jpg"),
+               let url = bundle.url(forResource: name, withExtension: ext),
                let img = NSImage(contentsOf: url) {
                 return img
             }
         }
 
         // 4. Development filesystem fallback
-        let devRelativePath = "Sources/OtterKeepUI/Resources/OtterKeepLogo.jpg"
+        let devRelativePath = "Sources/OtterKeepUI/Resources/\(name).\(ext)"
         if FileManager.default.fileExists(atPath: devRelativePath),
            let img = NSImage(contentsOfFile: devRelativePath) {
             return img
@@ -131,3 +146,56 @@ public struct OtterKeepLogoView: View {
         return outputImage
     }
 }
+
+/// Presentation view for Ottie mascot illustrations in operation feedback modals.
+public struct OttieFeedbackMascotView: View {
+    public enum MascotState {
+        case success
+        case failure
+    }
+
+    public let state: MascotState
+    public let size: CGFloat
+
+    public init(state: MascotState, size: CGFloat = 160) {
+        self.state = state
+        self.size = size
+    }
+
+    public var body: some View {
+        Group {
+            if let image = resolvedImage {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: size, height: size)
+                    .shadow(color: Color.black.opacity(0.10), radius: 10, x: 0, y: 5)
+            } else {
+                fallbackView
+            }
+        }
+    }
+
+    private var resolvedImage: NSImage? {
+        switch state {
+        case .success:
+            return OtterKeepLogoView.resolveSuccessImage()
+        case .failure:
+            return OtterKeepLogoView.resolveFailureImage()
+        }
+    }
+
+    private var fallbackView: some View {
+        ZStack {
+            Circle()
+                .fill(state == .success ? OtterTheme.statusGreen.opacity(0.15) : OtterTheme.statusError.opacity(0.15))
+                .frame(width: size * 0.85, height: size * 0.85)
+
+            Image(systemName: state == .success ? "hand.thumbsup.fill" : "exclamationmark.triangle.fill")
+                .font(.system(size: size * 0.4, weight: .bold))
+                .foregroundStyle(state == .success ? OtterTheme.statusGreen : OtterTheme.statusError)
+        }
+        .frame(width: size, height: size)
+    }
+}
+

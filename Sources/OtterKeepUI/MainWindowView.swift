@@ -70,6 +70,28 @@ public struct MainWindowView: View {
         )) {
             NewProfileModalView(appState: appState)
         }
+        .sheet(isPresented: Binding(
+            get: { appState.showFeedbackModal },
+            set: { appState.showFeedbackModal = $0 }
+        )) {
+            if let feedback = appState.activeFeedback {
+                OperationFeedbackModalView(
+                    feedback: feedback,
+                    onDismiss: {
+                        appState.showFeedbackModal = false
+                        appState.activeFeedback = nil
+                    },
+                    onViewDetails: {
+                        appState.showFeedbackModal = false
+                        appState.showInspectorModal = true
+                    },
+                    onViewLogs: {
+                        appState.showFeedbackModal = false
+                        appState.activeNavigation = .logs
+                    }
+                )
+            }
+        }
         .alert(L10n.t(.renameProfileSheetTitle), isPresented: Binding(
             get: { appState.showRenameProfileSheet },
             set: { appState.showRenameProfileSheet = $0 }
@@ -90,7 +112,7 @@ public struct MainWindowView: View {
         } message: {
             Text(L10n.t(.renameProfileSheetPrompt))
         }
-        .preferredColorScheme(appState.currentTheme.colorScheme)
+        .preferredColorScheme(appState.effectiveColorScheme)
     }
 
     // MARK: - Detail Content Routing
@@ -158,7 +180,7 @@ public struct MainWindowView: View {
                                     Text(profile.name)
                                         .font(.body)
                                     Spacer()
-                                    if appState.isBackupRunning && appState.selectedProfileId == profile.id {
+                                    if appState.isBackupRunning(for: profile.id) {
                                         ProgressView()
                                             .controlSize(.mini)
                                     } else {
@@ -180,6 +202,7 @@ public struct MainWindowView: View {
                             } label: {
                                 Label(L10n.t(.renameProfileButton), systemImage: "pencil")
                             }
+                            .disabled(appState.isBackupRunning(for: profile.id))
 
                             if appState.profiles.count > 1 {
                                 Divider()
@@ -188,6 +211,7 @@ public struct MainWindowView: View {
                                 } label: {
                                     Label(L10n.t(.deleteProfileButton), systemImage: "trash")
                                 }
+                                .disabled(appState.isBackupRunning(for: profile.id))
                             }
                         }
                     }

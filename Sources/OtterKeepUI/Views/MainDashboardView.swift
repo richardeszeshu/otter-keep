@@ -25,8 +25,28 @@ public struct MainDashboardView: View {
                         sourceURL: profile.sourceURL,
                         destinationURL: profile.destinationURL,
                         cowMode: appState.volumeEvaluation?.cowMode ?? .intraVolumeCoW,
-                        isActive: appState.isBackupRunning
+                        isActive: appState.isBackupRunning(for: profile.id)
                     )
+
+                    // Profile Settings Locked Banner (While Active)
+                    if appState.isBackupRunning(for: profile.id) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "lock.shield.fill")
+                                .font(.title3)
+                                .foregroundStyle(OtterTheme.otterAmber)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(L10n.t(.profileLockedBannerTitle))
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(OtterTheme.otterAmber)
+                                Text(L10n.t(.profileLockedBannerMessage))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                        }
+                        .otterCard(padding: OtterTheme.spacing12)
+                    }
 
                     // 2. Storage Gauge Card
                     if let capacity = appState.destinationStorageCapacity() {
@@ -48,13 +68,13 @@ public struct MainDashboardView: View {
                         liveReplicationBanner
                     }
 
-                    // 5. Live Telemetry HUD (When backup is actively running) or Last Session Summary
-                    if appState.isBackupRunning {
-                        liveTelemetryHUD
-                    } else if let summary = appState.lastSessionSummary {
+                    // 5. Live Telemetry HUD (When backup is actively running for this profile) or Last Session Summary
+                    if appState.isBackupRunning(for: profile.id) {
+                        liveTelemetryHUD(for: profile)
+                    } else if let summary = appState.profileLastSummaries[profile.id] ?? appState.lastSessionSummary {
                         lastSessionCard(summary: summary)
-                    } else if appState.progressState.phase != .idle {
-                        liveTelemetryHUD
+                    } else if appState.progressState(for: profile.id).phase != .idle {
+                        liveTelemetryHUD(for: profile)
                     }
 
                     // Storage Capacity Forecasting & Quota Alerts
@@ -196,11 +216,13 @@ public struct MainDashboardView: View {
     }
 
     // MARK: - Live Telemetry HUD
-    private var liveTelemetryHUD: some View {
+    private func liveTelemetryHUD(for profile: BackupProfile) -> some View {
+        let progress = appState.progressState(for: profile.id)
+        let isRunning = appState.isBackupRunning(for: profile.id)
         let progressValue: Double = {
-            if appState.progressState.totalFiles > 0 {
-                let processed = appState.progressState.copiedCount + appState.progressState.clonedCount + appState.progressState.skippedCount
-                return Double(processed) / Double(appState.progressState.totalFiles)
+            if progress.totalFiles > 0 {
+                let processed = progress.copiedCount + progress.clonedCount + progress.skippedCount
+                return Double(processed) / Double(progress.totalFiles)
             }
             return 0.0
         }()
@@ -208,7 +230,7 @@ public struct MainDashboardView: View {
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 HStack(spacing: 8) {
-                    if appState.isBackupRunning {
+                    if isRunning {
                         ProgressView()
                             .controlSize(.small)
                     } else {
@@ -216,22 +238,22 @@ public struct MainDashboardView: View {
                             .foregroundStyle(OtterTheme.statusGreen)
                     }
 
-                    Text(L10n.t(appState.progressState.phase.localizedKey))
+                    Text(L10n.t(progress.phase.localizedKey))
                         .font(.headline)
                 }
 
                 Spacer()
 
-                if appState.progressState.speedBytesPerSecond > 0 {
-                    let formattedSpeed = ByteCountFormatter.string(fromByteCount: Int64(appState.progressState.speedBytesPerSecond), countStyle: .file)
+                if progress.speedBytesPerSecond > 0 {
+                    let formattedSpeed = ByteCountFormatter.string(fromByteCount: Int64(progress.speedBytesPerSecond), countStyle: .file)
                     Label("\(formattedSpeed)/s", systemImage: "bolt.fill")
                         .font(.caption.monospacedDigit().bold())
                         .foregroundStyle(OtterTheme.oceanicTeal)
                 }
 
-                if appState.progressState.totalFiles > 0 {
-                    let processed = appState.progressState.copiedCount + appState.progressState.clonedCount + appState.progressState.skippedCount
-                    Text("\(processed) / \(appState.progressState.totalFiles) (\(Int(progressValue * 100))%)")
+                if progress.totalFiles > 0 {
+                    let processed = progress.copiedCount + progress.clonedCount + progress.skippedCount
+                    Text("\(processed) / \(progress.totalFiles) (\(Int(progressValue * 100))%)")
                         .font(.caption.monospacedDigit().bold())
                         .foregroundStyle(.secondary)
                 }
@@ -241,22 +263,22 @@ public struct MainDashboardView: View {
                 .progressViewStyle(.linear)
 
             HStack(spacing: 12) {
-                Label("\(appState.progressState.copiedCount) \(L10n.t(.telemetryCopied))", systemImage: "arrow.down.doc.fill")
+                Label("\(progress.copiedCount) \(L10n.t(.telemetryCopied))", systemImage: "arrow.down.doc.fill")
                     .foregroundStyle(OtterTheme.statusGreen)
-                Label("\(appState.progressState.clonedCount) \(L10n.t(.telemetryCloned))", systemImage: "link.badge.plus")
+                Label("\(progress.clonedCount) \(L10n.t(.telemetryCloned))", systemImage: "link.badge.plus")
                     .foregroundStyle(OtterTheme.oceanicTeal)
-                Label("\(appState.progressState.skippedCount) \(L10n.t(.telemetrySkipped))", systemImage: "hand.raised.fill")
+                Label("\(progress.skippedCount) \(L10n.t(.telemetrySkipped))", systemImage: "hand.raised.fill")
                     .foregroundStyle(.secondary)
-                if appState.progressState.errorCount > 0 {
-                    Label("\(appState.progressState.errorCount) \(L10n.t(.telemetryErrors))", systemImage: "exclamationmark.triangle.fill")
+                if progress.errorCount > 0 {
+                    Label("\(progress.errorCount) \(L10n.t(.telemetryErrors))", systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(OtterTheme.statusError)
                 }
                 Spacer()
             }
             .font(.caption.monospacedDigit())
 
-            if !appState.progressState.currentItem.isEmpty {
-                Text(appState.progressState.currentItem)
+            if !progress.currentItem.isEmpty {
+                Text(progress.currentItem)
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -318,6 +340,7 @@ public struct MainDashboardView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .disabled(appState.isBackupRunning(for: profile.id))
 
                     Spacer()
 
@@ -357,6 +380,7 @@ public struct MainDashboardView: View {
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.small)
+                    .disabled(appState.isBackupRunning(for: profile.id))
 
                     Spacer()
 
