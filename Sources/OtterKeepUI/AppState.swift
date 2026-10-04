@@ -191,7 +191,7 @@ public final class AppState: Sendable {
         }
     }
 
-    #if DEBUG
+    // MARK: - Testing State Helpers
     /// Simulates or sets running state for testing profile lockout and multi-profile parallelism.
     public func setBackupRunningForTesting(profileId: UUID, running: Bool) {
         if running {
@@ -208,7 +208,6 @@ public final class AppState: Sendable {
     public func setSystemDarkModeForTesting(_ isDark: Bool) {
         self.isSystemDarkMode = isDark
     }
-    #endif
 
     // MARK: - Modal Operation Feedback State (1.3.1)
     public var activeFeedback: OperationFeedback? = nil
