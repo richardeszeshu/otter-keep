@@ -1626,10 +1626,15 @@ final class OtterKeepTestSuite {
         defer { removeTempDirectory(tempDir) }
 
         let appState = AppState()
-        // Ensure at least 2 profiles exist
+        // Ensure at least 2 valid profiles exist with distinct non-nested folders
         if appState.profiles.count < 2 {
-            appState.createProfile(name: "Secondary Profile", sourceURL: tempDir, destinationURL: tempDir)
+            let srcDir = tempDir.appendingPathComponent("ValidSource")
+            let dstDir = tempDir.appendingPathComponent("ValidDest")
+            try FileManager.default.createDirectory(at: srcDir, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: dstDir, withIntermediateDirectories: true)
+            appState.createProfile(name: "Secondary Profile", sourceURL: srcDir, destinationURL: dstDir)
         }
+        try assertTrue(appState.profiles.count >= 2, "Must have at least 2 profiles configured for parallel testing")
         let profileA = appState.profiles[0]
         let profileB = appState.profiles[1]
 
