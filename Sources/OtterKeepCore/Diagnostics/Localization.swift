@@ -408,6 +408,8 @@ public enum L10n {
         case settingsEngineDesc
         case settingsProfilesSection
         case settingsProfilesSectionDesc
+        case profileMetadataSectionTitle
+        case profileMetadataSectionDesc
         case settingsCopyUUID
         case settingsUUIDCopied
         case settingsActiveBadge
@@ -1334,6 +1336,8 @@ public enum L10n {
         .settingsEngineDesc: "Natív APFS Copy-on-Write alapú inkrementális biztonsági mentőrendszer Apple Silicon és Intel architektúrára.",
         .settingsProfilesSection: "Mentési Profilok és Azonosítók (UUID)",
         .settingsProfilesSectionDesc: "A OtterKeep által kezelt mentési profilok listája és azok egyedi UUID azonosítói.",
+        .profileMetadataSectionTitle: "Profil azonosítók & Rendszerinformációk",
+        .profileMetadataSectionDesc: "A profil egyedi belső azonosítója és konfigurációs elérési útvonalai.",
         .settingsCopyUUID: "Másolás",
         .settingsUUIDCopied: "Kimásolva!",
         .settingsActiveBadge: "Aktív",
@@ -2228,6 +2232,8 @@ public enum L10n {
         .settingsEngineDesc: "Native APFS Copy-on-Write incremental backup system engineered for Apple Silicon and Intel Macs.",
         .settingsProfilesSection: "Backup Profiles & Identifiers (UUID)",
         .settingsProfilesSectionDesc: "List of managed backup profiles and their unique UUID identifiers.",
+        .profileMetadataSectionTitle: "Profile Identifiers & Metadata",
+        .profileMetadataSectionDesc: "Unique internal identifier and storage configuration paths for this profile.",
         .settingsCopyUUID: "Copy UUID",
         .settingsUUIDCopied: "Copied!",
         .settingsActiveBadge: "Active",

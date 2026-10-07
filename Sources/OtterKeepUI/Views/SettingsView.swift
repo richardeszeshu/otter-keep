@@ -58,125 +58,104 @@ public struct SettingsView: View {
                 permissionStatusHUD
 
                 // Top Preferences: 1. Nyelvválasztó, 2. Témaválasztó (középen), 3. Rendszerindítás
-                HStack(alignment: .top, spacing: 16) {
-                    // 1. Language Selection Section
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "globe")
-                                .font(.title2)
-                                .foregroundStyle(OtterTheme.otterAmber)
-                            Text(L10n.t(.settingsLanguageSection))
-                                .font(.title3.bold())
-                        }
-
-                        Text(L10n.t(.settingsLanguageDesc))
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-
-                        Picker("", selection: languageBinding) {
-                            ForEach(AppLanguage.allCases, id: \.self) { lang in
-                                Text(lang.displayName).tag(lang)
+                Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 16) {
+                    GridRow {
+                        // 1. Language Selection Section
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "globe")
+                                    .font(.title2)
+                                    .foregroundStyle(OtterTheme.otterAmber)
+                                Text(L10n.t(.settingsLanguageSection))
+                                    .font(.title3.bold())
                             }
-                        }
-                        .pickerStyle(.radioGroup)
-                        .font(.body)
-                        .padding(.top, 4)
-                    }
-                    .padding(20)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14))
 
-                    // 2. Appearance & Theme Selection Card (Középen a Nyelv és Indítás között)
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "circle.lefthalf.filled")
-                                .font(.title2)
-                                .foregroundStyle(OtterTheme.otterAmber)
-                            Text(L10n.t(.settingsAppearanceSection))
-                                .font(.title3.bold())
-                        }
+                            Text(L10n.t(.settingsLanguageDesc))
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
 
-                        Text(L10n.t(.settingsAppearanceDesc))
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
+                            Spacer(minLength: 4)
 
-                        Picker("", selection: themeBinding) {
-                            ForEach(AppThemeMode.allCases, id: \.self) { mode in
-                                Label(mode.localizedTitle, systemImage: mode.iconName).tag(mode)
+                            Picker("", selection: languageBinding) {
+                                ForEach(AppLanguage.allCases, id: \.self) { lang in
+                                    Text(lang.displayName).tag(lang)
+                                }
                             }
+                            .pickerStyle(.radioGroup)
+                            .font(.body)
                         }
-                        .pickerStyle(.segmented)
-                        .padding(.top, 4)
-                    }
-                    .padding(20)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14))
+                        .padding(20)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14))
 
-                    // 3. Launch at Login & Start Minimized Section
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "power.circle.fill")
-                                .font(.title2)
-                                .foregroundStyle(OtterTheme.oceanicTeal)
-                            Text(L10n.t(.settingsStartupSection))
-                                .font(.title3.bold())
+                        // 2. Appearance & Theme Selection Card (Középen a Nyelv és Indítás között)
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "circle.lefthalf.filled")
+                                    .font(.title2)
+                                    .foregroundStyle(OtterTheme.otterAmber)
+                                Text(L10n.t(.settingsAppearanceSection))
+                                    .font(.title3.bold())
+                            }
+
+                            Text(L10n.t(.settingsAppearanceDesc))
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+
+                            Spacer(minLength: 4)
+
+                            Picker("", selection: themeBinding) {
+                                ForEach(AppThemeMode.allCases, id: \.self) { mode in
+                                    Label(mode.localizedTitle, systemImage: mode.iconName).tag(mode)
+                                }
+                            }
+                            .pickerStyle(.segmented)
                         }
+                        .padding(20)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14))
 
-                        Text(L10n.t(.settingsLaunchAtLoginDesc))
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
+                        // 3. Launch at Login & Start Minimized Section
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "power.circle.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(OtterTheme.oceanicTeal)
+                                Text(L10n.t(.settingsStartupSection))
+                                    .font(.title3.bold())
+                            }
 
-                        Toggle(isOn: launchAtLoginBinding) {
-                            Text(L10n.t(.settingsLaunchAtLoginToggle))
-                                .font(.body.weight(.medium))
-                        }
-                        .toggleStyle(.switch)
-                        .padding(.top, 4)
+                            Text(L10n.t(.settingsLaunchAtLoginDesc))
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
 
-                        Divider()
-                            .padding(.vertical, 2)
+                            Spacer(minLength: 4)
 
-                        Toggle(isOn: startMinimizedBinding) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(L10n.t(.settingsStartMinimizedToggle))
+                            Toggle(isOn: launchAtLoginBinding) {
+                                Text(L10n.t(.settingsLaunchAtLoginToggle))
                                     .font(.body.weight(.medium))
-                                Text(L10n.t(.settingsStartMinimizedDesc))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
                             }
+                            .toggleStyle(.switch)
+
+                            Divider()
+                                .padding(.vertical, 2)
+
+                            Toggle(isOn: startMinimizedBinding) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(L10n.t(.settingsStartMinimizedToggle))
+                                        .font(.body.weight(.medium))
+                                    Text(L10n.t(.settingsStartMinimizedDesc))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .toggleStyle(.switch)
                         }
-                        .toggleStyle(.switch)
-                    }
-                    .padding(20)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14))
-                }
-
-                // 3. Backup Profiles & Unique Identifiers (UUID) Section
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "person.crop.square.stack.fill")
-                            .font(.title2)
-                            .foregroundStyle(OtterTheme.otterAmber)
-                        Text(L10n.t(.settingsProfilesSection))
-                            .font(.title2.bold())
-                    }
-
-                    Text(L10n.t(.settingsProfilesSectionDesc))
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-
-                    VStack(spacing: 10) {
-                        ForEach(appState.profiles) { profile in
-                            ProfileUUIDCardView(
-                                profile: profile,
-                                isSelected: profile.id == appState.selectedProfileId
-                            )
-                        }
+                        .padding(20)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14))
                     }
                 }
-                .padding(20)
-                .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14))
 
                 // 4. Persistent Files & Storage Section
                 VStack(alignment: .leading, spacing: 14) {
@@ -696,139 +675,78 @@ public struct SettingsView: View {
 
             Divider()
 
-            HStack(spacing: 16) {
-                // FDA Status Card
-                HStack(spacing: 10) {
-                    Circle()
-                        .fill(hasFDA ? OtterTheme.statusSuccess : OtterTheme.statusWarning)
-                        .frame(width: 10, height: 10)
+            Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 16) {
+                GridRow {
+                    // FDA Status Card
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(hasFDA ? OtterTheme.statusSuccess : OtterTheme.statusWarning)
+                            .frame(width: 10, height: 10)
 
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(hasFDA ? L10n.t(.permissionFDAGranted) : L10n.t(.permissionFDAMissing))
-                            .font(.callout.weight(.medium))
-                        Text(hasFDA ? "macOS Full Disk Access active" : "Required for background backups")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    if !hasFDA {
-                        Button {
-                            FinderPermissionManager.shared.openFullDiskAccessSettings()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "gearshape")
-                                Text(L10n.t(.permissionOpenSettings))
-                            }
-                            .font(.caption.weight(.medium))
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(hasFDA ? L10n.t(.permissionFDAGranted) : L10n.t(.permissionFDAMissing))
+                                .font(.callout.weight(.medium))
+                            Text(hasFDA ? "macOS Full Disk Access active" : "Required for background backups")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                    }
-                }
-                .padding(12)
-                .background(hasFDA ? OtterTheme.statusSuccess.opacity(0.08) : OtterTheme.statusWarning.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
 
-                // Finder Extension Status Card
-                HStack(spacing: 10) {
-                    Circle()
-                        .fill(isFinderEnabled ? OtterTheme.statusSuccess : .secondary)
-                        .frame(width: 10, height: 10)
+                        Spacer()
 
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(isFinderEnabled ? L10n.t(.permissionFinderActive) : L10n.t(.permissionFinderInactive))
-                            .font(.callout.weight(.medium))
-                        Text(isFinderEnabled ? "Context menu & badges active" : "Finder contextual restore & badges")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    if !isFinderEnabled {
-                        Button {
-                            FinderPermissionManager.shared.openSystemExtensionSettings()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "gearshape")
-                                Text(L10n.t(.permissionOpenSettings))
+                        if !hasFDA {
+                            Button {
+                                FinderPermissionManager.shared.openFullDiskAccessSettings()
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "gearshape")
+                                    Text(L10n.t(.permissionOpenSettings))
+                                }
+                                .font(.caption.weight(.medium))
                             }
-                            .font(.caption.weight(.medium))
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
                     }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .background(hasFDA ? OtterTheme.statusSuccess.opacity(0.08) : OtterTheme.statusWarning.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+
+                    // Finder Extension Status Card
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(isFinderEnabled ? OtterTheme.statusSuccess : .secondary)
+                            .frame(width: 10, height: 10)
+
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(isFinderEnabled ? L10n.t(.permissionFinderActive) : L10n.t(.permissionFinderInactive))
+                                .font(.callout.weight(.medium))
+                            Text(isFinderEnabled ? "Context menu & badges active" : "Finder contextual restore & badges")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        if !isFinderEnabled {
+                            Button {
+                                FinderPermissionManager.shared.openSystemExtensionSettings()
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "gearshape")
+                                    Text(L10n.t(.permissionOpenSettings))
+                                }
+                                .font(.caption.weight(.medium))
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .background(isFinderEnabled ? OtterTheme.statusSuccess.opacity(0.08) : Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
                 }
-                .padding(12)
-                .background(isFinderEnabled ? OtterTheme.statusSuccess.opacity(0.08) : Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
             }
         }
         .otterCard(padding: 16)
-    }
-}
-
-private struct ProfileUUIDCardView: View {
-    let profile: BackupProfile
-    let isSelected: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(profile.name)
-                    .font(.body.weight(.semibold))
-                if isSelected {
-                    Text(L10n.t(.settingsActiveBadge))
-                        .font(.caption2.bold())
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .background(OtterTheme.otterAmber.opacity(0.15), in: Capsule())
-                        .foregroundStyle(OtterTheme.otterAmber)
-                }
-                Spacer()
-            }
-
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.t(.uuidLabel))
-                        .font(.caption.bold())
-                        .foregroundStyle(.secondary)
-                    Text(profile.id.uuidString)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.primary)
-                        .textSelection(.enabled)
-                }
-
-                Spacer()
-
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(profile.id.uuidString, forType: .string)
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "doc.on.doc")
-                        Text(L10n.t(.settingsCopyUUID))
-                    }
-                    .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
-
-            HStack(spacing: 12) {
-                Text("\(L10n.t(.sourceFolderTitle)): \(profile.sourceURL.path)")
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                Text("•")
-                    .foregroundStyle(.tertiary)
-                Text("\(L10n.t(.destinationFolderTitle)): \(profile.destinationURL.path)")
-                    .font(.caption2.monospaced())
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        }
-        .padding(14)
-        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
     }
 }

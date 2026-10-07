@@ -31,11 +31,16 @@ public struct ProfileRulesAndMaintenanceView: View {
                 // 1. Existing Profile Rules (Directories, iCloud, Exclusions, Schedules)
                 ProfileRulesView(appState: appState).content
 
-                // 2. Storage Maintenance & Retention Consolidation
-                maintenanceSection
+                // 2. Storage Maintenance & Retention Consolidation (Equal Height Cards)
+                Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 16) {
+                    GridRow {
+                        maintenanceSection
+                        catalogRecoverySection
+                    }
+                }
 
-                // 3. Disaster Recovery Catalog Rebuild
-                catalogRecoverySection
+                // 3. Profile Metadata & Technical Identifiers (UUID)
+                profileMetadataSection
             }
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -88,6 +93,8 @@ public struct ProfileRulesAndMaintenanceView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
+            Spacer(minLength: 8)
+
             HStack(spacing: 16) {
                 Text(L10n.t(.maintenanceKeepSnapshotsLabel))
                     .font(.body.weight(.medium))
@@ -106,8 +113,8 @@ public struct ProfileRulesAndMaintenanceView: View {
                 .disabled(appState.snapshots.count <= appState.maxSnapshotsToKeep)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .squirrelCard()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .otterCard(padding: 16)
     }
 
     // MARK: - Disaster Recovery Card
@@ -125,6 +132,8 @@ public struct ProfileRulesAndMaintenanceView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
+            Spacer(minLength: 8)
+
             HStack {
                 Spacer()
                 Button(L10n.t(.maintenanceRebuildButton)) {
@@ -134,7 +143,85 @@ public struct ProfileRulesAndMaintenanceView: View {
                 .controlSize(.regular)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .otterCard(padding: 16)
+    }
+
+    // MARK: - Profile Metadata & Identifiers Card
+    private var profileMetadataSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: "barcode.viewfinder")
+                    .font(.title3)
+                    .foregroundStyle(OtterTheme.otterAmber)
+                Text(L10n.t(.profileMetadataSectionTitle))
+                    .font(.headline)
+            }
+
+            Text(L10n.t(.profileMetadataSectionDesc))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.t(.uuidLabel))
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+                        Text(profile.id.uuidString)
+                            .font(.callout.monospaced())
+                            .foregroundStyle(.primary)
+                            .textSelection(.enabled)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(profile.id.uuidString, forType: .string)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "doc.on.doc")
+                            Text(L10n.t(.settingsCopyUUID))
+                        }
+                        .font(.caption.weight(.medium))
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+
+                Divider()
+
+                HStack(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.t(.sourceFolderTitle))
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+                        Text(profile.sourceURL.path)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+
+                    Spacer()
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.t(.destinationFolderTitle))
+                            .font(.caption.bold())
+                            .foregroundStyle(.secondary)
+                        Text(profile.destinationURL.path)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+            }
+            .padding(14)
+            .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
+        }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .squirrelCard()
+        .otterCard(padding: 16)
     }
 }

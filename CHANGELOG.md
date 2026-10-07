@@ -30,6 +30,17 @@ Version **1.4.0** is an intensive engineering and stability release focusing on 
   9. 100% English-Hungarian Bilingual Localization Parity
   10. Modern Sanctuary UI Design System & Three-Tier Error Recovery
 
+### 🔄 Full Snapshot Restore & Recovery Engine
+- **Full Snapshot Restoration**: Implemented end-to-end full snapshot restore capabilities across Core (`StorageRestorationEngine`), UI (`RestoreExplorerView`), and CLI (`otterkeep restore --snapshot-id <id> --full`).
+- **Atomic Restoration Safeguards**: Transaction-safe staging and atomic in-place file restoration preserving POSIX permissions, creation timestamps, and extended attributes (`xattrs`).
+- **Interactive Restore Feedback & Diff Modals**: Enhanced restore progress telemetry (`OperationFeedbackModalView`) and pre-restoration snapshot diff sheet inspector with storage provider abstraction.
+
+### 🎨 Settings & Profile Experience Modernization
+- **Equal-Height Card Layouts**: Re-architected multi-column card rows in `SettingsView` (Language, Appearance, Startup, and Permission HUD) and `ProfileRulesAndMaintenanceView` (Retention Consolidation and Disaster Recovery) using native SwiftUI `Grid` and `GridRow` containers with `.frame(maxHeight: .infinity)`, ensuring pixel-aligned card heights.
+- **Contextual Profile Metadata & Identifiers**: Cleaned up the global Preferences window by removing the technical profile UUID card list. Added a discreet, dedicated *Profile Identifiers & Metadata* section at the bottom of the Profile Settings view featuring monospaced UUIDs and a one-click clipboard copy action.
+- **De-cluttered Profile Rules**: Replaced bulky, redundant directory selection cards with a sleek, single-row `folderSummaryHeader` banner linking directly to the Main Dashboard overview pipeline.
+- **Bilingual Localization Parity**: Extended `Localization.swift` with Hungarian and English strings for the new profile metadata and system information sections.
+
 ### 📖 Documentation & Community
 - **Documentation Overhaul**: Authored 15 brand-new, drift-free guides spanning architecture specifications, storage engine mechanics, database schemas, security manuals, CLI references, and 5 end-user guides in complete English and Hungarian parity.
 - **Distribution Packages**: Updated Sparkle 2.0 appcast feed (`Distribution/appcast.xml`) and Homebrew formula template (`Distribution/otterkeep.rb.template`) targeting v1.4.0.
