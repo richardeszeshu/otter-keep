@@ -1,5 +1,8 @@
 # Getting Started with OtterKeep
 
+> *„Keep what you love close to your chest.”*  
+> Sea otters carry their favorite pebble in a pocket under their arm their whole life, never letting it go. OtterKeep brings that same tender vigilance to protecting your Mac.
+
 Welcome to **OtterKeep**! This guide walks you through downloading, installing, configuring permissions, and running your very first backup.
 
 ---

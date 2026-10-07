@@ -78,21 +78,15 @@ public enum PhotosWorkspaceTab: String, CaseIterable, Identifiable, Sendable {
 public enum RestoreBrowseMode: String, CaseIterable, Identifiable, Sendable {
     /// Browse files by individual snapshot directory tree.
     case snapshot = "snapshot"
-    /// Browse all versions of a specific file across time.
-    case timeline = "timeline"
-    /// Search files across all snapshots.
+    /// Search files across all snapshots with complete version history.
     case globalSearch = "globalSearch"
-    /// Visual diff & change log between snapshots.
-    case snapshotDiff = "snapshotDiff"
 
     public var id: String { rawValue }
 
     public var localizedTitle: String {
         switch self {
         case .snapshot: return L10n.t(.restoreSnapshotMode)
-        case .timeline: return L10n.t(.restoreTimelineMode)
         case .globalSearch: return L10n.t(.searchAcrossSnapshotsMode)
-        case .snapshotDiff: return L10n.t(.restoreDiffMode)
         }
     }
 }
@@ -112,6 +106,7 @@ public struct OperationFeedback: Identifiable, Sendable {
     public let detailedReason: String?
     public let profileName: String?
     public let summary: BackupSessionSummary?
+    public let restoreSummary: RestoreSessionSummary?
 
     public init(
         id: UUID = UUID(),
@@ -120,7 +115,8 @@ public struct OperationFeedback: Identifiable, Sendable {
         message: String,
         detailedReason: String? = nil,
         profileName: String? = nil,
-        summary: BackupSessionSummary? = nil
+        summary: BackupSessionSummary? = nil,
+        restoreSummary: RestoreSessionSummary? = nil
     ) {
         self.id = id
         self.type = type
@@ -129,6 +125,7 @@ public struct OperationFeedback: Identifiable, Sendable {
         self.detailedReason = detailedReason
         self.profileName = profileName
         self.summary = summary
+        self.restoreSummary = restoreSummary
     }
 }
 
@@ -392,6 +389,7 @@ public final class AppState: Sendable {
     public var isLoadingDiff: Bool = false
     public var diffFilterType: DiffChangeType? = nil
     public var diffSearchQuery: String = ""
+    public var showDiffSheet: Bool = false
 
     // MARK: - Storage Capacity Forecast & Quota Alerts
     public var storageForecastReport: StorageForecastReport?
@@ -1984,7 +1982,16 @@ public final class AppState: Sendable {
                     LogManager.shared.log("Entire snapshot '\(snapshot.id)' restored successfully to '\(targetDirectory.path)' (\(summary.restoredFiles) files, \(summary.restoredBytes) bytes, \(String(format: "%.2f", summary.durationSeconds))s)", level: .info, category: "Restore")
                     self.refreshLogs()
                     NotificationDeliveryService.shared.notifyRestoreCompleted(fileName: snapshot.snapshotPath, profileName: profile.name)
-                    self.showSuccess(L10n.format(.restoreEntireSnapshotSuccessFormat, snapshot.snapshotPath, Int64(summary.restoredFiles), targetDirectory.path))
+
+                    // Trigger Operation Feedback Modal with Ottie mascot
+                    self.activeFeedback = OperationFeedback(
+                        type: .success,
+                        title: L10n.t(.feedbackRestoreSuccessTitle),
+                        message: L10n.format(.feedbackRestoreSuccessMessage, snapshot.snapshotPath, Int64(summary.restoredFiles)),
+                        profileName: profile.name,
+                        restoreSummary: summary
+                    )
+                    self.showFeedbackModal = true
                 }
             } catch {
                 Task { @MainActor in
@@ -1993,7 +2000,16 @@ public final class AppState: Sendable {
                     LogManager.shared.log("Entire snapshot restore failed for '\(snapshot.id)': \(error.localizedDescription)", level: .error, category: "Restore")
                     self.refreshLogs()
                     NotificationDeliveryService.shared.notifyRestoreFailed(fileName: snapshot.snapshotPath, errorMessage: error.localizedDescription)
-                    self.showError(error.localizedDescription)
+
+                    // Trigger Operation Feedback Modal with Ottie reassurance
+                    self.activeFeedback = OperationFeedback(
+                        type: .failure,
+                        title: L10n.t(.feedbackRestoreFailedTitle),
+                        message: L10n.format(.feedbackRestoreFailedMessage, error.localizedDescription),
+                        detailedReason: error.localizedDescription,
+                        profileName: profile.name
+                    )
+                    self.showFeedbackModal = true
                 }
             }
         }
@@ -2141,12 +2157,6 @@ public final class AppState: Sendable {
                 .appendingPathComponent(snap.snapshotPath)
                 .appendingPathComponent("root")
                 .appendingPathComponent(file.relativePath)
-        } else if restoreBrowseMode == .timeline {
-            guard let version = selectedTimelineVersion else { return nil }
-            candidateURL = profile.destinationURL
-                .appendingPathComponent(version.snapshot.snapshotPath)
-                .appendingPathComponent("root")
-                .appendingPathComponent(version.file.relativePath)
         } else {
             guard let result = selectedGlobalSearchResult else { return nil }
             candidateURL = profile.destinationURL

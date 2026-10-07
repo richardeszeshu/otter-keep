@@ -206,6 +206,8 @@ final class OtterKeepTestSuite {
         await runTest("10.3 Configuration Archive Round-Trip JSON Serialization", test10_3_ConfigurationArchiveSerialization)
         await runTest("10.4 AppState Multi-Profile Parallel Tracking & Lockout", test10_4_AppStateMultiProfileTracking)
         await runTest("10.5 OtterAboutView Brand Metadata & Version Display (v1.4.0)", test10_5_OtterAboutViewMetadata)
+        await runTest("10.6 DefaultFileSystemProvider Registry Routing & Backward Compatibility", test10_6_DefaultFileSystemProviderRouting)
+        await runTest("10.7 Restore OperationFeedback & Streamlined Browse Modes", test10_7_RestoreOperationFeedbackAndModes)
 
         print("\n" + String(repeating: "=", count: 80))
         print("📊 TEST EXECUTION SUMMARY")
@@ -1152,6 +1154,44 @@ final class OtterKeepTestSuite {
     private func test10_5_OtterAboutViewMetadata() throws {
         try assertEqual(CoreEngine.version, "1.4.0")
         try assertEqual(CoreEngine.buildNumber, "1400")
+    }
+
+    private func test10_6_DefaultFileSystemProviderRouting() async throws {
+        let provider = DefaultFileSystemProvider()
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let caps = try await provider.capabilities(at: home)
+        try assertTrue(!caps.fsTypeName.isEmpty)
+
+        // Verify typealias consistency
+        let aliasProvider: APFSFileSystemProvider = provider
+        let capAlias = try await aliasProvider.capabilities(at: home)
+        try assertEqual(caps.fsTypeName, capAlias.fsTypeName)
+    }
+
+    private func test10_7_RestoreOperationFeedbackAndModes() throws {
+        // Test streamlined modes
+        try assertEqual(RestoreBrowseMode.allCases.count, 2)
+        try assertEqual(RestoreBrowseMode.snapshot.rawValue, "snapshot")
+        try assertEqual(RestoreBrowseMode.globalSearch.rawValue, "globalSearch")
+
+        // Test restore summary feedback construction
+        let summary = RestoreSessionSummary(
+            snapshotPath: "2026-10-07_12-00-00",
+            totalFiles: 10,
+            totalBytes: 10240,
+            restoredFiles: 10,
+            restoredBytes: 10240,
+            durationSeconds: 1.25
+        )
+        let feedback = OperationFeedback(
+            type: .success,
+            title: L10n.t(.feedbackRestoreSuccessTitle),
+            message: L10n.format(.feedbackRestoreSuccessMessage, summary.snapshotPath, Int64(summary.restoredFiles)),
+            restoreSummary: summary
+        )
+        try assertEqual(feedback.type, .success)
+        try assertEqual(feedback.restoreSummary?.restoredFiles, 10)
+        try assertTrue(!feedback.title.isEmpty)
     }
 }
 

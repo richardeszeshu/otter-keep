@@ -54,12 +54,8 @@ public struct RestoreExplorerView: View {
             switch appState.restoreBrowseMode {
             case .snapshot:
                 snapshotBrowseView
-            case .timeline:
-                fileTimelineBrowseView
             case .globalSearch:
                 globalSearchBrowseView
-            case .snapshotDiff:
-                SnapshotDiffView(appState: appState)
             }
 
         }
@@ -79,6 +75,26 @@ public struct RestoreExplorerView: View {
         }
         .sheet(isPresented: showRestoreSnapshotDialogBinding) {
             restoreSnapshotSheetView
+        }
+        .sheet(isPresented: Binding(
+            get: { appState.showDiffSheet },
+            set: { appState.showDiffSheet = $0 }
+        )) {
+            VStack(spacing: 0) {
+                HStack {
+                    Text(L10n.t(.diffCompareAction))
+                        .font(.headline)
+                    Spacer()
+                    Button(L10n.t(.cancel)) {
+                        appState.showDiffSheet = false
+                    }
+                    .keyboardShortcut(.cancelAction)
+                }
+                .padding()
+                Divider()
+                SnapshotDiffView(appState: appState)
+            }
+            .frame(minWidth: 700, minHeight: 520)
         }
     }
 
@@ -198,7 +214,7 @@ public struct RestoreExplorerView: View {
                                     appState.selectedDiffTargetSnapshotId = snap.id
                                     appState.selectedDiffBaseSnapshotId = nil
                                     appState.loadSnapshotDiff(targetId: snap.id, baseId: nil)
-                                    appState.restoreBrowseMode = .snapshotDiff
+                                    appState.showDiffSheet = true
                                 } label: {
                                     Label(L10n.t(.diffCompareAction), systemImage: "arrow.triangle.2.circlepath")
                                 }

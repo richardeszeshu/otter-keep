@@ -15,6 +15,11 @@
 
 ## Áttekintés
 
+> 🌊 **Az OtterKeep története (Márkafilozófia)**  
+> A tengeri vidráknak van egy különleges, ösztönös szokásuk: egész életükön át magukkal hordják kedvenc, legféltettebb kavicsukat, amelyet a mellső lábuk alatti apró bőrzsebben őriznek. Ezzel nyitják fel a kagylókat, ezzel játszanak a hullámok hátán ringatózva, és **semmilyen körülmények között sem engedik el**.  
+>  
+> Az **OtterKeep** pontosan ezzel a gondoskodó éberséggel, odaadással és ragaszkodással őrzi a Macjén található fájlokat, történeti pillanatképeket és féltett emlékeket.
+
 Az **OtterKeep** egy nyílt forráskódú, emberközpontú biztonsági mentési és adat-visszaállítási megoldás, amelyet kifejezetten a modern macOS operációs rendszerhez terveztünk. A rendszer szimbóluma **Ollie, a vidra** – a nyugodt védelmező, aki víz alatti kis erszényében gondosan gyűjti és őrzi legféltettebb kincseit. Az OtterKeep az Ön fájljaira és fotóira nem egyszerű adathalmazként, hanem megőrzendő emlékekként és értékekként tekint.
 
 A hagyományos, ventillátorzajt keltő és akkumulátort merítő mentőszoftverekkel szemben az OtterKeep az Apple natív **APFS Copy-on-Write (`clonefile`)** mechanizmusára épül, így azonnali, differenciális pillanatképeket hoz létre **plusz tárhelyfoglalás nélkül**, amíg a fájlok tartalma meg nem változik.

@@ -15,6 +15,11 @@
 
 ## Overview
 
+> 🌊 **The Story of OtterKeep (Brand Lore)**  
+> Sea otters have an extraordinary, instinctive ritual: throughout their entire lives, they carry their most prized favorite pebble tucked securely into a hidden pocket of skin beneath their forearms. They use it to open shells, play with it on the waves, and never let it go under any circumstances.  
+>  
+> **OtterKeep** protects the files, historical snapshots, and precious memories on your Mac with that exact same tender vigilance and devotion.
+
 **OtterKeep** is an open-source, human-centric backup and recovery solution engineered exclusively for modern macOS. Designed around **Ollie the Otter**—the calm guardian who meticulously collects and preserves treasures in an underwater pouch—OtterKeep treats your files as cherished memories that deserve lifelong sanctuary.
 
 Unlike traditional backup utilities that trigger thermal throttling, battery drain, and unmount locks, OtterKeep leverages Apple's native **APFS Copy-on-Write (`clonefile`)** primitives to create instantaneous, differential filesystem snapshots with **zero additional storage overhead** until files change.

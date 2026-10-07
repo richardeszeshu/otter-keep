@@ -1,5 +1,8 @@
 # Első lépések az OtterKeep használatával
 
+> *„Őrizd a legfontosabb kincseidet biztos kezekben.”*  
+> A tengeri vidrák egész életükben a mellső lábuk alatti apró bőrzsebben őrzik legkedvesebb kavicsukat, és soha nem engedik el. Az OtterKeep ugyanezzel a féltő gondoskodással és éberséggel védi az Ön Macjét.
+
 Üdvözöljük az **OtterKeep** alkalmazásban! Ez az útmutató végigvezeti Önt a letöltésen, telepítésen, a szükséges macOS engedélyek megadásán és az első biztonsági mentés futtatásán.
 
 ---

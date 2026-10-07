@@ -48,6 +48,8 @@ public struct OperationFeedbackModalView: View {
             VStack(spacing: OtterTheme.spacing12) {
                 if feedback.type == .success, let summary = feedback.summary {
                     successSummaryCard(summary: summary)
+                } else if feedback.type == .success, let restoreSummary = feedback.restoreSummary {
+                    restoreSummaryCard(summary: restoreSummary)
                 } else if let reason = feedback.detailedReason, !reason.isEmpty {
                     failureAdviceCard(reason: reason)
                 }
@@ -123,6 +125,36 @@ public struct OperationFeedbackModalView: View {
                     title: L10n.t(.telemetryCloned),
                     value: ByteCountFormatter.string(fromByteCount: summary.clonedBytes, countStyle: .file),
                     icon: "link.badge.plus",
+                    color: OtterTheme.oceanicTeal
+                )
+
+                statColumn(
+                    title: L10n.t(.inspectorDuration),
+                    value: String(format: "%.1fs", summary.durationSeconds),
+                    icon: "clock.fill",
+                    color: .secondary
+                )
+            }
+            .padding(.vertical, 8)
+        }
+        .otterCard(padding: OtterTheme.spacing12)
+    }
+
+    // MARK: - Restore Summary Card
+    private func restoreSummaryCard(summary: RestoreSessionSummary) -> some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 16) {
+                statColumn(
+                    title: L10n.t(.snapshotFilesCount),
+                    value: "\(summary.restoredFiles)",
+                    icon: "doc.on.doc.fill",
+                    color: OtterTheme.statusGreen
+                )
+
+                statColumn(
+                    title: L10n.t(.fileSizeLabel),
+                    value: ByteCountFormatter.string(fromByteCount: summary.restoredBytes, countStyle: .file),
+                    icon: "arrow.down.circle.fill",
                     color: OtterTheme.oceanicTeal
                 )
 

@@ -1166,6 +1166,10 @@ public enum L10n {
 
         // MARK: - Restore & Maintenance (1.4.0)
         case restoredSuffixFormat
+        case feedbackRestoreSuccessTitle
+        case feedbackRestoreSuccessMessage
+        case feedbackRestoreFailedTitle
+        case feedbackRestoreFailedMessage
     }
 
 
@@ -2062,7 +2066,11 @@ public enum L10n {
         .profileLockedBannerMessage: "A profil beállításai a mentés befejezéséig zárolva vannak az adatkonzisztencia megőrzése érdekében.",
 
         // MARK: - Restore & Maintenance (1.4.0)
-        .restoredSuffixFormat: " (visszaállított %d)"
+        .restoredSuffixFormat: " (visszaállított %d)",
+        .feedbackRestoreSuccessTitle: "Visszaállítás sikeresen befejeződött!",
+        .feedbackRestoreSuccessMessage: "A(z) '%@' pillanatképből %lld fájl sikeresen helyreállítva a megadott mappába.",
+        .feedbackRestoreFailedTitle: "A visszaállítás nem sikerült",
+        .feedbackRestoreFailedMessage: "Nem sikerült a pillanatkép visszaállítása: %@"
     ]
 
 
@@ -2952,7 +2960,11 @@ public enum L10n {
         .profileLockedBannerMessage: "Profile settings are temporarily locked while backup is running to preserve data consistency.",
 
         // MARK: - Restore & Maintenance (1.4.0)
-        .restoredSuffixFormat: " (restored %d)"
+        .restoredSuffixFormat: " (restored %d)",
+        .feedbackRestoreSuccessTitle: "Restore Completed Successfully!",
+        .feedbackRestoreSuccessMessage: "Successfully restored %lld files from snapshot '%@' to the target directory.",
+        .feedbackRestoreFailedTitle: "Restore Operation Failed",
+        .feedbackRestoreFailedMessage: "Failed to restore snapshot: %@"
     ]
 }
 
