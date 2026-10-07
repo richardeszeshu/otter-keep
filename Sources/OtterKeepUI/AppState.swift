@@ -429,6 +429,10 @@ public final class AppState: Sendable {
     public var newExcludePattern: String = ""
     public var searchFilter: String = ""
     public var showRestoreDialog: Bool = false
+    public var showRestoreSnapshotDialog: Bool = false
+    public var snapshotToRestoreEntirely: SnapshotRecord? = nil
+    public var isSnapshotRestoreInProgress: Bool = false
+    public var snapshotRestoreProgress: RestoreProgressState? = nil
     public var collisionChoice: CollisionResolution = .keepBoth
     public var maxSnapshotsToKeep: Int = 5
     public var showConfirmPrune: Bool = false
@@ -1934,6 +1938,61 @@ public final class AppState: Sendable {
                     LogManager.shared.log("Restore failed for target '\(targetDirectory.path)' [File: \(file.relativePath)]: \(error.localizedDescription)", level: .error, category: "Restore")
                     self.refreshLogs()
                     NotificationDeliveryService.shared.notifyRestoreFailed(fileName: file.relativePath, errorMessage: error.localizedDescription)
+                    self.showError(error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    /// Restores the entire contents of a snapshot to a target directory.
+    @MainActor
+    public func restoreEntireSnapshot(
+        snapshot: SnapshotRecord,
+        to targetDirectory: URL,
+        collision: CollisionResolution = .keepBoth
+    ) {
+        guard let profile = selectedProfile else { return }
+
+        self.isSnapshotRestoreInProgress = true
+        self.snapshotRestoreProgress = RestoreProgressState(
+            phase: .preparing,
+            totalFiles: Int(snapshot.totalFiles),
+            processedFiles: 0,
+            totalBytes: snapshot.totalBytes,
+            processedBytes: 0,
+            currentItem: ""
+        )
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let summary = try await restoreEngine.restoreSnapshot(
+                    snapshotPath: snapshot.snapshotPath,
+                    backupRootURL: profile.destinationURL,
+                    targetDirectoryURL: targetDirectory,
+                    collisionResolution: collision,
+                    progress: { [weak self] progressState in
+                        Task { @MainActor in
+                            self?.snapshotRestoreProgress = progressState
+                        }
+                    }
+                )
+
+                Task { @MainActor in
+                    self.isSnapshotRestoreInProgress = false
+                    self.snapshotRestoreProgress = nil
+                    LogManager.shared.log("Entire snapshot '\(snapshot.id)' restored successfully to '\(targetDirectory.path)' (\(summary.restoredFiles) files, \(summary.restoredBytes) bytes, \(String(format: "%.2f", summary.durationSeconds))s)", level: .info, category: "Restore")
+                    self.refreshLogs()
+                    NotificationDeliveryService.shared.notifyRestoreCompleted(fileName: snapshot.snapshotPath, profileName: profile.name)
+                    self.showSuccess(L10n.format(.restoreEntireSnapshotSuccessFormat, snapshot.snapshotPath, Int64(summary.restoredFiles), targetDirectory.path))
+                }
+            } catch {
+                Task { @MainActor in
+                    self.isSnapshotRestoreInProgress = false
+                    self.snapshotRestoreProgress = nil
+                    LogManager.shared.log("Entire snapshot restore failed for '\(snapshot.id)': \(error.localizedDescription)", level: .error, category: "Restore")
+                    self.refreshLogs()
+                    NotificationDeliveryService.shared.notifyRestoreFailed(fileName: snapshot.snapshotPath, errorMessage: error.localizedDescription)
                     self.showError(error.localizedDescription)
                 }
             }

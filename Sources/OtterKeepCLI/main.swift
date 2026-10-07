@@ -84,6 +84,8 @@ struct OtterKeepCLI {
             await handleSnapshots(subArgs)
         case "restore":
             await handleRestore(subArgs)
+        case "restore-snapshot":
+            await handleRestoreSnapshot(subArgs)
         case "file-history", "history":
             await handleFileHistory(subArgs)
         case "logs", "log":
@@ -149,6 +151,12 @@ struct OtterKeepCLI {
             --snapshot <id>         \(L10n.t(.cliCmdRestoreSnapshot))
             --file <rel_path>       \(L10n.t(.cliCmdRestoreFile))
             --target <path>         \(L10n.t(.cliCmdRestoreTarget))
+
+          restore-snapshot          \(L10n.t(.cliCmdRestoreEntireSnapshot))
+            --profile <name|uuid>   \(L10n.t(.cliCmdRestoreProfile))
+            --snapshot <id>         \(L10n.t(.cliCmdRestoreSnapshot))
+            --target <path>         \(L10n.t(.cliCmdRestoreTarget))
+            --collision <mode>      \(L10n.t(.cliOptionCollision))
 
           file-history <path>       \(L10n.t(.cliCmdFileHistory))
             --gui                   \(L10n.t(.cliCmdFileHistoryGui))
@@ -618,6 +626,78 @@ struct OtterKeepCLI {
                 collisionResolution: .overwrite
             )
             print(L10n.format(.restoreSuccessMessage, destURL.path))
+            exitCLI(0)
+        } catch {
+            print("❌ \(error.localizedDescription)")
+            exitCLI(1)
+        }
+    }
+
+    /// Restores all files and directory structure of an entire snapshot to a target directory.
+    /// - Parameter args: Command-line arguments passed to the restore-snapshot subcommand.
+    static func handleRestoreSnapshot(_ args: [String]) async {
+        guard let snapId = getOption("--snapshot", from: args),
+              let target = getOption("--target", from: args) else {
+            print("\(L10n.t(.cliMissingParams)) --snapshot <id> --target <dest_dir> [--profile <name>] [--collision overwrite|keepBoth|skip]")
+            exitCLI(1)
+        }
+
+        let collisionModeStr = getOption("--collision", from: args)?.lowercased() ?? "keepboth"
+        let collision: CollisionResolution
+        switch collisionModeStr {
+        case "overwrite": collision = .overwrite
+        case "skip": collision = .skip
+        default: collision = .keepBoth
+        }
+
+        let profileName = getOption("--profile", from: args)
+        let store = ProfileStore.shared
+        let profiles = store.loadProfiles()
+        guard !profiles.isEmpty else {
+            print(L10n.t(.cliNoProfiles))
+            exitCLI(1)
+        }
+
+        let profile: BackupProfile
+        if let targetProfile = profileName {
+            guard let matched = profiles.first(where: { $0.name.lowercased() == targetProfile.lowercased() || $0.id.uuidString.lowercased() == targetProfile.lowercased() }) else {
+                print(L10n.format(.cliProfileNotFound, targetProfile))
+                exitCLI(1)
+            }
+            profile = matched
+        } else {
+            profile = profiles[0]
+        }
+
+        let dbPath = profile.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite").path
+        let db = DatabaseEngine()
+        let storage = APFSFileSystemProvider()
+        let engine = RestoreEngine(storage: storage, database: db)
+
+        do {
+            try await db.open(at: dbPath)
+            let snaps = try await db.listSnapshots()
+            guard let snap = snaps.first(where: { $0.id == snapId || $0.snapshotPath == snapId }) else {
+                print("❌ Snapshot not found: '\(snapId)'")
+                exitCLI(1)
+            }
+
+            print("🔄 Restoring entire snapshot '\(snap.snapshotPath)' (\(snap.totalFiles) files) to '\(target)'...")
+
+            let summary = try await engine.restoreSnapshot(
+                snapshotPath: snap.snapshotPath,
+                backupRootURL: profile.destinationURL,
+                targetDirectoryURL: URL(fileURLWithPath: target),
+                collisionResolution: collision,
+                progress: { prog in
+                    if prog.phase == .restoring && !prog.currentItem.isEmpty {
+                        print("  [\(prog.processedFiles)/\(prog.totalFiles)] \(prog.currentItem)")
+                    }
+                }
+            )
+
+            print("✅ \(L10n.format(.restoreEntireSnapshotSuccessFormat, snap.snapshotPath, Int64(summary.restoredFiles), target))")
+            print("⏱️ Duration: \(String(format: "%.2f", summary.durationSeconds))s, Restored: \(ByteCountFormatter.string(fromByteCount: summary.restoredBytes, countStyle: .file))")
             exitCLI(0)
         } catch {
             print("❌ \(error.localizedDescription)")

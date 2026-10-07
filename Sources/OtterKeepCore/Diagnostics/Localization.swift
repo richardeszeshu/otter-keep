@@ -502,6 +502,14 @@ public enum L10n {
         case restoreRootFolder
         case restoreItemsCountFormat
 
+        // MARK: - Full Snapshot Restore
+        case restoreEntireSnapshotButton
+        case restoreEntireSnapshotTitle
+        case restoreEntireSnapshotConfirmFormat
+        case restoreEntireSnapshotSuccessFormat
+        case cliCmdRestoreEntireSnapshot
+        case cliOptionCollision
+
         // MARK: - Timeline State Badges
         case timelineInitialVersion
         case timelineInitialCreated
@@ -1413,6 +1421,13 @@ public enum L10n {
         .restoreRootFolder: "Gyökérkönyvtár",
         .restoreItemsCountFormat: "%d elem",
 
+        .restoreEntireSnapshotButton: "Teljes Snapshot Visszaállítása...",
+        .restoreEntireSnapshotTitle: "Teljes Snapshot Visszaállítása Egyben",
+        .restoreEntireSnapshotConfirmFormat: "Biztosan visszaállítja a(z) '%@' snapshot teljes tartalmát a következő mappába?\n%@",
+        .restoreEntireSnapshotSuccessFormat: "A(z) '%@' snapshot összes fájlja (%lld fájl) sikeresen visszaállítva ide:\n%@",
+        .cliCmdRestoreEntireSnapshot: "Teljes snapshot összes fájljának visszaállítása egyben",
+        .cliOptionCollision: "Névütközés kezelése: overwrite | keepBoth | skip (alapértelmezett: keepBoth)",
+
         .timelineInitialVersion: "Kezdeti verzió",
         .timelineInitialCreated: "Létrehozva (Kezdeti verzió)",
         .timelineModifiedContent: "Módosult tartalom",
@@ -2295,6 +2310,13 @@ public enum L10n {
         .restoreChoosePrompt: "Restore Here",
         .restoreRootFolder: "Root Directory",
         .restoreItemsCountFormat: "%d items",
+
+        .restoreEntireSnapshotButton: "Restore Entire Snapshot...",
+        .restoreEntireSnapshotTitle: "Restore Entire Snapshot",
+        .restoreEntireSnapshotConfirmFormat: "Are you sure you want to restore the entire contents of snapshot '%@' to:\n%@",
+        .restoreEntireSnapshotSuccessFormat: "All files from snapshot '%@' (%lld files) successfully restored to:\n%@",
+        .cliCmdRestoreEntireSnapshot: "Restore all files from an entire snapshot at once",
+        .cliOptionCollision: "Collision resolution: overwrite | keepBoth | skip (default: keepBoth)",
 
         .timelineInitialVersion: "Initial version",
         .timelineInitialCreated: "Created (Initial version)",

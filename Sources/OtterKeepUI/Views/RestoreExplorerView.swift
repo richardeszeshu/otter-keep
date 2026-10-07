@@ -24,6 +24,10 @@ public struct RestoreExplorerView: View {
         Binding(get: { appState.showRestoreDialog }, set: { appState.showRestoreDialog = $0 })
     }
 
+    private var showRestoreSnapshotDialogBinding: Binding<Bool> {
+        Binding(get: { appState.showRestoreSnapshotDialog }, set: { appState.showRestoreSnapshotDialog = $0 })
+    }
+
     private var collisionChoiceBinding: Binding<CollisionResolution> {
         Binding(get: { appState.collisionChoice }, set: { appState.collisionChoice = $0 })
     }
@@ -72,6 +76,9 @@ public struct RestoreExplorerView: View {
         }
         .sheet(isPresented: showRestoreDialogBinding) {
             restoreSheetView
+        }
+        .sheet(isPresented: showRestoreSnapshotDialogBinding) {
+            restoreSnapshotSheetView
         }
     }
 
@@ -181,6 +188,13 @@ public struct RestoreExplorerView: View {
                             .padding(.vertical, 4)
                             .contextMenu {
                                 Button {
+                                    appState.snapshotToRestoreEntirely = snap
+                                    appState.showRestoreSnapshotDialog = true
+                                } label: {
+                                    Label(L10n.t(.restoreEntireSnapshotButton), systemImage: "arrow.counterclockwise.circle")
+                                }
+
+                                Button {
                                     appState.selectedDiffTargetSnapshotId = snap.id
                                     appState.selectedDiffBaseSnapshotId = nil
                                     appState.loadSnapshotDiff(targetId: snap.id, baseId: nil)
@@ -193,6 +207,22 @@ public struct RestoreExplorerView: View {
                     }
                     .listStyle(.sidebar)
 
+                    if let selectedSnap = appState.snapshots.first(where: { $0.id == appState.selectedSnapshotId }) {
+                        Button {
+                            appState.snapshotToRestoreEntirely = selectedSnap
+                            appState.showRestoreSnapshotDialog = true
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.counterclockwise.circle.fill")
+                                Text(L10n.t(.restoreEntireSnapshotButton))
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.regular)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
+                    }
                 }
             }
             .frame(minWidth: 260, maxWidth: 340)
@@ -730,6 +760,102 @@ public struct RestoreExplorerView: View {
         }
         .padding()
         .frame(minWidth: 460)
+    }
+
+    private var restoreSnapshotSheetView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.counterclockwise.circle.fill")
+                    .font(.title)
+                    .foregroundStyle(OtterTheme.oceanicTeal)
+                Text(L10n.t(.restoreEntireSnapshotTitle))
+                    .font(.title2.bold())
+            }
+
+            if let snap = appState.snapshotToRestoreEntirely {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("\(L10n.t(.sourceSnapshotLabel)) \(snap.snapshotPath)")
+                            .font(.subheadline.bold())
+                        Spacer()
+                        Text(Self.dateFormatter.string(from: snap.timestamp))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Text("\(snap.totalFiles) \(L10n.t(.snapshotFilesCount)) • \(formatBytes(snap.totalBytes))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(12)
+                .background(.background.secondary, in: RoundedRectangle(cornerRadius: 8))
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(L10n.t(.collisionResolutionLabel))
+                    .fontWeight(.medium)
+                Picker("", selection: collisionChoiceBinding) {
+                    Text(L10n.t(.collisionKeepBoth)).tag(CollisionResolution.keepBoth)
+                    Text(L10n.t(.collisionOverwrite)).tag(CollisionResolution.overwrite)
+                    Text(L10n.t(.collisionSkip)).tag(CollisionResolution.skip)
+                }
+                .pickerStyle(.radioGroup)
+            }
+
+            if appState.isSnapshotRestoreInProgress {
+                VStack(alignment: .leading, spacing: 6) {
+                    if let prog = appState.snapshotRestoreProgress {
+                        ProgressView(value: Double(prog.processedFiles), total: max(1.0, Double(prog.totalFiles)))
+                        HStack {
+                            Text("\(prog.processedFiles) / \(prog.totalFiles) \(L10n.t(.snapshotFilesCount))")
+                                .font(.caption2.monospacedDigit())
+                            Spacer()
+                            Text(formatBytes(prog.processedBytes))
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                        if !prog.currentItem.isEmpty {
+                            Text(prog.currentItem)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                    } else {
+                        ProgressView()
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+
+            HStack {
+                Button(L10n.t(.cancel)) {
+                    appState.showRestoreSnapshotDialog = false
+                    appState.snapshotToRestoreEntirely = nil
+                }
+                .disabled(appState.isSnapshotRestoreInProgress)
+
+                Spacer()
+
+                Button(L10n.t(.restoreToFolderButton)) {
+                    if let snap = appState.snapshotToRestoreEntirely {
+                        chooseRestoreDestination { targetURL in
+                            appState.showRestoreSnapshotDialog = false
+                            appState.restoreEntireSnapshot(
+                                snapshot: snap,
+                                to: targetURL,
+                                collision: appState.collisionChoice
+                            )
+                            appState.snapshotToRestoreEntirely = nil
+                        }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(appState.isSnapshotRestoreInProgress || appState.snapshotToRestoreEntirely == nil)
+            }
+        }
+        .padding()
+        .frame(minWidth: 480)
     }
 
     private func chooseRestoreDestination(completion: @escaping (URL) -> Void) {

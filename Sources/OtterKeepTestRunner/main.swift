@@ -161,6 +161,7 @@ final class OtterKeepTestSuite {
         await runTest("4.3 Ransomware Anomaly Guard Sensitivity & Extension Shield", test4_3_RansomwareAnomalyGuard)
         await runTest("4.4 End-to-End Backup Lifecycle (Initial + Incremental CoW)", test4_4_EndToEndBackupLifecycle)
         await runTest("4.5 Cooperative FileTreeScanner Execution & Exclusion Markers", test4_5_CooperativeFileTreeScanner)
+        await runTest("4.6 Full Snapshot Entire Restore (Structure, Reflink & SHA-256)", test4_6_FullSnapshotEntireRestore)
 
         // Module 5
         print("\n🔹 Module 5: Client-Side Cryptography & Security Integrity")
@@ -743,6 +744,100 @@ final class OtterKeepTestSuite {
         let paths = scanResult.items.map(\.relativePath)
         try assertTrue(paths.contains("valid.txt"))
         try assertFalse(paths.contains("CacheFolder/cached_payload.bin"), "Items in directory with .nobackup marker must be skipped")
+    }
+
+    private func test4_6_FullSnapshotEntireRestore() async throws {
+        let tempDir = try createTempDirectory(prefix: "FullRestore")
+        defer { removeTempDirectory(tempDir) }
+
+        let sourceDir = tempDir.appendingPathComponent("Source")
+        let destDir = tempDir.appendingPathComponent("BackupDest")
+        let restoreTargetDir = tempDir.appendingPathComponent("RestoreTarget")
+        try FileManager.default.createDirectory(at: sourceDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: destDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: restoreTargetDir, withIntermediateDirectories: true)
+
+        // Create sample hierarchy
+        let subDir = sourceDir.appendingPathComponent("SubFolder")
+        try FileManager.default.createDirectory(at: subDir, withIntermediateDirectories: true)
+
+        let file1 = sourceDir.appendingPathComponent("alpha.txt")
+        let file2 = subDir.appendingPathComponent("beta.data")
+        let file3 = sourceDir.appendingPathComponent("gamma.log")
+
+        try "Alpha Content".write(to: file1, atomically: true, encoding: .utf8)
+        let sampleBinary = Data((0..<1024).map { UInt8($0 % 256) })
+        try sampleBinary.write(to: file2)
+        try "Gamma Log Line 1\nGamma Log Line 2\n".write(to: file3, atomically: true, encoding: .utf8)
+
+        let profile = BackupProfile(
+            name: "FullRestoreTestProfile",
+            sourceURL: sourceDir,
+            destinationURL: destDir
+        )
+
+        let coordinator = BackupSessionCoordinator()
+        let snap = try await coordinator.performBackup(profile: profile, mode: .full)
+        try assertEqual(snap.status, "completed")
+        try assertEqual(snap.totalFiles, 4, "Snapshot includes 1 directory and 3 files")
+
+        // Perform entire snapshot restore
+        let db = DatabaseEngine()
+        let dbPath = destDir.appendingPathComponent(".otterkeep/manifest.sqlite").path
+        try await db.open(at: dbPath)
+        let storage = APFSFileSystemProvider()
+        let restoreEngine = RestoreEngine(storage: storage, database: db)
+
+        final class ProgressBox: @unchecked Sendable {
+            private let lock = NSLock()
+            private(set) var list: [RestoreProgressState] = []
+            func append(_ item: RestoreProgressState) {
+                lock.lock()
+                defer { lock.unlock() }
+                list.append(item)
+            }
+            var count: Int {
+                lock.lock()
+                defer { lock.unlock() }
+                return list.count
+            }
+        }
+        let progressBox = ProgressBox()
+
+        let summary = try await restoreEngine.restoreSnapshot(
+            snapshotPath: snap.snapshotPath,
+            backupRootURL: destDir,
+            targetDirectoryURL: restoreTargetDir,
+            collisionResolution: .overwrite,
+            progress: { prog in
+                progressBox.append(prog)
+            }
+        )
+
+        // Verifications
+        try assertEqual(summary.restoredFiles, 3, "All 3 files must be restored")
+        try assertTrue(summary.restoredBytes > 0, "Restored bytes must be non-zero")
+        try assertTrue(progressBox.count > 0, "Progress events must be emitted during restoration")
+
+        // Verify filesystem content & integrity
+        let restoredFile1 = restoreTargetDir.appendingPathComponent("alpha.txt")
+        let restoredFile2 = restoreTargetDir.appendingPathComponent("SubFolder/beta.data")
+        let restoredFile3 = restoreTargetDir.appendingPathComponent("gamma.log")
+
+        try assertTrue(FileManager.default.fileExists(atPath: restoredFile1.path), "Restored alpha.txt must exist")
+        try assertTrue(FileManager.default.fileExists(atPath: restoredFile2.path), "Restored beta.data in SubFolder must exist")
+        try assertTrue(FileManager.default.fileExists(atPath: restoredFile3.path), "Restored gamma.log must exist")
+
+        let content1 = try String(contentsOf: restoredFile1, encoding: .utf8)
+        try assertEqual(content1, "Alpha Content", "alpha.txt content must match original")
+
+        let content2 = try Data(contentsOf: restoredFile2)
+        try assertEqual(content2, sampleBinary, "beta.data binary data must match original")
+
+        // Verify SHA-256 matches
+        let hashOriginal = try ChecksumCalculator.computeSHA256(for: file2)
+        let hashRestored = try ChecksumCalculator.computeSHA256(for: restoredFile2)
+        try assertEqual(hashOriginal, hashRestored, "SHA-256 hash must be identical")
     }
 
     // =========================================================================

@@ -45,6 +45,67 @@ public enum RestoreError: Error, Sendable, LocalizedError, Equatable {
     }
 }
 
+/// Operational phases of a full snapshot restoration process.
+public enum RestorePhase: String, Sendable {
+    case preparing = "preparing"
+    case restoring = "restoring"
+    case verifying = "verifying"
+    case completed = "completed"
+    case failed = "failed"
+}
+
+/// Real-time progress telemetry broadcasted during snapshot restoration.
+public struct RestoreProgressState: Sendable {
+    public var phase: RestorePhase
+    public var totalFiles: Int
+    public var processedFiles: Int
+    public var totalBytes: Int64
+    public var processedBytes: Int64
+    public var currentItem: String
+
+    public init(
+        phase: RestorePhase = .preparing,
+        totalFiles: Int = 0,
+        processedFiles: Int = 0,
+        totalBytes: Int64 = 0,
+        processedBytes: Int64 = 0,
+        currentItem: String = ""
+    ) {
+        self.phase = phase
+        self.totalFiles = totalFiles
+        self.processedFiles = processedFiles
+        self.totalBytes = totalBytes
+        self.processedBytes = processedBytes
+        self.currentItem = currentItem
+    }
+}
+
+/// Metric summary reported after restoring an entire snapshot.
+public struct RestoreSessionSummary: Sendable, Equatable {
+    public let snapshotPath: String
+    public let totalFiles: Int
+    public let totalBytes: Int64
+    public let restoredFiles: Int
+    public let restoredBytes: Int64
+    public let durationSeconds: Double
+
+    public init(
+        snapshotPath: String,
+        totalFiles: Int,
+        totalBytes: Int64,
+        restoredFiles: Int,
+        restoredBytes: Int64,
+        durationSeconds: Double
+    ) {
+        self.snapshotPath = snapshotPath
+        self.totalFiles = totalFiles
+        self.totalBytes = totalBytes
+        self.restoredFiles = restoredFiles
+        self.restoredBytes = restoredBytes
+        self.durationSeconds = durationSeconds
+    }
+}
+
 /// Actor-isolated engine responsible for file restoration, collision resolution, cryptographic validation, and raw disk catalog rebuild.
 public actor RestoreEngine {
     private let storage: FileSystemProvider
@@ -251,6 +312,133 @@ public actor RestoreEngine {
 
         logger.info("Restoration successfully verified & atomically committed: \(relativePath) -> \(finalDestinationURL.path)")
         return finalDestinationURL
+    }
+
+    /// Restores all items in an entire snapshot directory to a target directory.
+    /// Preserves full directory structure, POSIX/Darwin permissions, xattrs, and verifies SHA-256 integrity.
+    /// - Parameters:
+    ///   - snapshotPath: Relative snapshot directory name.
+    ///   - backupRootURL: Destination backup root URL.
+    ///   - targetDirectoryURL: Target directory URL where files will be restored.
+    ///   - collisionResolution: Conflict resolution mode.
+    ///   - progress: Optional callback emitting live progress telemetry.
+    /// - Returns: A summary metrics object containing counts and total restored bytes.
+    public func restoreSnapshot(
+        snapshotPath: String,
+        backupRootURL: URL,
+        targetDirectoryURL: URL,
+        collisionResolution: CollisionResolution = .keepBoth,
+        progress: (@Sendable (RestoreProgressState) -> Void)? = nil
+    ) async throws -> RestoreSessionSummary {
+        try Task.checkCancellation()
+        let startTime = Date()
+
+        let snapshotURL = backupRootURL.standardizedFileURL.appendingPathComponent(snapshotPath)
+        let sourceRootURL = snapshotURL.appendingPathComponent("root")
+
+        guard FileManager.default.fileExists(atPath: sourceRootURL.standardizedFileURL.path(percentEncoded: false)) else {
+            throw RestoreError.itemNotFoundInSnapshot(snapshotPath)
+        }
+
+        let targetURL = targetDirectoryURL.standardizedFileURL
+        try storage.createDirectory(at: targetURL)
+
+        // 1. Enumerate all items in the snapshot's root directory
+        progress?(RestoreProgressState(phase: .preparing, totalFiles: 0, processedFiles: 0, totalBytes: 0, processedBytes: 0, currentItem: "Scanning snapshot items..."))
+        let scanner = FileTreeScanner(storage: storage)
+        let scannedItems = try await scanner.scan(rootURL: sourceRootURL)
+
+        var totalBytes: Int64 = 0
+        var totalFileCount = 0
+        for item in scannedItems {
+            if !item.metadata.isDirectory {
+                totalBytes += item.metadata.size
+                totalFileCount += 1
+            }
+        }
+
+        // 2. Pre-flight capacity check
+        if let cap = try? storage.storageCapacity(at: targetURL), totalBytes > 0 {
+            let eval = VolumeCapabilityEvaluator.evaluate(sourceURL: sourceRootURL, destinationURL: targetURL)
+            let safetyMargin: Int64 = 50 * 1024 * 1024 // 50MB safety margin
+            let requiredSpace = eval.cowMode == .intraVolumeCoW ? safetyMargin : (totalBytes + safetyMargin)
+            if cap.availableBytes < requiredSpace {
+                throw FileSystemError.notEnoughSpace(
+                    requiredBytes: requiredSpace,
+                    availableBytes: cap.availableBytes
+                )
+            }
+        }
+
+        // 3. Sequential restoration with atomic staging and progress tracking
+        var processedFiles = 0
+        var processedBytes: Int64 = 0
+
+        // Create directories first in order of relative path
+        let directories = scannedItems.filter { $0.metadata.isDirectory }.sorted { $0.relativePath < $1.relativePath }
+        for dir in directories {
+            try Task.checkCancellation()
+            let destDir = targetURL.appendingPathComponent(dir.relativePath)
+            try storage.createDirectory(at: destDir)
+        }
+
+        // Restore files
+        let files = scannedItems.filter { !$0.metadata.isDirectory }
+        for file in files {
+            try Task.checkCancellation()
+            let destFileURL = targetURL.appendingPathComponent(file.relativePath)
+
+            progress?(RestoreProgressState(
+                phase: .restoring,
+                totalFiles: totalFileCount,
+                processedFiles: processedFiles,
+                totalBytes: totalBytes,
+                processedBytes: processedBytes,
+                currentItem: file.relativePath
+            ))
+
+            _ = try await restoreToFile(
+                snapshotPath: snapshotPath,
+                backupRootURL: backupRootURL,
+                relativePath: file.relativePath,
+                destinationFileURL: destFileURL,
+                collisionResolution: collisionResolution
+            )
+
+            processedFiles += 1
+            processedBytes += file.metadata.size
+
+            progress?(RestoreProgressState(
+                phase: .restoring,
+                totalFiles: totalFileCount,
+                processedFiles: processedFiles,
+                totalBytes: totalBytes,
+                processedBytes: processedBytes,
+                currentItem: file.relativePath
+            ))
+        }
+
+        let duration = Date().timeIntervalSince(startTime)
+        progress?(RestoreProgressState(
+            phase: .completed,
+            totalFiles: totalFileCount,
+            processedFiles: processedFiles,
+            totalBytes: totalBytes,
+            processedBytes: processedBytes,
+            currentItem: ""
+        ))
+
+        let summary = RestoreSessionSummary(
+            snapshotPath: snapshotPath,
+            totalFiles: totalFileCount,
+            totalBytes: totalBytes,
+            restoredFiles: processedFiles,
+            restoredBytes: processedBytes,
+            durationSeconds: duration
+        )
+
+        logger.info("Full snapshot '\(snapshotPath)' restored successfully: \(processedFiles)/\(totalFileCount) files (\(processedBytes) bytes) in \(String(format: "%.2f", duration))s")
+        return summary
     }
 
     /// Rebuilds the internal SQLite database catalog from raw disk snapshot directories.
