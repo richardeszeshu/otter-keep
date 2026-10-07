@@ -133,13 +133,13 @@ public actor RestoreEngine {
                 let ext = finalDestinationURL.pathExtension
                 let baseName = finalDestinationURL.deletingPathExtension().lastPathComponent
                 var counter = 1
-                var newName = "\(baseName) (visszaállított \(counter))"
+                var newName = "\(baseName)\(L10n.format(.restoredSuffixFormat, counter))"
                 if !ext.isEmpty { newName += ".\(ext)" }
                 var candidateURL = parentDir.appendingPathComponent(newName)
 
                 while FileManager.default.fileExists(atPath: candidateURL.standardizedFileURL.path(percentEncoded: false)) {
                     counter += 1
-                    newName = "\(baseName) (visszaállított \(counter))"
+                    newName = "\(baseName)\(L10n.format(.restoredSuffixFormat, counter))"
                     if !ext.isEmpty { newName += ".\(ext)" }
                     candidateURL = parentDir.appendingPathComponent(newName)
                 }

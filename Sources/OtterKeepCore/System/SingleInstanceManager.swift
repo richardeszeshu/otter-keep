@@ -35,7 +35,7 @@ public final class SingleInstanceManager: @unchecked Sendable {
     /// Shared singleton instance.
     public static let shared = SingleInstanceManager()
 
-    private let logger = Logger(subsystem: "com.otterkeep", category: "SingleInstance")
+    private let logger = Logger(subsystem: "com.otterkeep.desktop", category: "SingleInstance")
     private let lock = NSLock()
     private var serverSocketFD: Int32 = -1
     private var isListening: Bool = false
@@ -275,6 +275,17 @@ public final class SingleInstanceManager: @unchecked Sendable {
                 continue
             }
 
+            // Verify peer UID matches current process UID to prevent cross-user spoofing
+            var peerUID: uid_t = 0
+            var peerGID: gid_t = 0
+            if getpeereid(clientFD, &peerUID, &peerGID) == 0 {
+                if peerUID != geteuid() {
+                    logger.error("Rejected unauthorized IPC connection from UID \(peerUID) (expected \(geteuid()))")
+                    close(clientFD)
+                    continue
+                }
+            }
+
             var nosigpipe: Int32 = 1
             setsockopt(clientFD, SOL_SOCKET, SO_NOSIGPIPE, &nosigpipe, socklen_t(MemoryLayout<Int32>.size))
 
@@ -330,8 +341,9 @@ public final class SingleInstanceManager: @unchecked Sendable {
             }
         }
 
-        if let path = filePath {
-            return SingleInstanceMessage(action: .openVersionHistory, filePath: path)
+        if let rawPath = filePath {
+            let standardized = URL(fileURLWithPath: rawPath).standardizedFileURL.path(percentEncoded: false)
+            return SingleInstanceMessage(action: .openVersionHistory, filePath: standardized)
         }
         return SingleInstanceMessage(action: .activate)
     }

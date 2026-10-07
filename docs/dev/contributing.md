@@ -1,47 +1,28 @@
 # Contributing to OtterKeep
 
-Thank you for your interest in contributing to OtterKeep! We welcome contributions to code, documentation, localization, and automated tests.
+We welcome contributions to OtterKeep! As a software project dedicated to data preservation, reliability and test verification are our highest priorities.
 
 ---
 
-## 1. Development Prerequisites
+## 1. Core Principles
 
-* macOS 14.0 (Sonoma) or macOS 15.0 (Sequoia)
-* Xcode 16.0+ or Command Line Tools with Swift 6.0 toolchain
-* Homebrew (optional, for dependencies and packaging)
-
----
-
-## 2. Building the Project
-
-OtterKeep uses standard Swift Package Manager (SPM):
-
-```bash
-# Clone the repository
-git clone https://github.com/richardeszeshu/otter-keep.git
-cd otter-keep
-
-# Build the release targets
-swift build -c release
-
-# Run the test suite
-swift run OtterKeepTestRunner
-```
-
-### Packaging the macOS Application Bundle
-
-To package a standalone `.app` bundle, codesign with ad-hoc certificates, and generate a notarized DMG:
-
-```bash
-chmod +x scripts/package_app.sh
-./scripts/package_app.sh
-```
+1. **Safety First**: Never perform destructive filesystem operations without affirmative verification.
+2. **Swift 6 Concurrency**: Write strict actor-isolated, Sendable-safe Swift code. Avoid locks or `@unchecked Sendable` unless strictly required for C-interop.
+3. **Bilingual Parity**: Any new user-facing string must be registered in `Localization.swift` with both Hungarian and English translations.
+4. **Comprehensive Testing**: Any architectural enhancement must include corresponding test cases in `OtterKeepTestRunner`.
 
 ---
 
-## 3. Coding Guidelines
+## 2. Development Workflow
 
-* **Language**: Swift 6 with strict concurrency checking enabled.
-* **Code Comments**: All public APIs, structs, and complex algorithms must have descriptive English documentation comments (`///`).
-* **Localization**: Never hardcode user-facing strings in SwiftUI views or CLI commands. Always add keys to `L10n.Key` in `Sources/OtterKeepCore/Localization.swift` with complete Hungarian and English translations.
-* **Architecture**: Keep UI components isolated from filesystem and database operations; communicate through `AppState` and dedicated coordinators.
+1. Fork the repository and create a feature branch (`feature/your-feature-name` or `bugfix/issue-description`).
+2. Implement your changes.
+3. Ensure the test suite passes with 100% success rate:
+   ```bash
+   swift run OtterKeepTestRunner
+   ```
+4. Commit your changes using [Conventional Commits](https://www.conventionalcommits.org/):
+   - `feat(...)`: New feature
+   - `fix(...)`: Bug fix
+   - `chore(...)`: Maintenance or release
+5. Open a Pull Request against the `release` or `develop` branch.

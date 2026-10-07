@@ -1,51 +1,65 @@
-# OtterKeep Technical Architecture
+# OtterKeep Architecture Blueprint
 
-This document provides a comprehensive technical overview of OtterKeep's modular Swift 6 architecture, multi-process coordination, and core subsystems.
+This document specifies the technical architecture of OtterKeep v1.4.0, detailing concurrency boundaries, actor isolation, multi-subsystem topology, and IPC security.
 
 ---
 
-## 1. System Architecture Overview
+## 1. Subsystem Decomposition
 
-OtterKeep is built as a modular macOS application leveraging native Apple system frameworks (AppKit, SwiftUI, APFS, Combine, Swift Concurrency, PhotoKit, and Security).
+OtterKeep is partitioned into modular, decoupled Swift packages:
 
-```mermaid
-graph TD
-    UI["OtterKeepUI (SwiftUI Views & AppState)"] --> CORE["OtterKeepCore (Engine, Schedulers, Models)"]
-    CLI["OtterKeepCLI (Terminal Binary)"] --> CORE
-    FSE["OtterKeepFinderSyncExtension"] --> CORE
-    
-    CORE --> STORAGE["OtterKeepStorage (APFS, S3, SFTP, WebDAV)"]
-    CORE --> DB["OtterKeepDatabase (SQLite Snapshot Catalog)"]
+| Package | Purpose | Isolation & Concurrency |
+| :--- | :--- | :--- |
+| **`OtterKeepStorage`** | Low-level filesystem I/O, APFS `clonefile`, POSIX hardlinks, xattr, SFTP | Actor-isolated providers (`APFSFileSystemProvider`, `SFTPStorageProvider`) |
+| **`OtterKeepDatabase`** | SQLite WAL cataloging, schema migrations, diffing, and timeline indexing | Actor-isolated `DatabaseEngine`, `SnapshotDiffEngine` |
+| **`OtterKeepCore`** | Backup session orchestration, scanner, anomaly guard, restore engine, encryption | Actor-isolated coordinators (`BackupSessionCoordinator`, `PhotosBackupCoordinator`) |
+| **`OtterKeepUI`** | SwiftUI sanctuary interface, menu bar popovers, timeline explorer | `@MainActor` isolated `AppState` and views |
+| **`OtterKeepCLI`** | Standalone command-line utility (`otterkeep-cli`) | Headless Swift execution communicating via IPC |
+| **`OtterKeepFinderSyncExtension`**| Context-menu integration in macOS Finder | Sandboxed App Extension communicating over Darwin IPC |
+
+---
+
+## 2. Concurrency & Actor Model
+
+OtterKeep is fully compliant with **Swift 6 Strict Concurrency** (`-swift-version 6 -enable-upcoming-feature StrictConcurrency`):
+
+```
+┌────────────────────────────────────────────────────────┐
+│                      @MainActor                        │
+│             AppState  •  SwiftUI Views                 │
+└───────────────────────────┬────────────────────────────┘
+                            │ await
+┌───────────────────────────▼────────────────────────────┐
+│              actor BackupSessionCoordinator            │
+│  - State Machine: idle -> scanning -> backingUp        │
+│  - Cooperative yields: Task.yield() every 250 items    │
+│  - Power management: IOPMAssertion lifecycle           │
+└─────────────┬────────────────────────────┬─────────────┘
+              │ await                      │ await
+┌─────────────▼──────────────┐ ┌───────────▼─────────────┐
+│    actor DatabaseEngine    │ │  actor APFSFileSystem   │
+│ - SQLite3 connection locks │ │ - clonefile(2) syscalls │
+│ - WAL checkpoint on close  │ │ - xattr / ACL handling  │
+└────────────────────────────┘ └─────────────────────────┘
 ```
 
-### Module Breakdown & Subsystem Versions
- 
-| Module | Version | Responsibility | Key Components |
-|---|:---:|---|---|
-| `OtterKeepApp` | `1.3.1` | Application lifecycle, Menu Bar item, Sparkle updater | `main.swift`, `MenuBarContentView.swift`, `AppDelegate.swift` |
-| `OtterKeepUI` | `1.3.1` | SwiftUI interface, design system, modals, animations, About popup | `AppState.swift`, `OtterTheme.swift`, `MainWindowView.swift`, `OtterAboutView.swift` |
-| `OtterKeepCore` | `1.2.1` | Business logic, backup coordination, scheduling, security | `CoreEngine.swift`, `BackupSessionCoordinator.swift`, `RansomwareAnomalyGuard.swift`, `SingleInstanceManager.swift` |
-| `OtterKeepStorage` | `1.1.0` | Filesystem drivers (APFS CoW, exFAT, NTFS, FAT), S3/SFTP/WebDAV | `FileSystemDriver.swift`, `FileSystemDriverRegistry.swift`, `APFSDriver.swift`, `ExFATDriver.swift`, `NTFSDriver.swift`, `APFSFileSystemProvider.swift` |
-| `OtterKeepDatabase` | `1.1.0` | Snapshot indexing, metadata storage, WAL/TRUNCATE diff engine | `DatabaseEngine.swift`, `SnapshotDiffEngine.swift` |
-| `OtterKeepCLI` | `1.1.0` | Native command-line interface & diagnostics | `main.swift` |
-| `OtterKeepFinderSync` | `1.0.0` | macOS Finder contextual menu & status badge extension | `OtterKeepFinderSync.swift` |
+---
+
+## 3. Crash Consistency & Database Handle Management
+
+A critical architectural invariant in v1.4.0 is connection lifecycle hygiene:
+1. **Connection Lifecycle**: `DatabaseEngine` maintains an explicit `isOpen: Bool` state.
+2. **Ejection Safety**: Before volume ejection or during error recovery, `await database.close()` is executed. This performs:
+   - `PRAGMA wal_checkpoint(TRUNCATE);`
+   - `sqlite3_close_v2(db);`
+3. **Handle Release**: Releasing all open file descriptors ensures macOS disk arbitration (`diskarbitrationd` / `NSWorkspace`) can unmount and power down external media without locks.
 
 ---
 
-## 2. Process & Concurrency Model
+## 4. Multi-Process IPC Security
 
-* **Swift 6 Strict Concurrency**: All core managers conform to `Sendable` and use `@MainActor` or thread-safe isolation mechanisms (`NSLock`, Actors, structured concurrency tasks).
-* **Single Instance & Locking**: `SingleInstanceManager` and `ProfileExecutionLock` enforce mutual exclusion across CLI and GUI invocations using POSIX file locks and an AF_UNIX local domain socket.
-* **Deadlock-Free Process Pipes**: All child process executions (e.g. `mount_smbfs`, `sftp`, `hdiutil`, hooks) employ concurrent `Task.detached` readers to prevent the classic 64 KB POSIX pipe buffer deadlock.
-* **Power Management**: Utilizes `IOPMAssertionCreateWithName` during active backup phases to inhibit system idle sleep without preventing display sleep.
-
----
-
-## 3. Subsystem Deep Dives
-
-* [**Storage Engine & Provider Internals**](storage-engine.md) — Low-level APFS `clonefile()` mechanics, fallback providers, and cloud transfer engines.
-* [**Database Architecture & Schema Design**](database-design.md) — SQLite WAL mode, query profiling, entity-relationship diagrams, and disaster recovery.
-* [**Security Hardening & Privacy-Preserving Logging**](security-and-logging.md) — PBKDF2-HMAC-SHA256 client encryption, Keychain credential security, and PII sanitization.
-* [**Build, Testing & Packaging Pipeline**](build-and-packaging.md) — Compilation with SPM, 100-test suite execution, and macOS app bundling.
-* [**CLI Command Reference**](cli-reference.md) — Full terminal syntax, command flags, and shell automation scripts.
-* [**Contributing Guidelines**](contributing.md) — Code style, pull request lifecycle, and testing standards.
+The communication channel between `otterkeep-cli`, the Finder extension, and the main GUI app is hardened:
+- **Transport**: POSIX Unix Domain Sockets (`AF_UNIX`) bound to `~/.otterkeep/gui.sock`.
+- **Permissions**: Base directory restricted to `0700`, socket file restricted to `0600`.
+- **Buffer Safety**: Path length strictly validated against Darwin `sockaddr_un` limit (104 bytes).
+- **Peer UID Validation**: Connections are validated using `getpeereid(clientFD, &peerUID, &peerGID)` ensuring `peerUID == geteuid()`.

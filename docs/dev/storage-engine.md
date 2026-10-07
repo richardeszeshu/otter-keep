@@ -1,127 +1,54 @@
-# Storage Engine & Filesystem Driver Internals
+# Storage Engine & Filesystem Fidelity
 
-OtterKeep v1.3.0 abstracts local and remote storage via a decoupled, driver-oriented architecture (`FileSystemDriver` & `FileSystemDriverRegistry`), enabling transparent switching and optimized I/O across APFS, exFAT, NTFS, FAT, network shares, and cloud object stores.
+This document details the mechanics of `OtterKeepStorage`, including APFS Copy-on-Write cloning, fallback mechanisms, extended attribute handling, and filesystem driver capabilities.
 
 ---
 
-## 1. Filesystem Driver Architecture (`OtterKeepStorage`)
+## 1. APFS Copy-on-Write via `clonefile(2)`
 
-The storage layer implements a Strategy pattern via the `FileSystemDriver` protocol and `FileSystemDriverRegistry`:
+The Apple File System (APFS) natively supports block sharing through the Darwin `clonefile(2)` system call:
 
-```mermaid
-classDiagram
-    class FileSystemDriver {
-        <<interface>>
-        +capabilities(at url) FileSystemCapabilities
-        +cloneOrCopyItem(source, destination, progress)
-        +createHardLink(source, destination)
-        +atomicMove(source, destination)
-        +setImmutable(url, isImmutable)
-        +getExtendedAttributes(url)
-        +setExtendedAttributes(attributes, url)
-    }
-
-    class BasePOSIXFileSystemDriver {
-        +statfsInfo(url)
-        +metadata(url)
-        +copyfileStream(source, destination, cloneAllowed, fallback)
-        +darwinGetXattrs(url)
-        +darwinSetXattrs(attributes, url)
-        +darwinSetImmutable(url, isImmutable)
-    }
-
-    class APFSDriver {
-        +cloneOrCopyItem() // Darwin clonefile(2) CoW
-        +setImmutable() // BSD UF_IMMUTABLE
-    }
-
-    class ExFATDriver {
-        +cloneOrCopyItem() // Chunked stream copy
-        +setImmutable() // Non-blocking advisory
-    }
-
-    class NTFSDriver {
-        +cloneOrCopyItem() // Read-only preflight check
-    }
-
-    class FATDriver {
-        +cloneOrCopyItem() // 2.0s timestamp tolerance
-    }
-
-    class GenericPOSIXDriver {
-        +capabilities() // HFS+, NFS, SMB
-    }
-
-    class FileSystemDriverRegistry {
-        +driver(for url: URL) FileSystemDriver
-        +driver(forFSType type: String) FileSystemDriver
-        +register(driver: FileSystemDriver, forFSType: String)
-    }
-
-    FileSystemDriver <|.. BasePOSIXFileSystemDriver
-    BasePOSIXFileSystemDriver <|-- APFSDriver
-    BasePOSIXFileSystemDriver <|-- ExFATDriver
-    BasePOSIXFileSystemDriver <|-- NTFSDriver
-    BasePOSIXFileSystemDriver <|-- FATDriver
-    BasePOSIXFileSystemDriver <|-- GenericPOSIXDriver
-    FileSystemDriverRegistry --> FileSystemDriver : resolves
+```swift
+// Direct Darwin clonefile invocation
+let result = clonefile(sourcePath, destPath, Int32(CLONE_NOFOLLOW))
+guard result == 0 else {
+    let err = errno
+    throw FileSystemError.cloneFailed(err)
+}
 ```
 
-### Specialized Drivers
-
-1. **`APFSDriver` (Apple File System)**:
-   - Utilizes kernel-level `clonefile(2)` for instantaneous 0-byte block cloning across historical snapshots.
-   - Preserves nanosecond timestamp precision, full Darwin extended attributes (`xattrs`), and BSD `UF_IMMUTABLE` file flags.
-
-2. **`ExFATDriver` (Microsoft exFAT)**:
-   - Handles flash drives and cross-platform external storage devices.
-   - Provides resilient chunked streaming copies via `COPYFILE_DATA | COPYFILE_STAT | COPYFILE_NOFOLLOW`.
-   - Incorporates **10ms timestamp tolerance** (`timestampToleranceSeconds = 0.02`) in `ChangeDetector` to prevent false positive delta detections caused by exFAT timestamp rounding.
-   - Gracefully manages the absence of POSIX hardlinks, symlinks, and BSD chflags.
-
-3. **`NTFSDriver` (Microsoft NTFS)**:
-   - Full differential reading when an NTFS volume serves as the backup source.
-   - Pre-flight writeability check blocks target backups on macOS when native read-only mounting is active, throwing localized error `.errNTFSTargetReadOnly`.
-
-4. **`FATDriver` (MS-DOS / FAT32)**:
-   - Legacy FAT compatibility with 2.0-second timestamp comparison tolerance.
-
-5. **`GenericPOSIXDriver`**:
-   - Universal fallback for HFS+, NFS, SMB, and alternative UNIX mounts.
+### Advantages
+- **Instantaneous Completion**: Operates entirely in metadata space without moving raw physical blocks.
+- **Zero Additional Storage**: Storage blocks are shared between the historical snapshot and the new snapshot until modifications occur.
+- **Independent Inodes**: The cloned file receives a distinct inode, ensuring subsequent modifications to one version do not alter the other.
 
 ---
 
-## 2. Remote Replication Providers
+## 2. Fallback Storage Strategies
 
-OtterKeep supports offsite replication for 3-2-1 compliance:
+For non-APFS volumes (such as HFS+, SMB network shares, or external exFAT/NTFS drives):
 
-* **S3 Storage Provider (`S3StorageProvider`)**: Implements AWS Signature Version 4 (`S3Signer`) over URLSession. Supports streaming multipart uploads, custom S3 endpoints (Cloudflare R2, MinIO, Backblaze B2), and Path-Style addressing.
-* **SFTP Storage Provider (`SFTPStorageProvider`)**: Handles SSH-2 secure file transfer with both private key and password authentication. Command arguments are sanitized to prevent shell injection, and exit codes are verified.
-* **WebDAV Storage Provider (`WebDAVStorageProvider`)**: Connects to Nextcloud, ownCloud, and NAS WebDAV endpoints with atomic chunked uploads complying with RFC 4918.
-* **Network Share Mounter (`NetworkShareMounter`)**: Mounts SMB/NFS network shares dynamically via Darwin `mount_smbfs`, storing credentials in the macOS Keychain.
-* **Client-Side Encryptor (`ClientSideEncryptor`)**: Employs AES-GCM-256 authenticated encryption with PBKDF2-HMAC-SHA256 (600,000 rounds) key derivation.
-
----
-
-## 3. SQLite Storage Resilience on Removable Media
-
-When the catalog database is initialized on external or non-POSIX filesystems:
-- SQLite `journal_mode = WAL;` is attempted first for high-performance concurrent reads and writes.
-- If shared memory locking (`.shm` via `mmap`) is unsupported on the underlying volume (common on certain external flash drives), `DatabaseEngine` automatically falls back to `journal_mode = TRUNCATE;` to ensure transactional safety without crashes.
+1. **POSIX Hardlinks (`link(2)`)**:
+   Used when backing up to filesystems supporting hardlinks (e.g. HFS+ or standard NFS/SMB mounts). Hardlinks share storage blocks but share inodes, requiring unlink-before-write handling.
+2. **Standard File Copy (`copyfile(3)`)**:
+   Used on FAT32/exFAT drives where neither CoW nor hardlinks are available. Preserves modification times with timestamp tolerances (`0.02s` on exFAT, `2.0s` on FAT32).
 
 ---
 
-## 4. Data Scrubber & Integrity Verification
+## 3. Metadata Preservation & Extended Attributes
 
-The `DataScrubberEngine` and `ChecksumCalculator` continuously verify snapshot integrity:
-* Calculates hardware-accelerated SHA-256 checksums using CommonCrypto.
-* Detects silent bit-rot on storage media and flags corrupted blocks before they can overwrite healthy backups.
-* Records verification results into `scrub_audit_logs` in the SQLite catalog.
+OtterKeep preserves comprehensive POSIX and macOS filesystem metadata:
+- **Extended Attributes (`xattr`)**: Handled via `listxattr`, `getxattr`, and `setxattr` with `XATTR_NOFOLLOW`. Preserves Finder tags, quarantine flags, and custom user metadata.
+- **Access Control Lists (ACLs)**: Preserved where supported by target filesystem drivers.
+- **File Flags & Permissions**: POSIX permissions (`posixPermissions`) and creation/modification timestamps.
 
 ---
 
-## 5. WORM Immutability (Write-Once, Read-Many)
+## 4. FileSystemDriverRegistry
 
-To protect historical snapshots against accidental deletion, tampering, or ransomware attacks, OtterKeep applies Darwin POSIX file flags (`chflags`):
-* `UF_IMMUTABLE` (0x0002): Prevents file modification, renaming, or deletion even by administrator accounts until explicitly unlocked.
-* Snapshot folders on supported filesystems (APFS/HFS+) are marked immutable immediately upon completion, and unlocked only during policy-governed pruning by `RetentionManager`.
+The storage subsystem abstracts destination capabilities via `FileSystemCapabilities`:
+- `supportsClonefile`: `true` on APFS.
+- `supportsHardlinks`: `true` on APFS, HFS+.
+- `supportsExtendedAttributes`: `true` on APFS, HFS+.
+- `isReadOnly`: `true` on native macOS NTFS drivers.
+- `timestampResolution`: `0.001s` (APFS nanosecond resolution), `0.02s` (exFAT), `2.0s` (FAT).

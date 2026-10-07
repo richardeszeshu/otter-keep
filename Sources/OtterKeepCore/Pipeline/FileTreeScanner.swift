@@ -241,9 +241,14 @@ public final class FileTreeScanner: Sendable {
         }
 
         var currentDatalessPackagePath: String? = nil
+        var itemCount: Int = 0
 
         while let fileURL = enumerator.nextObject() as? URL {
             try Task.checkCancellation()
+            itemCount += 1
+            if itemCount % 250 == 0 {
+                await Task.yield()
+            }
 
             let lastComponent = fileURL.lastPathComponent
             let relativePath = Self.computeRelativePath(for: fileURL, rootPath: rootPath)

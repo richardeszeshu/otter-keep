@@ -1155,6 +1155,9 @@ public enum L10n {
         case feedbackGeneralErrorAdvice
         case profileLockedBannerTitle
         case profileLockedBannerMessage
+
+        // MARK: - Restore & Maintenance (1.4.0)
+        case restoredSuffixFormat
     }
 
 
@@ -2041,7 +2044,10 @@ public enum L10n {
         .feedbackGeneralErrorTitle: "A mentési művelet megszakadt",
         .feedbackGeneralErrorAdvice: "A meglévő adataid és korábbi mentéseid sértetlenek maradtak. Tekintsd meg a hibanaplót a hiba pontos részleteiért.",
         .profileLockedBannerTitle: "Mentés folyamatban",
-        .profileLockedBannerMessage: "A profil beállításai a mentés befejezéséig zárolva vannak az adatkonzisztencia megőrzése érdekében."
+        .profileLockedBannerMessage: "A profil beállításai a mentés befejezéséig zárolva vannak az adatkonzisztencia megőrzése érdekében.",
+
+        // MARK: - Restore & Maintenance (1.4.0)
+        .restoredSuffixFormat: " (visszaállított %d)"
     ]
 
 
@@ -2921,7 +2927,10 @@ public enum L10n {
         .feedbackGeneralErrorTitle: "Backup Operation Failed",
         .feedbackGeneralErrorAdvice: "Your existing data and snapshots remain untouched. Check the diagnostic logs for detailed error telemetry.",
         .profileLockedBannerTitle: "Backup in Progress",
-        .profileLockedBannerMessage: "Profile settings are temporarily locked while backup is running to preserve data consistency."
+        .profileLockedBannerMessage: "Profile settings are temporarily locked while backup is running to preserve data consistency.",
+
+        // MARK: - Restore & Maintenance (1.4.0)
+        .restoredSuffixFormat: " (restored %d)"
     ]
 }
 
