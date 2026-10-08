@@ -70,8 +70,8 @@ public struct ProfileRulesView: View {
                     // 3. Exclusion Rules (Tag cloud + Quick presets)
                     exclusionRulesSection(profile: profile)
 
-                    // 4. Automatic Scheduling & Retention
-                    scheduleAndRetentionSection(profile: profile)
+                    // 4. Automatic Scheduling
+                    scheduleSection(profile: profile)
 
                     // 5. External Drive Automation
                     externalDriveSection(profile: profile)
@@ -101,7 +101,7 @@ public struct ProfileRulesView: View {
     }
 
     // MARK: - 1. Folder Overview Header
-    private func folderSummaryHeader(profile: BackupProfile) -> some View {
+    func folderSummaryHeader(profile: BackupProfile) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "folder.badge.gearshape")
                 .font(.title2)
@@ -139,7 +139,7 @@ public struct ProfileRulesView: View {
     }
 
     // MARK: - 2. iCloud Strategy
-    private func icloudStrategySection(profile: BackupProfile) -> some View {
+    func icloudStrategySection(profile: BackupProfile) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(L10n.t(.icloudStrategyTitle))
                 .font(.headline)
@@ -180,7 +180,7 @@ public struct ProfileRulesView: View {
     }
 
     // MARK: - 3. Exclusion Rules
-    private func exclusionRulesSection(profile: BackupProfile) -> some View {
+    func exclusionRulesSection(profile: BackupProfile) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(L10n.t(.excludeRulesTitle))
@@ -320,8 +320,8 @@ public struct ProfileRulesView: View {
         }
     }
 
-    // MARK: - 4. Schedule and Retention
-    private func scheduleAndRetentionSection(profile: BackupProfile) -> some View {
+    // MARK: - 4. Backup Schedule
+    func scheduleSection(profile: BackupProfile) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(L10n.t(.scheduleAndRetentionHeader))
                 .font(.headline)
@@ -506,50 +506,22 @@ public struct ProfileRulesView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
+            }
+            .otterCard()
+        }
+    }
 
-                Divider()
+    // MARK: - WORM Immutability & Scrub Section
+    func immutabilityAndScrubSection(profile: BackupProfile) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "lock.shield.fill")
+                    .foregroundStyle(OtterTheme.accentPurple)
+                Text(L10n.t(.wormLockTitle))
+                    .font(.headline)
+            }
 
-                // Auto-pruning toggle
-                Toggle(isOn: Binding(
-                    get: { profile.pruningPolicy.isAutoPruningEnabled },
-                    set: { enabled in
-                        var updated = profile
-                        updated.pruningPolicy.isAutoPruningEnabled = enabled
-                        appState.selectedProfile = updated
-                    }
-                )) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L10n.t(.autoPruningToggleTitle))
-                            .font(.body.weight(.medium))
-                        Text(L10n.t(.autoPruningToggleDesc))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .toggleStyle(.checkbox)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                if profile.pruningPolicy.isAutoPruningEnabled {
-                    HStack {
-                        Text(L10n.t(.autoPruningRetainCountLabel))
-                            .font(.body)
-                        Spacer()
-                        Stepper(value: Binding(
-                            get: { profile.pruningPolicy.maxSnapshotsToKeep ?? 5 },
-                            set: { val in
-                                var updated = profile
-                                updated.pruningPolicy.maxSnapshotsToKeep = max(1, val)
-                                appState.selectedProfile = updated
-                            }
-                        ), in: 1...100) {
-                            Text(L10n.format(.unitCountFormat, profile.pruningPolicy.maxSnapshotsToKeep ?? 5))
-                                .monospacedDigit()
-                        }
-                    }
-                }
-
-                Divider()
-
+            VStack(alignment: .leading, spacing: 14) {
                 // WORM Immutability Lock (uchg / schg)
                 Toggle(isOn: Binding(
                     get: { profile.isImmutabilityLockEnabled },
@@ -561,8 +533,6 @@ public struct ProfileRulesView: View {
                 )) {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
-                            Image(systemName: "lock.shield.fill")
-                                .foregroundStyle(OtterTheme.accentPurple)
                             Text(L10n.t(.wormLockTitle))
                                 .font(.body.weight(.medium))
                         }
@@ -628,14 +598,13 @@ public struct ProfileRulesView: View {
                     .controlSize(.regular)
                     .disabled(appState.isDataScrubInProgress)
                 }
-
             }
             .otterCard()
         }
     }
 
     // MARK: - 5. External Drive Automation
-    private func externalDriveSection(profile: BackupProfile) -> some View {
+    func externalDriveSection(profile: BackupProfile) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Image(systemName: "externaldrive.badge.timemachine")
@@ -691,7 +660,7 @@ public struct ProfileRulesView: View {
     }
 
     // MARK: - 6. 3-2-1 Backup Copy Job & Remote Targets
-    private func backupCopyJobSection(profile: BackupProfile) -> some View {
+    func backupCopyJobSection(profile: BackupProfile) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Label(L10n.t(.rule321Title), systemImage: "shield.lefthalf.filled.badge.checkmark")
@@ -973,7 +942,7 @@ public struct ProfileRulesView: View {
     }
 
     // MARK: - 9. Ransomware & Rate-of-Change Anomaly Guard
-    private func ransomwareGuardSection(profile: BackupProfile) -> some View {
+    func ransomwareGuardSection(profile: BackupProfile) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
                 Image(systemName: "shield.lefthalf.filled.trianglebadge.exclamationmark")

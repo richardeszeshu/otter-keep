@@ -52,6 +52,31 @@ public enum ProfileWorkspaceTab: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+/// Subtabs within the Profile Rules and Maintenance workspace.
+public enum ProfileMaintenanceSubTab: String, CaseIterable, Identifiable, Sendable {
+    case rules = "rules"
+    case automation = "automation"
+    case maintenance = "maintenance"
+
+    public var id: String { rawValue }
+
+    public var localizedTitle: String {
+        switch self {
+        case .rules: return L10n.t(.profileSubTabRules)
+        case .automation: return L10n.t(.profileSubTabAutomation)
+        case .maintenance: return L10n.t(.profileSubTabMaintenance)
+        }
+    }
+
+    public var iconName: String {
+        switch self {
+        case .rules: return "slider.horizontal.3"
+        case .automation: return "clock.arrow.2.circlepath"
+        case .maintenance: return "wrench.and.screwdriver"
+        }
+    }
+}
+
 /// Tabs within the unified Photos Workspace.
 public enum PhotosWorkspaceTab: String, CaseIterable, Identifiable, Sendable {
     case syncAndBackup = "syncAndBackup"
@@ -153,6 +178,8 @@ public final class AppState: Sendable {
 
     /// Currently active tab within the selected Profile workspace.
     public var activeProfileTab: ProfileWorkspaceTab = .overview
+    /// Currently active sub-tab within the Profile Rules & Maintenance workspace.
+    public var activeMaintenanceSubTab: ProfileMaintenanceSubTab = .rules
     /// Currently active tab within the Apple Photos workspace.
     public var activePhotosTab: PhotosWorkspaceTab = .syncAndBackup
 
@@ -1573,9 +1600,7 @@ public final class AppState: Sendable {
             case .updateAvailable(let info):
                 self.softwareUpdateAvailableInfo = info
                 self.softwareUpdateStatusMessage = L10n.format(.settingsUpdateStatusAvailableFormat, info.version)
-                if silent {
-                    NotificationDeliveryService.shared.notifySoftwareUpdateAvailable(version: info.version)
-                }
+                NotificationDeliveryService.shared.notifySoftwareUpdateAvailable(version: info.version)
             case .upToDate:
                 if !silent {
                     self.softwareUpdateStatusMessage = L10n.t(.settingsUpdateStatusUpToDate)

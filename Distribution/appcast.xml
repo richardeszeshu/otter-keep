@@ -6,6 +6,18 @@
         <description>Most recent updates and releases for OtterKeep on macOS.</description>
         <language>en</language>
         <item>
+            <title>Version 1.7.0</title>
+            <pubDate>Thu, 08 Oct 2026 22:30:00 +0000</pubDate>
+            <sparkle:releaseNotesLink>https://github.com/richardeszeshu/otter-keep/releases/tag/v1.7.0</sparkle:releaseNotesLink>
+            <description><![CDATA[OtterKeep 1.7.0 release with 3-tab segmented Profile Rules & Maintenance workspace, dynamic 3D Pixar Ottie Sanctuary Mascot (Safe, Warning, Danger states), integrated Storage Forecast telemetry, direct Pipeline folder management, and System Notification on software update discovery.]]></description>
+            <enclosure
+                url="https://github.com/richardeszeshu/otter-keep/releases/download/v1.7.0/OtterKeep-1.7.0.zip"
+                sparkle:version="1700"
+                sparkle:shortVersionString="1.7.0"
+                length="11570000"
+                type="application/octet-stream" />
+        </item>
+        <item>
             <title>Version 1.6.0</title>
             <pubDate>Thu, 08 Oct 2026 21:45:00 +0000</pubDate>
             <sparkle:releaseNotesLink>https://github.com/richardeszeshu/otter-keep/releases/tag/v1.6.0</sparkle:releaseNotesLink>

@@ -2,8 +2,8 @@ import SwiftUI
 import AppKit
 import OtterKeepCore
 
-/// Unified view combining profile rules, exclusion patterns, iCloud strategy,
-/// backup schedules, retention policies, and catalog recovery maintenance.
+/// Redesigned 3-workspace tab view separating Rules & Exclusions, Automation & Schedule,
+/// and Maintenance & Storage into a clean, calm, user-friendly macOS interface.
 public struct ProfileRulesAndMaintenanceView: View {
     public let appState: AppState
     public let profile: BackupProfile
@@ -13,8 +13,23 @@ public struct ProfileRulesAndMaintenanceView: View {
         self.profile = profile
     }
 
+    private var selectedSubTabBinding: Binding<ProfileMaintenanceSubTab> {
+        Binding(
+            get: { appState.activeMaintenanceSubTab },
+            set: { appState.activeMaintenanceSubTab = $0 }
+        )
+    }
+
     private var maxSnapshotsToKeepBinding: Binding<Int> {
-        Binding(get: { appState.maxSnapshotsToKeep }, set: { appState.maxSnapshotsToKeep = $0 })
+        Binding(
+            get: { appState.maxSnapshotsToKeep },
+            set: { val in
+                appState.maxSnapshotsToKeep = val
+                var updated = profile
+                updated.pruningPolicy.maxSnapshotsToKeep = val
+                appState.selectedProfile = updated
+            }
+        )
     }
 
     private var showConfirmPruneBinding: Binding<Bool> {
@@ -25,25 +40,63 @@ public struct ProfileRulesAndMaintenanceView: View {
         Binding(get: { appState.showConfirmRebuild }, set: { appState.showConfirmRebuild = $0 })
     }
 
+    private var rulesView: ProfileRulesView {
+        ProfileRulesView(appState: appState)
+    }
+
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // 1. Existing Profile Rules (Directories, iCloud, Exclusions, Schedules)
-                ProfileRulesView(appState: appState).content
-
-                // 2. Storage Maintenance & Retention Consolidation (Equal Height Cards)
-                Grid(alignment: .topLeading, horizontalSpacing: 16, verticalSpacing: 16) {
-                    GridRow {
-                        maintenanceSection
-                        catalogRecoverySection
-                    }
+        VStack(spacing: 0) {
+            // Top Modern Segmented Workspace Picker
+            Picker("", selection: selectedSubTabBinding) {
+                ForEach(ProfileMaintenanceSubTab.allCases) { tab in
+                    Label(tab.localizedTitle, systemImage: tab.iconName).tag(tab)
                 }
-
-                // 3. Profile Metadata & Technical Identifiers (UUID)
-                profileMetadataSection
             }
-            .padding(24)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 24)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
+
+            Divider()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    let isLocked = appState.isBackupRunning(for: profile.id)
+
+                    if isLocked {
+                        HStack(spacing: 10) {
+                            Image(systemName: "lock.shield.fill")
+                                .font(.title3)
+                                .foregroundStyle(OtterTheme.otterAmber)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(L10n.t(.profileLockedBannerTitle))
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(OtterTheme.otterAmber)
+                                Text(L10n.t(.profileLockedBannerMessage))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                        }
+                        .otterCard(padding: OtterTheme.spacing12)
+                    }
+
+                    Group {
+                        switch appState.activeMaintenanceSubTab {
+                        case .rules:
+                            rulesContent
+                        case .automation:
+                            automationContent
+                        case .maintenance:
+                            maintenanceContent
+                        }
+                    }
+                    .disabled(isLocked)
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .confirmationDialog(
@@ -78,8 +131,43 @@ public struct ProfileRulesAndMaintenanceView: View {
         }
     }
 
-    // MARK: - Retention Consolidation Card
-    private var maintenanceSection: some View {
+    // MARK: - 1. Rules & Exclusions Tab Content
+    @ViewBuilder
+    private var rulesContent: some View {
+        rulesView.folderSummaryHeader(profile: profile)
+        rulesView.exclusionRulesSection(profile: profile)
+        rulesView.icloudStrategySection(profile: profile)
+        WiFiProtectionCardView(appState: appState, profile: profile)
+        rulesView.ransomwareGuardSection(profile: profile)
+    }
+
+    // MARK: - 2. Automation & Schedule Tab Content
+    @ViewBuilder
+    private var automationContent: some View {
+        rulesView.scheduleSection(profile: profile)
+        rulesView.externalDriveSection(profile: profile)
+        rulesView.backupCopyJobSection(profile: profile)
+        WebhookSettingsCardView(appState: appState, profile: profile)
+    }
+
+    // MARK: - 3. Maintenance & Storage Tab Content
+    @ViewBuilder
+    private var maintenanceContent: some View {
+        // Unified Retention Policy Card
+        unifiedRetentionSection
+
+        // WORM Immutability & Background Scrub
+        rulesView.immutabilityAndScrubSection(profile: profile)
+
+        // Disaster Recovery
+        catalogRecoverySection
+
+        // Profile Technical Metadata & UUID
+        profileMetadataSection
+    }
+
+    // MARK: - Unified Retention Card
+    private var unifiedRetentionSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
                 Image(systemName: "scissors")
@@ -93,13 +181,33 @@ public struct ProfileRulesAndMaintenanceView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
-            Spacer(minLength: 8)
+            Divider()
+
+            // Auto-pruning toggle
+            Toggle(isOn: Binding(
+                get: { profile.pruningPolicy.isAutoPruningEnabled },
+                set: { enabled in
+                    var updated = profile
+                    updated.pruningPolicy.isAutoPruningEnabled = enabled
+                    appState.selectedProfile = updated
+                }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.t(.autoPruningToggleTitle))
+                        .font(.body.weight(.medium))
+                    Text(L10n.t(.autoPruningToggleDesc))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .toggleStyle(.checkbox)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack(spacing: 16) {
                 Text(L10n.t(.maintenanceKeepSnapshotsLabel))
                     .font(.body.weight(.medium))
 
-                Stepper(L10n.format(.unitCountFormat, appState.maxSnapshotsToKeep), value: maxSnapshotsToKeepBinding, in: 1...50)
+                Stepper(L10n.format(.unitCountFormat, appState.maxSnapshotsToKeep), value: maxSnapshotsToKeepBinding, in: 1...100)
                     .font(.body)
                     .frame(width: 140)
 
@@ -113,7 +221,6 @@ public struct ProfileRulesAndMaintenanceView: View {
                 .disabled(appState.snapshots.count <= appState.maxSnapshotsToKeep)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .otterCard(padding: 16)
     }
 
@@ -132,8 +239,6 @@ public struct ProfileRulesAndMaintenanceView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
-            Spacer(minLength: 8)
-
             HStack {
                 Spacer()
                 Button(L10n.t(.maintenanceRebuildButton)) {
@@ -143,7 +248,6 @@ public struct ProfileRulesAndMaintenanceView: View {
                 .controlSize(.regular)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .otterCard(padding: 16)
     }
 
@@ -221,7 +325,6 @@ public struct ProfileRulesAndMaintenanceView: View {
             .padding(14)
             .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .otterCard(padding: 16)
     }
 }

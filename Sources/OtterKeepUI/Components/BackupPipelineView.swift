@@ -7,17 +7,29 @@ public struct BackupPipelineView: View {
     public let destinationURL: URL
     public let cowMode: CoWMode
     public let isActive: Bool
+    public var onSelectSource: (() -> Void)?
+    public var onRevealSource: (() -> Void)?
+    public var onSelectDestination: (() -> Void)?
+    public var onRevealDestination: (() -> Void)?
 
     public init(
         sourceURL: URL,
         destinationURL: URL,
         cowMode: CoWMode,
-        isActive: Bool
+        isActive: Bool,
+        onSelectSource: (() -> Void)? = nil,
+        onRevealSource: (() -> Void)? = nil,
+        onSelectDestination: (() -> Void)? = nil,
+        onRevealDestination: (() -> Void)? = nil
     ) {
         self.sourceURL = sourceURL
         self.destinationURL = destinationURL
         self.cowMode = cowMode
         self.isActive = isActive
+        self.onSelectSource = onSelectSource
+        self.onRevealSource = onRevealSource
+        self.onSelectDestination = onSelectDestination
+        self.onRevealDestination = onRevealDestination
     }
 
     public var body: some View {
@@ -28,7 +40,9 @@ public struct BackupPipelineView: View {
                 iconColor: .blue,
                 title: L10n.t(.pipelineSourceLabel),
                 subtitle: sourceURL.lastPathComponent,
-                detail: sourceURL.path(percentEncoded: false)
+                detail: sourceURL.path(percentEncoded: false),
+                onChange: onSelectSource,
+                onReveal: onRevealSource
             )
 
             // Flow Connector 1
@@ -47,7 +61,9 @@ public struct BackupPipelineView: View {
                 title: L10n.t(.pipelineTargetLabel),
                 subtitle: destinationURL.lastPathComponent,
                 detail: destinationURL.path(percentEncoded: false),
-                alignment: .trailing
+                alignment: .trailing,
+                onChange: onSelectDestination,
+                onReveal: onRevealDestination
             )
         }
         .padding(14)
@@ -64,9 +80,11 @@ public struct BackupPipelineView: View {
         title: String,
         subtitle: String,
         detail: String,
-        alignment: HorizontalAlignment = .leading
+        alignment: HorizontalAlignment = .leading,
+        onChange: (() -> Void)? = nil,
+        onReveal: (() -> Void)? = nil
     ) -> some View {
-        VStack(alignment: alignment, spacing: 4) {
+        VStack(alignment: alignment, spacing: 6) {
             HStack(spacing: 6) {
                 if alignment == .trailing {
                     Text(title)
@@ -100,6 +118,40 @@ public struct BackupPipelineView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .multilineTextAlignment(alignment == .trailing ? .trailing : .leading)
+
+            if onChange != nil || onReveal != nil {
+                HStack(spacing: 8) {
+                    if let onChange = onChange {
+                        Button {
+                            onChange()
+                        } label: {
+                            HStack(spacing: 3) {
+                                Image(systemName: "folder.badge.gearshape")
+                                Text(L10n.t(.changeFolderButton))
+                            }
+                            .font(.system(size: 10, weight: .medium))
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.mini)
+                        .disabled(isActive)
+                    }
+
+                    if let onReveal = onReveal {
+                        Button {
+                            onReveal()
+                        } label: {
+                            HStack(spacing: 3) {
+                                Image(systemName: "arrow.up.forward.app")
+                                Text(L10n.t(.revealInFinderButton))
+                            }
+                            .font(.system(size: 10, weight: .medium))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(iconColor)
+                    }
+                }
+                .padding(.top, 2)
+            }
         }
         .frame(maxWidth: .infinity, alignment: alignment == .trailing ? .trailing : .leading)
     }

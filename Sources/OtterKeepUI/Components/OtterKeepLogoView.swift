@@ -92,6 +92,21 @@ public struct OtterKeepLogoView: View {
         resolveResourceImage(named: "OttieFailure", ext: "png")
     }
 
+    /// Resolves the OttieSanctuarySafe transparent mascot illustration.
+    public static func resolveSanctuarySafeImage() -> NSImage? {
+        resolveResourceImage(named: "OttieSanctuarySafe", ext: "png") ?? resolveSuccessImage()
+    }
+
+    /// Resolves the OttieSanctuaryWarning transparent mascot illustration.
+    public static func resolveSanctuaryWarningImage() -> NSImage? {
+        resolveResourceImage(named: "OttieSanctuaryWarning", ext: "png") ?? resolveLogoImage()
+    }
+
+    /// Resolves the OttieSanctuaryDanger transparent mascot illustration.
+    public static func resolveSanctuaryDangerImage() -> NSImage? {
+        resolveResourceImage(named: "OttieSanctuaryDanger", ext: "png") ?? resolveFailureImage()
+    }
+
     /// Universal resource resolver supporting SPM module bundle, main bundle, nested bundles and development filesystem.
     public static func resolveResourceImage(named name: String, ext: String) -> NSImage? {
         // 1. Search in main application bundle resources
@@ -217,6 +232,78 @@ public struct OttieFeedbackMascotView: View {
                 .foregroundStyle(state == .success ? OtterTheme.statusGreen : OtterTheme.statusError)
         }
         .frame(width: size, height: size)
+    }
+}
+
+/// Dynamic emotional state for Ottie in the Sanctuary Hero Card based on backup and storage health.
+public enum SanctuaryMascotMood: Sendable, Equatable {
+    case safe
+    case warning
+    case danger
+}
+
+/// Presentation view for Ottie mascot illustrations in the Overview Sanctuary Hero Card.
+public struct OttieSanctuaryMascotView: View {
+    public let mood: SanctuaryMascotMood
+    public let size: CGFloat
+
+    public init(mood: SanctuaryMascotMood, size: CGFloat = 110) {
+        self.mood = mood
+        self.size = size
+    }
+
+    public var body: some View {
+        Group {
+            if let image = resolvedImage {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: size, height: size)
+                    .shadow(color: glowColor.opacity(0.20), radius: 8, x: 0, y: 4)
+            } else {
+                fallbackView
+            }
+        }
+    }
+
+    private var resolvedImage: NSImage? {
+        switch mood {
+        case .safe:
+            return OtterKeepLogoView.resolveSanctuarySafeImage()
+        case .warning:
+            return OtterKeepLogoView.resolveSanctuaryWarningImage()
+        case .danger:
+            return OtterKeepLogoView.resolveSanctuaryDangerImage()
+        }
+    }
+
+    private var glowColor: Color {
+        switch mood {
+        case .safe: return OtterTheme.oceanicTeal
+        case .warning: return OtterTheme.otterAmber
+        case .danger: return OtterTheme.statusError
+        }
+    }
+
+    private var fallbackView: some View {
+        ZStack {
+            Circle()
+                .fill(glowColor.opacity(0.12))
+                .frame(width: size * 0.85, height: size * 0.85)
+
+            Image(systemName: iconName)
+                .font(.system(size: size * 0.38, weight: .bold))
+                .foregroundStyle(glowColor)
+        }
+        .frame(width: size, height: size)
+    }
+
+    private var iconName: String {
+        switch mood {
+        case .safe: return "shield.lefthalf.filled.badge.checkmark"
+        case .warning: return "exclamationmark.shield"
+        case .danger: return "shield.fill"
+        }
     }
 }
 

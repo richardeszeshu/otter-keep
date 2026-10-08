@@ -1227,6 +1227,13 @@ public enum L10n {
         case settingsFinderInactiveSubtitle
         case quickLookKeyboardHint
         case daysCountUnitFormat
+
+        // MARK: - v1.7.0: Dynamic Sanctuary Mood & Profile Rules Redesign
+        case sanctuaryHeroWarningTitle
+        case sanctuaryHeroDangerTitle
+        case profileSubTabRules
+        case profileSubTabAutomation
+        case profileSubTabMaintenance
     }
 
 
@@ -2184,7 +2191,14 @@ public enum L10n {
         .settingsFinderActiveSubtitle: "Kontextus menü és jelvények aktívak",
         .settingsFinderInactiveSubtitle: "Finder kontextusos visszaállítás és jelvények",
         .quickLookKeyboardHint: "Szóköz: Gyorsnézet",
-        .daysCountUnitFormat: "%d nap"
+        .daysCountUnitFormat: "%d nap",
+
+        // MARK: - v1.7.0: Dynamic Sanctuary Mood & Profile Rules Redesign
+        .sanctuaryHeroWarningTitle: "Kis figyelmet igényel, de kincseid védve vannak",
+        .sanctuaryHeroDangerTitle: "Figyelem szükséges, de minden kincsedet megvédjük",
+        .profileSubTabRules: "Szabályok és kizárások",
+        .profileSubTabAutomation: "Automatizáció és ütemezés",
+        .profileSubTabMaintenance: "Karbantartás és tárhely"
     ]
 
 
@@ -3135,7 +3149,14 @@ public enum L10n {
         .settingsFinderActiveSubtitle: "Context menu & badges active",
         .settingsFinderInactiveSubtitle: "Finder contextual restore & badges",
         .quickLookKeyboardHint: "Space: Quick Look",
-        .daysCountUnitFormat: "%d days"
+        .daysCountUnitFormat: "%d days",
+
+        // MARK: - v1.7.0: Dynamic Sanctuary Mood & Profile Rules Redesign
+        .sanctuaryHeroWarningTitle: "Needs a little attention, but your treasures are safe",
+        .sanctuaryHeroDangerTitle: "Action needed, but your treasures remain protected",
+        .profileSubTabRules: "Rules & Exclusions",
+        .profileSubTabAutomation: "Automation & Schedule",
+        .profileSubTabMaintenance: "Maintenance & Storage"
     ]
 }
 

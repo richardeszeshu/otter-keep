@@ -4,6 +4,39 @@ All notable changes to OtterKeep are documented in this file in accordance with 
 
 ---
 
+## [1.7.0] - 2026-10-08 (Build 1700)
+
+### 🌟 Release Summary / Verzióösszefoglaló
+Version **1.7.0** transforms the profile configuration and dashboard experience into a serene, uncluttered, and reassuring sanctuary:
+- **3-Tab Segmented Rules & Maintenance Workspace**: Reorganized the previously overwhelming 12-card configuration view into three focused sub-tabs:
+  1. *Rules & Exclusions (`Szabályok és kizárások`)*: Directory headers, exclusions with quick presets & gitignore, iCloud strategy, metered Wi-Fi protection, and ransomware guard.
+  2. *Automation & Schedule (`Automatizáció és ütemezés`)*: Backup triggers, external drive auto-backup on mount, 3-2-1 offsite replication, and outbound webhooks (Slack/Discord/Pushover).
+  3. *Maintenance & Storage (`Karbantartás és tárhely`)*: Unified snapshot retention policy (synchronizing auto-pruning and maximum snapshots), WORM immutability & manual data scrubber, catalog disaster recovery, and technical metadata.
+- **Dynamic 3D Pixar Ottie Mascot in Overview**: Replaced the static logo in the Sanctuary Hero card with 3 expressive, transparent-background mascot illustrations reflecting system and storage health:
+  - **Safe**: Ottie is proud and joyful, holding a sparkling crystal.
+  - **Warning**: Ottie is gently attentive, inspecting a glowing river pebble with care (no alarmist stress).
+  - **Danger / Action Needed**: Ottie is empathetic and determined, clutching the protected stone securely to reassure the user that their data is safe.
+- **Integrated Storage Forecasting in Sanctuary Hero Card**: Elevated the card height and integrated live storage depletion telemetry (daily growth rate, days remaining, health badges, quota warnings) directly beside Ottie, eliminating the standalone forecast box.
+- **Direct Pipeline Folder Management**: Moved "Change folder" and "Reveal in Finder" actions directly inside the Source and Destination nodes of the visual `BackupPipelineView`, removing the redundant cards from the bottom of the Overview dashboard.
+- **System Notification on Software Updates**: When an update is detected (automatically or manually), OtterKeep chimes a friendly macOS system banner via `UNUserNotificationCenter` with version details.
+
+---
+
+### 🎨 Sanctuary Experience & Mascot Art / Sanctuary élmény és Ottie kabalafigurák
+- Added 3 transparent 3D Pixar-styled PNG assets: `OttieSanctuarySafe.png`, `OttieSanctuaryWarning.png`, `OttieSanctuaryDanger.png`.
+- Introduced `SanctuaryMascotMood` (`.safe`, `.warning`, `.danger`) and `OttieSanctuaryMascotView` in `OtterKeepUI`.
+- Mascot state dynamically evaluates backup error counts, snapshot presence, single-point-of-failure volume configurations, and storage depletion velocity.
+
+### 🛠️ Workspace Architecture & Maintenance Harmonization / Munkaterület újratervezés
+- Replaced the linear 12-block scroll with `ProfileMaintenanceSubTab` segmented navigation (`appState.activeMaintenanceSubTab`).
+- Eliminated duplicate snapshot retention steppers, consolidating `appState.maxSnapshotsToKeep` and `profile.pruningPolicy.maxSnapshotsToKeep` into a single unified control with live prune confirmation.
+- Integrated pipeline diagram actions with macOS `NSWorkspace.shared.activateFileViewerSelecting` and directory selection panels.
+
+### 🔔 System Telemetry & Notifications / Rendszerértesítések
+- Software update checks trigger system notification chimes with sound (`.default`) and interactive app launch handler upon discovery.
+
+---
+
 ## [1.6.0] - 2026-10-08 (Build 1600)
 
 ### 🌟 Release Summary / Verzióösszefoglaló

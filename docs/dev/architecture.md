@@ -1,6 +1,6 @@
 # OtterKeep Architecture Blueprint
 
-This document specifies the technical architecture of OtterKeep v1.6.0, detailing concurrency boundaries, actor isolation, multi-subsystem topology, and modern data verification pipelines.
+This document specifies the technical architecture of OtterKeep v1.7.0, detailing concurrency boundaries, actor isolation, multi-subsystem topology, and modern data verification pipelines.
 
 ---
 
@@ -113,4 +113,14 @@ Enables true 3-2-1 resilient backups:
 Prevents unintended APFS kernel faults and unwanted cellular/network downloads:
 - **Metadata-Only Verification**: Detects `isDatalessICloud` files and compares them strictly using `fileSize` and `modificationTime`.
 - **Zero Payload Access**: Skips sparse sample hashing and full cryptographic reads for dataless files, guaranteeing zero forced downloads during scans.
+
+---
+
+## 10. Human Interface & Sanctuary Architecture (v1.7.0)
+
+Designed according to macOS Human Interface Guidelines and the Sanctuary Principle:
+- **Segmented Sub-Tab Topology**: `ProfileRulesAndMaintenanceView` is partitioned into three discrete workspaces (`rules`, `automation`, `maintenance`) governed by `ProfileMaintenanceSubTab`, eliminating cognitive overload from linear scrolls.
+- **Dynamic Sanctuary Mascot Mood Engine**: `OttieSanctuaryMascotView` dynamically transitions across three emotional states (`.safe`, `.warning`, `.danger`) evaluating backup success, snapshot freshness, and `StorageForecastReport` depletion velocity without alarmist visual stress.
+- **Direct Pipeline Action Integration**: Source and destination directory management (`change`, `reveal`) is embedded directly into `BackupPipelineView`, eliminating duplicate bottom cards.
+- **Software Update Dispatch**: System update notifications are broadcast via `UNUserNotificationCenter` with audible feedback and foreground activation.
 
