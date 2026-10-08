@@ -1099,6 +1099,22 @@ final class OtterKeepTestSuite {
         let hu = L10n.t(.feedbackSuccessMessage, lang: .hungarian)
         let en = L10n.t(.feedbackSuccessMessage, lang: .english)
         try assertEqual(hu.components(separatedBy: "%@").count, en.components(separatedBy: "%@").count)
+
+        // Verify scrub format strings execute without SIGSEGV in both Hungarian and English
+        let huScrub = L10n.format(.scrubSuccessMessage, "Profile A", Int64(3), Int64(450), lang: .hungarian)
+        let enScrub = L10n.format(.scrubSuccessMessage, "Profile A", Int64(3), Int64(450), lang: .english)
+        try assertTrue(huScrub.contains("Profile A") && huScrub.contains("3") && huScrub.contains("450"))
+        try assertTrue(enScrub.contains("Profile A") && enScrub.contains("3") && enScrub.contains("450"))
+
+        let huScrubErr = L10n.format(.scrubCorruptedMessage, "Profile A", Int64(2), lang: .hungarian)
+        let enScrubErr = L10n.format(.scrubCorruptedMessage, "Profile A", Int64(2), lang: .english)
+        try assertTrue(huScrubErr.contains("Profile A") && huScrubErr.contains("2"))
+        try assertTrue(enScrubErr.contains("Profile A") && enScrubErr.contains("2"))
+
+        let huAlert = L10n.format(.scrubberCorruptedAlertMessage, Int64(5), "snap_01", lang: .hungarian)
+        let enAlert = L10n.format(.scrubberCorruptedAlertMessage, Int64(5), "snap_01", lang: .english)
+        try assertTrue(huAlert.contains("5") && huAlert.contains("snap_01"))
+        try assertTrue(enAlert.contains("5") && enAlert.contains("snap_01"))
     }
 
     private func test9_4_RestoredSuffixParity() throws {

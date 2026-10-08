@@ -37,19 +37,97 @@ public final class NotificationDeliveryService: NSObject, @unchecked Sendable, U
         Bundle.main.bundleIdentifier != nil
     }
 
+    private func resolveNotificationAttachmentURL() -> URL? {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("OtterKeep_NotifIcon", isDirectory: true)
+        try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let targetPNG = tempDir.appendingPathComponent("AppIcon.png")
+
+        if FileManager.default.fileExists(atPath: targetPNG.path) {
+            return targetPNG
+        }
+
+        #if canImport(AppKit)
+        var sourceImage: NSImage?
+        if Thread.isMainThread {
+            sourceImage = MainActor.assumeIsolated {
+                NSApp?.applicationIconImage
+            }
+        }
+        if sourceImage == nil {
+            sourceImage = NSImage(named: NSImage.applicationIconName)
+        }
+
+        if sourceImage == nil {
+            let candidatePaths = [
+                Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+                Bundle.main.url(forResource: "OttieSuccess", withExtension: "png"),
+                Bundle.main.resourceURL?.appendingPathComponent("AppIcon.icns"),
+                Bundle.main.resourceURL?.appendingPathComponent("OtterKeep_OtterKeepUI.bundle/Contents/Resources/AppIcon.icns"),
+                URL(fileURLWithPath: "/Applications/OtterKeep.app/Contents/Resources/AppIcon.icns"),
+                URL(fileURLWithPath: "/Applications/OtterKeep.app/Contents/Resources/OtterKeep_OtterKeepUI.bundle/Contents/Resources/AppIcon.icns")
+            ]
+            for candidate in candidatePaths.compactMap({ $0 }) {
+                if FileManager.default.fileExists(atPath: candidate.path), let img = NSImage(contentsOf: candidate) {
+                    sourceImage = img
+                    break
+                }
+            }
+        }
+
+        if let img = sourceImage,
+           let tiff = img.tiffRepresentation,
+           let rep = NSBitmapImageRep(data: tiff),
+           let pngData = rep.representation(using: .png, properties: [:]) {
+            try? pngData.write(to: targetPNG, options: .atomic)
+            return targetPNG
+        }
+        #endif
+
+        return nil
+    }
+
+    private func attachApplicationIconIfAvailable(to content: UNMutableNotificationContent) {
+        guard content.attachments.isEmpty else { return }
+        if let iconURL = resolveNotificationAttachmentURL() {
+            if let attachment = try? UNNotificationAttachment(identifier: "app_icon_\(UUID().uuidString.prefix(6))", url: iconURL, options: nil) {
+                content.attachments = [attachment]
+            }
+        }
+    }
+
     private func dispatchNotification(identifier: String, content: UNMutableNotificationContent) {
         onNotificationPosted?(content.title, content.body)
+
+        // Attach application icon so the notification banner prominently shows the OtterKeep icon
+        attachApplicationIconIfAvailable(to: content)
 
         guard isNotificationSupported else {
             logger.debug("Notifications skipped UNUserNotificationCenter (no bundle identifier): [\(content.title)] \(content.body)")
             #if canImport(AppKit)
             let safeBody = content.body.replacingOccurrences(of: "\"", with: "\\\"")
             let safeTitle = content.title.replacingOccurrences(of: "\"", with: "\\\"")
-            let script = "display notification \"\(safeBody)\" with title \"\(safeTitle)\""
+            // Try displaying via application id so the notification gets the OtterKeep application icon
+            let scriptWithId = "tell application id \"com.otterkeep.OtterKeepApp\" to display notification \"\(safeBody)\" with title \"\(safeTitle)\""
             let proc = Process()
             proc.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-            proc.arguments = ["-e", script]
-            try? proc.run()
+            proc.arguments = ["-e", scriptWithId]
+            do {
+                try proc.run()
+                proc.waitUntilExit()
+                if proc.terminationStatus != 0 {
+                    let fallbackScript = "display notification \"\(safeBody)\" with title \"\(safeTitle)\""
+                    let procFallback = Process()
+                    procFallback.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                    procFallback.arguments = ["-e", fallbackScript]
+                    try? procFallback.run()
+                }
+            } catch {
+                let fallbackScript = "display notification \"\(safeBody)\" with title \"\(safeTitle)\""
+                let procFallback = Process()
+                procFallback.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                procFallback.arguments = ["-e", fallbackScript]
+                try? procFallback.run()
+            }
             #endif
             return
         }
@@ -281,8 +359,8 @@ public final class NotificationDeliveryService: NSObject, @unchecked Sendable, U
     /// Delivers an urgent alert notification when bit-rot or file corruption is detected by the background scrubber.
     public func notifyScrubCorruptionDetected(corruptedCount: Int, snapshotId: String) {
         let content = UNMutableNotificationContent()
-        content.title = "⚠️ Integrity Alert: Data Corruption Detected"
-        content.body = "OtterKeep background scrubber found \(corruptedCount) corrupted file(s) in snapshot '\(snapshotId)'. Click to inspect."
+        content.title = L10n.t(.scrubberCorruptedAlertTitle)
+        content.body = String(format: L10n.t(.scrubberCorruptedAlertMessage), Int64(corruptedCount), snapshotId)
         content.sound = .defaultCritical
 
         dispatchNotification(identifier: "com.otterkeep.scrub.corruption.\(UUID().uuidString)", content: content)

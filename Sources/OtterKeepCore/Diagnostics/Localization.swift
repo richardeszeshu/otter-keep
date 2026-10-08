@@ -3082,9 +3082,9 @@ public enum L10n {
         .verifySnapshotIntegrityDesc: "Manually verify SHA-256 file hashes against catalog to detect bit-rot and corrupted files.",
         .verifySnapshotIntegrityTooltip: "Verify SHA-256 hashes of files against catalog",
         .scrubSuccessTitle: "All Data Intact!",
-        .scrubSuccessMessage: "Cryptographic SHA-256 verification of %lld files across %lld snapshots in '%@' completed successfully. No corruption found.",
+        .scrubSuccessMessage: "In profile '%@', cryptographic SHA-256 verification of %lld snapshots (%lld files) completed successfully. No corruption found.",
         .scrubCorruptedTitle: "Data Corruption Detected!",
-        .scrubCorruptedMessage: "Integrity check found %lld corrupted or missing files in profile '%@'. Please review details."
+        .scrubCorruptedMessage: "In profile '%@', the integrity check found %lld corrupted or missing files. Please review details."
     ]
 }
 
