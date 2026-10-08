@@ -47,15 +47,7 @@ public final class NotificationDeliveryService: NSObject, @unchecked Sendable, U
         }
 
         #if canImport(AppKit)
-        var sourceImage: NSImage?
-        if Thread.isMainThread {
-            sourceImage = MainActor.assumeIsolated {
-                NSApp?.applicationIconImage
-            }
-        }
-        if sourceImage == nil {
-            sourceImage = NSImage(named: NSImage.applicationIconName)
-        }
+        var sourceImage = NSImage(named: NSImage.applicationIconName)
 
         if sourceImage == nil {
             let candidatePaths = [
