@@ -96,6 +96,12 @@ public struct RestoreExplorerView: View {
             }
             .frame(minWidth: 700, minHeight: 520)
         }
+        .sheet(isPresented: Binding(
+            get: { appState.showSideBySideDiffModal },
+            set: { appState.showSideBySideDiffModal = $0 }
+        )) {
+            SideBySideDiffModalView(appState: appState)
+        }
     }
 
     // MARK: - Top Mode Selector Header
@@ -133,6 +139,25 @@ public struct RestoreExplorerView: View {
             .controlSize(.regular)
             .disabled(appState.currentSelectedFileURL() == nil)
 
+            // Side-by-Side comparison button
+            Button {
+                if appState.restoreBrowseMode == .globalSearch, let hit = appState.selectedGlobalSearchResult {
+                    appState.openSideBySideDiff(forGlobalSearchResult: hit)
+                } else if appState.restoreBrowseMode == .snapshot, let file = appState.selectedFile, let snapId = appState.selectedSnapshotId {
+                    appState.openSideBySideDiff(forFileRecord: file, inSnapshotId: snapId)
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "square.split.2x1")
+                    Text(L10n.t(.diffSideBySideCompare))
+                }
+                .font(.body)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.regular)
+            .disabled(isSideBySideDiffDisabled)
+            .help(L10n.t(.diffSideBySideCompare))
+
             Button {
                 appState.loadSnapshots(force: true)
             } label: {
@@ -146,6 +171,16 @@ public struct RestoreExplorerView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .background(.ultraThinMaterial)
+    }
+
+    private var isSideBySideDiffDisabled: Bool {
+        if appState.restoreBrowseMode == .globalSearch {
+            guard let hit = appState.selectedGlobalSearchResult else { return true }
+            return hit.fileRecord.isDirectory
+        } else {
+            guard let file = appState.selectedFile, appState.selectedSnapshotId != nil else { return true }
+            return file.isDirectory
+        }
     }
 
     // MARK: - 1. Snapshot Tree Structure & Search Browsing
@@ -309,6 +344,17 @@ public struct RestoreExplorerView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .help(L10n.t(.previewSpaceButton))
+
+                                Button {
+                                    if let snapId = appState.selectedSnapshotId {
+                                        appState.openSideBySideDiff(forFileRecord: file, inSnapshotId: snapId)
+                                    }
+                                } label: {
+                                    Image(systemName: "square.split.2x1")
+                                        .font(.caption)
+                                }
+                                .buttonStyle(.plain)
+                                .help(L10n.t(.diffSideBySideCompare))
                             }
                         }
                     } else {
@@ -402,6 +448,15 @@ public struct RestoreExplorerView: View {
                     appState.toggleQuickLook()
                 } label: {
                     Label(L10n.t(.previewSpaceButton), systemImage: "eye")
+                }
+
+                Button {
+                    let fileToDiff = node.record ?? appState.snapshotFiles.first(where: { $0.relativePath == node.relativePath })
+                    if let file = fileToDiff, let snapId = appState.selectedSnapshotId {
+                        appState.openSideBySideDiff(forFileRecord: file, inSnapshotId: snapId)
+                    }
+                } label: {
+                    Label(L10n.t(.diffSideBySideCompare), systemImage: "square.split.2x1")
                 }
 
                 Button {
@@ -1040,6 +1095,18 @@ public struct RestoreExplorerView: View {
                 .controlSize(.small)
                 .help(L10n.t(.previewSpaceButton))
 
+                if !result.fileRecord.isDirectory {
+                    Button {
+                        appState.openSideBySideDiff(forGlobalSearchResult: result)
+                    } label: {
+                        Image(systemName: "square.split.2x1")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .help(L10n.t(.diffSideBySideCompare))
+                }
+
                 Button {
                     appState.revealGlobalSearchResultInSnapshot(result)
                 } label: {
@@ -1080,6 +1147,14 @@ public struct RestoreExplorerView: View {
                 appState.toggleQuickLook()
             } label: {
                 Label(L10n.t(.previewSpaceButton), systemImage: "eye")
+            }
+
+            if !result.fileRecord.isDirectory {
+                Button {
+                    appState.openSideBySideDiff(forGlobalSearchResult: result)
+                } label: {
+                    Label(L10n.t(.diffSideBySideCompare), systemImage: "square.split.2x1")
+                }
             }
 
             Button {

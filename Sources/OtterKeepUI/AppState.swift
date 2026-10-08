@@ -1935,6 +1935,103 @@ public final class AppState: Sendable {
         }
     }
 
+    @MainActor
+    public func openSideBySideDiff(forGlobalSearchResult result: GlobalSearchResult) {
+        guard let profile = selectedProfile else { return }
+
+        let diffItem = SnapshotDiffItem(
+            relativePath: result.relativePath,
+            changeType: .modified,
+            oldRecord: nil,
+            newRecord: result.fileRecord,
+            sizeDelta: 0
+        )
+        self.activeSideBySideDiffItem = diffItem
+        self.showSideBySideDiffModal = true
+        self.isLoadingSideBySideDiff = true
+        self.activeSideBySideDiffComparison = nil
+
+        Task {
+            do {
+                let dbPath = profile.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite").path
+                try await self.database.open(at: dbPath)
+                let versions = try await self.database.listVersions(ofRelativePath: result.relativePath)
+
+                let targetSnap: SnapshotRecord
+                let baseSnap: SnapshotRecord?
+
+                if let idx = versions.firstIndex(where: { $0.snapshot.id == result.snapshotId }) {
+                    targetSnap = versions[idx].snapshot
+                    // The preceding historical version is idx + 1 (older)
+                    if idx + 1 < versions.count {
+                        baseSnap = versions[idx + 1].snapshot
+                    } else if idx - 1 >= 0 {
+                        // If it's the oldest snapshot, compare with the newer one
+                        baseSnap = versions[idx - 1].snapshot
+                    } else {
+                        baseSnap = nil
+                    }
+                } else {
+                    targetSnap = self.snapshots.first(where: { $0.id == result.snapshotId }) ?? SnapshotRecord(
+                        id: result.snapshotId,
+                        timestamp: result.snapshotTimestamp,
+                        status: "completed",
+                        totalFiles: 0,
+                        totalBytes: result.fileSize,
+                        snapshotPath: result.snapshotPath
+                    )
+                    baseSnap = versions.first(where: { $0.snapshot.id != result.snapshotId })?.snapshot
+                }
+
+                let urlTarget = profile.destinationURL
+                    .appendingPathComponent(targetSnap.snapshotPath)
+                    .appendingPathComponent("root")
+                    .appendingPathComponent(result.relativePath)
+
+                let urlBase: URL?
+                if let base = baseSnap {
+                    urlBase = profile.destinationURL
+                        .appendingPathComponent(base.snapshotPath)
+                        .appendingPathComponent("root")
+                        .appendingPathComponent(result.relativePath)
+                } else {
+                    urlBase = nil
+                }
+
+                let comparison = try TextDiffEngine().diffFiles(
+                    leftURL: urlBase,
+                    rightURL: urlTarget,
+                    relativePath: result.relativePath
+                )
+
+                Task { @MainActor in
+                    self.activeSideBySideDiffComparison = comparison
+                    self.isLoadingSideBySideDiff = false
+                }
+            } catch {
+                Task { @MainActor in
+                    self.isLoadingSideBySideDiff = false
+                }
+            }
+        }
+    }
+
+    @MainActor
+    public func openSideBySideDiff(forFileRecord record: FileCatalogRecord, inSnapshotId snapshotId: String) {
+        guard selectedProfile != nil else { return }
+        let snap = snapshots.first(where: { $0.id == snapshotId })
+        let hit = GlobalSearchResult(
+            snapshotId: snapshotId,
+            snapshotTimestamp: snap?.timestamp ?? record.modificationTime,
+            snapshotPath: snap?.snapshotPath ?? snapshotId,
+            relativePath: record.relativePath,
+            fileSize: record.fileSize,
+            modificationDate: record.modificationTime,
+            sha256: record.checksum ?? ""
+        )
+        openSideBySideDiff(forGlobalSearchResult: hit)
+    }
+
     // MARK: - Storage Forecast Operations
 
     @MainActor

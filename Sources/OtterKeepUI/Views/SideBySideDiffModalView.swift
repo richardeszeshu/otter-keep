@@ -35,7 +35,7 @@ public struct SideBySideDiffModalView: View {
             Divider()
             footerBar
         }
-        .frame(minWidth: 840, idealWidth: 980, minHeight: 560, idealHeight: 680)
+        .frame(minWidth: 960, idealWidth: 1200, maxWidth: .infinity, minHeight: 600, idealHeight: 800, maxHeight: .infinity)
         .background(Color(NSColor.windowBackgroundColor))
     }
 
@@ -92,17 +92,27 @@ public struct SideBySideDiffModalView: View {
 
     // MARK: - Column Labels
 
-    private var columnHeaders: some View {
+    private func columnHeaders(columnWidth: CGFloat) -> some View {
         HStack(spacing: 0) {
             HStack {
                 Text(L10n.t(.diffSideBySideSnapshotA))
                     .font(.subheadline.bold())
                     .foregroundStyle(.secondary)
+                if let mtime = appState.activeSideBySideDiffComparison?.leftMtime {
+                    Text("(\(Self.dateFormatter.string(from: mtime)))")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
                 Spacer()
+                if let size = appState.activeSideBySideDiffComparison?.leftSize {
+                    Text(formatBytes(size))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .frame(width: columnWidth)
             .background(Color(NSColor.controlBackgroundColor))
 
             Divider()
@@ -111,11 +121,21 @@ public struct SideBySideDiffModalView: View {
                 Text(L10n.t(.diffSideBySideSnapshotB))
                     .font(.subheadline.bold())
                     .foregroundStyle(.secondary)
+                if let mtime = appState.activeSideBySideDiffComparison?.rightMtime {
+                    Text("(\(Self.dateFormatter.string(from: mtime)))")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
                 Spacer()
+                if let size = appState.activeSideBySideDiffComparison?.rightSize {
+                    Text(formatBytes(size))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .frame(width: columnWidth)
             .background(Color(NSColor.controlBackgroundColor))
         }
         .overlay(Divider(), alignment: .bottom)
@@ -124,56 +144,65 @@ public struct SideBySideDiffModalView: View {
     // MARK: - Diff Content View
 
     private func diffContentView(_ comparison: FileComparisonResult) -> some View {
-        VStack(spacing: 0) {
-            columnHeaders
+        GeometryReader { geometry in
+            let totalWidth = geometry.size.width
+            let columnWidth = max(420, (totalWidth - 1) / 2)
 
-            ScrollView([.vertical, .horizontal]) {
-                LazyVStack(spacing: 0) {
-                    ForEach(comparison.rows) { line in
-                        diffRow(line)
-                        Divider()
+            VStack(spacing: 0) {
+                columnHeaders(columnWidth: columnWidth)
+
+                ScrollView([.vertical, .horizontal]) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(comparison.rows) { line in
+                            diffRow(line, columnWidth: columnWidth)
+                            Divider()
+                        }
                     }
+                    .frame(minWidth: totalWidth, alignment: .leading)
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func diffRow(_ line: SideBySideDiffLine) -> some View {
+    private func diffRow(_ line: SideBySideDiffLine, columnWidth: CGFloat) -> some View {
         HStack(spacing: 0) {
             // Left (Base / Original)
-            HStack(spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
                 Text(line.leftLineNumber.map { "\($0)" } ?? "")
                     .font(.caption2.monospaced())
                     .foregroundStyle(.secondary)
-                    .frame(width: 38, alignment: .trailing)
+                    .frame(width: 40, alignment: .trailing)
 
-                Text(line.leftText ?? "")
+                Text(line.leftText ?? " ")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(line.type == .deleted ? OtterTheme.statusError : .primary)
+                    .lineLimit(nil)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.vertical, 2)
-            .padding(.horizontal, 6)
-            .frame(maxWidth: .infinity)
+            .padding(.vertical, 3)
+            .padding(.horizontal, 8)
+            .frame(width: columnWidth, alignment: .leading)
             .background(leftBackgroundColor(for: line.type))
 
             Divider()
 
             // Right (Target / Modified)
-            HStack(spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
                 Text(line.rightLineNumber.map { "\($0)" } ?? "")
                     .font(.caption2.monospaced())
                     .foregroundStyle(.secondary)
-                    .frame(width: 38, alignment: .trailing)
+                    .frame(width: 40, alignment: .trailing)
 
-                Text(line.rightText ?? "")
+                Text(line.rightText ?? " ")
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(line.type == .added ? OtterTheme.statusGreen : (line.type == .modified ? OtterTheme.otterAmber : .primary))
+                    .lineLimit(nil)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.vertical, 2)
-            .padding(.horizontal, 6)
-            .frame(maxWidth: .infinity)
+            .padding(.vertical, 3)
+            .padding(.horizontal, 8)
+            .frame(width: columnWidth, alignment: .leading)
             .background(rightBackgroundColor(for: line.type))
         }
     }
@@ -253,5 +282,18 @@ public struct SideBySideDiffModalView: View {
             .tint(OtterTheme.oceanicTeal)
         }
         .padding()
+    }
+
+    // MARK: - Helpers
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .short
+        f.timeStyle = .short
+        return f
+    }()
+
+    private func formatBytes(_ bytes: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 }
