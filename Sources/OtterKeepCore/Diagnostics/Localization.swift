@@ -2968,7 +2968,7 @@ public enum L10n {
         // MARK: - Restore & Maintenance (1.4.0)
         .restoredSuffixFormat: " (restored %d)",
         .feedbackRestoreSuccessTitle: "Restore Completed Successfully!",
-        .feedbackRestoreSuccessMessage: "Successfully restored %lld files from snapshot '%@' to the target directory.",
+        .feedbackRestoreSuccessMessage: "Successfully restored %2$lld files from snapshot '%1$@' to the target directory.",
         .feedbackRestoreFailedTitle: "Restore Operation Failed",
         .feedbackRestoreFailedMessage: "Failed to restore snapshot: %@"
     ]

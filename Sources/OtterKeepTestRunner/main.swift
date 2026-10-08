@@ -1078,7 +1078,13 @@ final class OtterKeepTestSuite {
     }
 
     private func test9_3_FormatSpecifierConsistency() throws {
-        // Verify format keys have identical token count
+        // Verify restore feedback message formatting in both languages without crashing
+        let huRestore = L10n.format(.feedbackRestoreSuccessMessage, "snapshot_1", Int64(5), lang: .hungarian)
+        let enRestore = L10n.format(.feedbackRestoreSuccessMessage, "snapshot_1", Int64(5), lang: .english)
+        try assertTrue(huRestore.contains("snapshot_1") && huRestore.contains("5"))
+        try assertTrue(enRestore.contains("snapshot_1") && enRestore.contains("5"))
+
+        // Verify all format keys have identical token count
         let hu = L10n.t(.feedbackSuccessMessage, lang: .hungarian)
         let en = L10n.t(.feedbackSuccessMessage, lang: .english)
         try assertEqual(hu.components(separatedBy: "%@").count, en.components(separatedBy: "%@").count)
