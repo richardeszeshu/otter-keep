@@ -345,6 +345,7 @@ public final class NotificationDeliveryService: NSObject, @unchecked Sendable, U
         let content = UNMutableNotificationContent()
         content.title = L10n.t(.notifUpdateAvailableTitle)
         content.body = String(format: L10n.t(.notifUpdateAvailableBodyFormat), version)
+        content.sound = .default
         dispatchNotification(identifier: "com.otterkeep.update.available.\(version)", content: content)
     }
 

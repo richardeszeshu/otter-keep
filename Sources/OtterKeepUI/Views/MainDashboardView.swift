@@ -15,18 +15,22 @@ public struct MainDashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: OtterTheme.spacing16) {
                 if let profile = appState.selectedProfile {
-                    // SPOF Warning Banner (Hardware Redundancy Alert)
-                    if appState.volumeEvaluation?.isSameVolume == true {
-                        spofWarningBanner()
+                    // MARK: - Zone 1: Sanctuary Hero & Live Status (Top Priority)
+                    if appState.isBackupRunning(for: profile.id) {
+                        liveTelemetryHUD(for: profile)
+                    } else {
+                        sanctuaryHeroCard(for: profile)
                     }
 
-                    // 1. Visual APFS CoW Pipeline
-                    BackupPipelineView(
-                        sourceURL: profile.sourceURL,
-                        destinationURL: profile.destinationURL,
-                        cowMode: appState.volumeEvaluation?.cowMode ?? .intraVolumeCoW,
-                        isActive: appState.isBackupRunning(for: profile.id)
-                    )
+                    // Live Replication Banner
+                    if appState.isReplicationRunning {
+                        liveReplicationBanner
+                    }
+
+                    // Hardware Redundancy Recommendation (SPOF)
+                    if appState.volumeEvaluation?.isSameVolume == true {
+                        spofRecommendationBanner()
+                    }
 
                     // Profile Settings Locked Banner (While Active)
                     if appState.isBackupRunning(for: profile.id) {
@@ -48,7 +52,19 @@ public struct MainDashboardView: View {
                         .otterCard(padding: OtterTheme.spacing12)
                     }
 
-                    // 2. Storage Gauge Card
+                    // MARK: - Zone 2: Protection Pipeline & Storage Harmony
+                    BackupPipelineView(
+                        sourceURL: profile.sourceURL,
+                        destinationURL: profile.destinationURL,
+                        cowMode: appState.volumeEvaluation?.cowMode ?? .intraVolumeCoW,
+                        isActive: appState.isBackupRunning(for: profile.id),
+                        onSelectSource: { appState.selectSourceDirectory() },
+                        onRevealSource: { NSWorkspace.shared.activateFileViewerSelecting([profile.sourceURL]) },
+                        onSelectDestination: { appState.selectDestinationDirectory() },
+                        onRevealDestination: { NSWorkspace.shared.activateFileViewerSelecting([profile.destinationURL]) }
+                    )
+
+                    // Storage Gauge Card
                     if let capacity = appState.destinationStorageCapacity() {
                         StorageGaugeBar(
                             totalBytes: capacity.totalBytes,
@@ -60,30 +76,10 @@ public struct MainDashboardView: View {
                         .otterCard()
                     }
 
-                    // 3. 3-2-1 Rule & Off-site Compliance Card
+                    // MARK: - Zone 3: Guardianship & Resilience
                     rule321ComplianceCard(profile: profile)
 
-                    // 4. Live Replication Banner
-                    if appState.isReplicationRunning {
-                        liveReplicationBanner
-                    }
-
-                    // 5. Live Telemetry HUD (When backup is actively running for this profile) or Last Session Summary
-                    if appState.isBackupRunning(for: profile.id) {
-                        liveTelemetryHUD(for: profile)
-                    } else if let summary = appState.profileLastSummaries[profile.id] ?? appState.lastSessionSummary {
-                        lastSessionCard(summary: summary)
-                    } else if appState.progressState(for: profile.id).phase != .idle {
-                        liveTelemetryHUD(for: profile)
-                    }
-
-                    // Storage Capacity Forecasting & Quota Alerts
-                    StorageForecastCardView(appState: appState)
-
-                    // 4. Source & Destination Folders Overview
-                    storageOverviewSection(profile: profile)
-
-                    // 5. Quick Statistics
+                    // Quick Statistics
                     quickStatsSection(profile: profile)
 
                 } else {
@@ -107,12 +103,193 @@ public struct MainDashboardView: View {
         }
     }
 
-    // MARK: - SPOF Warning Banner
-    private func spofWarningBanner() -> some View {
+    // MARK: - Sanctuary Hero Card
+    private func sanctuaryMood(for profile: BackupProfile) -> SanctuaryMascotMood {
+        let status = appState.lastStatusInfo(for: profile)
+        let forecast = appState.storageForecastReport
+
+        if forecast?.isQuotaExceeded == true || forecast?.healthStatus == .critical {
+            return .danger
+        }
+        if let sum = status.lastSessionSummary, sum.errorCount > 0 {
+            return .danger
+        }
+        if forecast?.healthStatus == .warning || !status.hasSnapshots {
+            return .warning
+        }
+        return .safe
+    }
+
+    private func sanctuaryTitle(for mood: SanctuaryMascotMood) -> String {
+        switch mood {
+        case .safe: return L10n.t(.sanctuaryHeroTitle)
+        case .warning: return L10n.t(.sanctuaryHeroWarningTitle)
+        case .danger: return L10n.t(.sanctuaryHeroDangerTitle)
+        }
+    }
+
+    private func colorForHealth(_ status: ForecastHealthStatus) -> Color {
+        switch status {
+        case .healthy: return OtterTheme.statusGreen
+        case .moderate: return OtterTheme.oceanicTeal
+        case .warning: return OtterTheme.statusWarning
+        case .critical: return OtterTheme.statusError
+        }
+    }
+
+    private func sanctuaryHeroCard(for profile: BackupProfile) -> some View {
+        let status = appState.lastStatusInfo(for: profile)
+        let mood = sanctuaryMood(for: profile)
+        let forecast = appState.storageForecastReport
+
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 18) {
+                // Ottie mascot with dynamic emotional state
+                OttieSanctuaryMascotView(mood: mood, size: 96)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text(sanctuaryTitle(for: mood))
+                            .font(OtterTheme.cardTitleFont)
+                            .foregroundStyle(.primary)
+
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(mood == .safe ? OtterTheme.statusGreen : (mood == .warning ? OtterTheme.otterAmber : OtterTheme.statusError))
+                                .frame(width: 7, height: 7)
+                            Text(status.displayStatusText)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(mood == .safe ? OtterTheme.statusGreen : (mood == .warning ? OtterTheme.otterAmber : OtterTheme.statusError))
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background((mood == .safe ? OtterTheme.statusGreen : (mood == .warning ? OtterTheme.otterAmber : OtterTheme.statusError)).opacity(0.12), in: Capsule())
+                    }
+
+                    if status.hasSnapshots {
+                        HStack(spacing: 8) {
+                            Text(status.displayDetailText)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+
+                            Text("•")
+                                .foregroundStyle(.tertiary)
+
+                            Text(L10n.format(.profileStatusSnapshotsFormat, status.totalSnapshots))
+                                .font(.subheadline.bold().monospacedDigit())
+                                .foregroundStyle(OtterTheme.oceanicTeal)
+                        }
+                    } else {
+                        Text(L10n.t(.sanctuaryNeverBackedUp))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    // Integrated Storage Forecast Telemetry Strip
+                    if let forecast = forecast {
+                        HStack(spacing: 12) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                                    .font(.caption2)
+                                    .foregroundStyle(OtterTheme.otterAmber)
+                                Text(forecast.formattedDailyGrowth)
+                                    .font(.caption.bold().monospacedDigit())
+                                    .foregroundStyle(OtterTheme.oceanicTeal)
+                                Text(L10n.t(.forecastDailyGrowthLabel))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Text("•")
+                                .foregroundStyle(.tertiary)
+
+                            HStack(spacing: 4) {
+                                Image(systemName: forecast.healthStatus.sfSymbol)
+                                    .font(.caption2)
+                                    .foregroundStyle(colorForHealth(forecast.healthStatus))
+                                Text(forecast.formattedDepletionText)
+                                    .font(.caption.bold().monospacedDigit())
+                                    .foregroundStyle(colorForHealth(forecast.healthStatus))
+                            }
+
+                            Button {
+                                appState.refreshStorageForecast()
+                            } label: {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Refresh Storage Forecast")
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    }
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 8) {
+                    if let sum = status.lastSessionSummary {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "clock")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text(String(format: "%.1fs", sum.durationSeconds))
+                                    .font(.caption.monospacedDigit().bold())
+                            }
+                            Text(ByteCountFormatter.string(fromByteCount: sum.totalScannedBytes, countStyle: .file))
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Button {
+                        appState.startBackup(for: profile)
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "arrow.clockwise.circle.fill")
+                            Text(L10n.t(.quickBackupAction))
+                        }
+                        .font(.callout.bold())
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(OtterTheme.otterAmber)
+                    .controlSize(.regular)
+                }
+            }
+
+            // Quota Exceeded alert banner if active
+            if let forecast = forecast, forecast.isQuotaExceeded {
+                HStack(spacing: OtterTheme.spacing8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.callout)
+                        .foregroundStyle(OtterTheme.statusError)
+                    Text(L10n.t(.forecastQuotaExceededBanner))
+                        .font(.caption.bold())
+                        .foregroundStyle(OtterTheme.statusError)
+                }
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(OtterTheme.statusError.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
+            }
+        }
+        .otterHeroCard(padding: 18)
+        .onAppear {
+            if appState.storageForecastReport == nil {
+                appState.refreshStorageForecast()
+            }
+        }
+    }
+
+    // MARK: - Hardware Redundancy Recommendation Banner (SPOF)
+    private func spofRecommendationBanner() -> some View {
         HStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.title2)
-                .foregroundStyle(OtterTheme.statusWarning)
+            Image(systemName: "info.circle.fill")
+                .font(.title3)
+                .foregroundStyle(OtterTheme.otterAmber)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.t(.spofBannerTitle))
@@ -127,10 +304,10 @@ public struct MainDashboardView: View {
             Spacer()
         }
         .padding(12)
-        .background(OtterTheme.statusWarning.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(OtterTheme.otterAmber.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(OtterTheme.statusWarning.opacity(0.3), lineWidth: 1)
+                .stroke(OtterTheme.otterAmber.opacity(0.2), lineWidth: 1)
         )
     }
 
@@ -312,92 +489,6 @@ public struct MainDashboardView: View {
             .controlSize(.small)
         }
         .otterCard(padding: OtterTheme.spacing12)
-    }
-
-    // MARK: - 4. Storage & Paths Overview
-    private func storageOverviewSection(profile: BackupProfile) -> some View {
-        HStack(spacing: 14) {
-            // Source directory card
-            VStack(alignment: .leading, spacing: 8) {
-                Label(L10n.t(.sourceFolderTitle), systemImage: "folder.fill")
-                    .font(.caption.bold())
-                    .foregroundStyle(OtterTheme.oceanicTeal)
-
-                Text(profile.sourceURL.path)
-                    .font(.callout.monospaced())
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-
-                HStack {
-                    Button {
-                        appState.selectSourceDirectory()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "folder.badge.gearshape")
-                            Text(L10n.t(.changeFolderButton))
-                        }
-                        .font(.caption)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(appState.isBackupRunning(for: profile.id))
-
-                    Spacer()
-
-                    Button {
-                        NSWorkspace.shared.activateFileViewerSelecting([profile.sourceURL])
-                    } label: {
-                        Text(L10n.t(.revealInFinderButton))
-                            .font(.caption)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(OtterTheme.oceanicTeal)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .otterCard(padding: OtterTheme.spacing12)
-
-            // Destination directory card
-            VStack(alignment: .leading, spacing: 8) {
-                Label(L10n.t(.destinationFolderTitle), systemImage: "internaldrive.fill")
-                    .font(.caption.bold())
-                    .foregroundStyle(OtterTheme.otterAmber)
-
-                Text(profile.destinationURL.path)
-                    .font(.callout.monospaced())
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-
-                HStack {
-                    Button {
-                        appState.selectDestinationDirectory()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "externaldrive.badge.plus")
-                            Text(L10n.t(.changeFolderButton))
-                        }
-                        .font(.caption)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(appState.isBackupRunning(for: profile.id))
-
-                    Spacer()
-
-                    Button {
-                        NSWorkspace.shared.activateFileViewerSelecting([profile.destinationURL])
-                    } label: {
-                        Text(L10n.t(.revealInFinderButton))
-                            .font(.caption)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(OtterTheme.otterAmber)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .otterCard(padding: OtterTheme.spacing12)
-        }
-        .frame(maxWidth: .infinity)
     }
 
     // MARK: - 5. Quick Statistics

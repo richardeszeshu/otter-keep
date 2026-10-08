@@ -101,7 +101,7 @@ public struct MenuBarContentView: View {
         } else if appState.isBackupRunning {
             return L10n.t(.menuBarStatusRunning)
         } else if appState.isReplicationRunning {
-            return "Replication..."
+            return L10n.t(.menuBarReplicationRunning)
         } else {
             return L10n.t(.menuBarStatusIdle)
         }
@@ -150,7 +150,7 @@ public struct MenuBarContentView: View {
         if appState.isPhotosBackupRunning {
             return L10n.t(.navPhotosBackup)
         } else if appState.isReplicationRunning {
-            return "3-2-1 Replication"
+            return L10n.t(.menuBarReplicationRunning)
         } else {
             let runningProfiles = appState.profiles.filter { appState.isBackupRunning(for: $0.id) }
             if runningProfiles.count == 1, let single = runningProfiles.first {
@@ -224,7 +224,7 @@ public struct MenuBarContentView: View {
                         } label: {
                             HStack {
                                 Spacer()
-                                Text("+\(appState.profiles.count - 3) more profiles...")
+                                Text(L10n.format(.menuBarMoreProfilesFormat, appState.profiles.count - 3))
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                                 Spacer()
@@ -241,13 +241,15 @@ public struct MenuBarContentView: View {
     private func profileRow(for profile: BackupProfile) -> some View {
         let isRunning = appState.isBackupRunning(for: profile.id)
 
+        let statusInfo = appState.lastStatusInfo(for: profile)
+
         return HStack(spacing: 8) {
             if isRunning {
                 ProgressView()
                     .controlSize(.mini)
             } else {
                 Circle()
-                    .fill(appState.selectedProfileId == profile.id ? OtterTheme.otterAmber : Color.secondary.opacity(0.35))
+                    .fill(statusInfo.statusColor)
                     .frame(width: 6, height: 6)
             }
 
@@ -268,7 +270,7 @@ public struct MenuBarContentView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 } else {
-                    Text(profile.sourceURL.lastPathComponent)
+                    Text(statusInfo.displayDetailText)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)

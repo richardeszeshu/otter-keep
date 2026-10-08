@@ -5,8 +5,8 @@
 
 [![macOS](https://img.shields.io/badge/macOS-15.0%2B%20%28Sequoia%29-blue.svg)](https://apple.com/macos)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
-[![Version](https://img.shields.io/badge/version-1.5.0-emerald.svg)](https://github.com/richardeszeshu/otter-keep/releases)
-[![Build](https://img.shields.io/badge/build-1500-cyan.svg)](https://github.com/richardeszeshu/otter-keep)
+[![Version](https://img.shields.io/badge/version-1.6.0-emerald.svg)](https://github.com/richardeszeshu/otter-keep/releases)
+[![Build](https://img.shields.io/badge/build-1600-cyan.svg)](https://github.com/richardeszeshu/otter-keep)
 [![Tests](https://img.shields.io/badge/tests-59%2F59%20passed-brightgreen.svg)](https://github.com/richardeszeshu/otter-keep)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 [![Hungarian](https://img.shields.io/badge/Magyar%20nyelv-README.hu.md-red.svg)](README.hu.md)
@@ -29,6 +29,7 @@ Unlike traditional backup utilities that trigger thermal throttling, battery dra
 ## Key Highlights
 
 - ⚡ **Near-Zero Byte Duplication**: Leverages APFS Copy-on-Write (`clonefile(2)`) so duplicate and unchanged files consume zero extra blocks on APFS destinations.
+- 🧭 **Sanctuary Experience & Profile State Harmony**: Native macOS HIG-compliant multi-profile UI with instant per-profile last backup status awareness, reactivated vertical Time Machine timeline browsing, and native keyboard shortcuts (`⌘1`, `⌘2`, `⌘3`, `⌘B`, `⌘D`).
 - 🔍 **Side-by-Side Snapshot Diffing**: Aligned dual-column file comparison with Myers LCS text diffing and binary inspection directly in GUI and CLI.
 - 🛡️ **Silent Background Data Scrubber**: Whisper-quiet background process (`I/O QoS: .background`) continually re-verifying SHA-256 hashes against silent bit-rot.
 - 🔒 **WORM Immutability Locking**: Hardware/BSD-enforced `uchg` flags protect snapshots from deletion or ransomware for configurable retention periods (30 days default).

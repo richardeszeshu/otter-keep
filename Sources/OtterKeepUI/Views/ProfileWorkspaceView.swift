@@ -44,7 +44,7 @@ public struct ProfileWorkspaceView: View {
     // MARK: - Modern Workspace Header Bar
     private var workspaceHeaderBar: some View {
         HStack(spacing: 16) {
-            // Profile Title and APFS Badge
+            // Profile Title, APFS Badge, and Last Backup Status
             HStack(spacing: 8) {
                 Image(systemName: "folder.fill")
                     .font(.title3)
@@ -55,12 +55,28 @@ public struct ProfileWorkspaceView: View {
                         .font(.headline.bold())
 
                     let cowMode = appState.volumeEvaluation?.cowMode ?? .intraVolumeCoW
-                    HStack(spacing: 4) {
-                        Image(systemName: cowMode == .nonAPFS ? "exclamationmark.shield.fill" : "checkmark.shield.fill")
-                        Text(L10n.t(cowMode.badgeKey))
+                    let statusInfo = appState.lastStatusInfo(for: profile)
+                    HStack(spacing: 6) {
+                        HStack(spacing: 4) {
+                            Image(systemName: cowMode == .nonAPFS ? "exclamationmark.shield.fill" : "checkmark.shield.fill")
+                            Text(L10n.t(cowMode.badgeKey))
+                        }
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(cowMode == .nonAPFS ? OtterTheme.statusWarning : OtterTheme.statusGreen)
+
+                        Text("•")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.tertiary)
+
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(statusInfo.statusColor)
+                                .frame(width: 5, height: 5)
+                            Text(statusInfo.displayDetailText)
+                        }
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.secondary)
                     }
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(cowMode == .nonAPFS ? OtterTheme.statusWarning : OtterTheme.statusGreen)
                 }
             }
 
@@ -92,6 +108,7 @@ public struct ProfileWorkspaceView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
+                .keyboardShortcut("d", modifiers: .command)
                 .disabled(appState.isBackupRunning(for: profile.id) || appState.isDryRunRunning)
 
                 // Backup Now / Stop Button
@@ -108,6 +125,7 @@ public struct ProfileWorkspaceView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(OtterTheme.statusError)
                     .controlSize(.regular)
+                    .keyboardShortcut(".", modifiers: .command)
                 } else {
                     Button {
                         appState.startBackup(for: profile)
@@ -119,8 +137,9 @@ public struct ProfileWorkspaceView: View {
                         .font(.body.bold())
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(OtterTheme.squirrelOrange)
+                    .tint(OtterTheme.otterAmber)
                     .controlSize(.regular)
+                    .keyboardShortcut("b", modifiers: .command)
                     .disabled(appState.isDryRunRunning)
                 }
             }
@@ -128,5 +147,18 @@ public struct ProfileWorkspaceView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(.ultraThinMaterial)
+        .background {
+            // Invisible keyboard shortcut targets for ⌘1, ⌘2, ⌘3 tab switching
+            Group {
+                Button("") { appState.activeProfileTab = .overview }
+                    .keyboardShortcut("1", modifiers: .command)
+                Button("") { appState.activeProfileTab = .timeMachine }
+                    .keyboardShortcut("2", modifiers: .command)
+                Button("") { appState.activeProfileTab = .rulesAndMaintenance }
+                    .keyboardShortcut("3", modifiers: .command)
+            }
+            .opacity(0)
+            .allowsHitTesting(false)
+        }
     }
 }

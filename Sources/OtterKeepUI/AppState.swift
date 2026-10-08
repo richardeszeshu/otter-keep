@@ -52,6 +52,31 @@ public enum ProfileWorkspaceTab: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+/// Subtabs within the Profile Rules and Maintenance workspace.
+public enum ProfileMaintenanceSubTab: String, CaseIterable, Identifiable, Sendable {
+    case rules = "rules"
+    case automation = "automation"
+    case maintenance = "maintenance"
+
+    public var id: String { rawValue }
+
+    public var localizedTitle: String {
+        switch self {
+        case .rules: return L10n.t(.profileSubTabRules)
+        case .automation: return L10n.t(.profileSubTabAutomation)
+        case .maintenance: return L10n.t(.profileSubTabMaintenance)
+        }
+    }
+
+    public var iconName: String {
+        switch self {
+        case .rules: return "slider.horizontal.3"
+        case .automation: return "clock.arrow.2.circlepath"
+        case .maintenance: return "wrench.and.screwdriver"
+        }
+    }
+}
+
 /// Tabs within the unified Photos Workspace.
 public enum PhotosWorkspaceTab: String, CaseIterable, Identifiable, Sendable {
     case syncAndBackup = "syncAndBackup"
@@ -78,6 +103,8 @@ public enum PhotosWorkspaceTab: String, CaseIterable, Identifiable, Sendable {
 public enum RestoreBrowseMode: String, CaseIterable, Identifiable, Sendable {
     /// Browse files by individual snapshot directory tree.
     case snapshot = "snapshot"
+    /// Vertical visual file timeline showing state changes across snapshots.
+    case timeline = "timeline"
     /// Search files across all snapshots with complete version history.
     case globalSearch = "globalSearch"
 
@@ -86,7 +113,16 @@ public enum RestoreBrowseMode: String, CaseIterable, Identifiable, Sendable {
     public var localizedTitle: String {
         switch self {
         case .snapshot: return L10n.t(.restoreSnapshotMode)
+        case .timeline: return L10n.t(.restoreTimelineMode)
         case .globalSearch: return L10n.t(.searchAcrossSnapshotsMode)
+        }
+    }
+
+    public var iconName: String {
+        switch self {
+        case .snapshot: return "folder.fill"
+        case .timeline: return "clock.arrow.circlepath"
+        case .globalSearch: return "magnifyingglass"
         }
     }
 }
@@ -142,6 +178,8 @@ public final class AppState: Sendable {
 
     /// Currently active tab within the selected Profile workspace.
     public var activeProfileTab: ProfileWorkspaceTab = .overview
+    /// Currently active sub-tab within the Profile Rules & Maintenance workspace.
+    public var activeMaintenanceSubTab: ProfileMaintenanceSubTab = .rules
     /// Currently active tab within the Apple Photos workspace.
     public var activePhotosTab: PhotosWorkspaceTab = .syncAndBackup
 
@@ -168,6 +206,137 @@ public final class AppState: Sendable {
     /// Retrieves the live progress state for a specific profile (or idle if not running).
     public func progressState(for profileId: UUID) -> BackupProgressState {
         profileProgressStates[profileId] ?? BackupProgressState(phase: .idle)
+    }
+
+    // MARK: - Per-Profile Historical Status & Snapshot Cache (1.6.0)
+    /// Latest snapshot records cached per profile UUID to preserve status across profile switching.
+    public private(set) var profileLatestSnapshots: [UUID: SnapshotRecord] = [:]
+    /// Total snapshot counts cached per profile UUID.
+    public private(set) var profileSnapshotCounts: [UUID: Int] = [:]
+
+    public struct ProfileBackupStatusInfo: Sendable {
+        public let profileId: UUID
+        public let profileName: String
+        public let isRunning: Bool
+        public let hasSnapshots: Bool
+        public let totalSnapshots: Int
+        public let lastBackupDate: Date?
+        public let lastSessionSummary: BackupSessionSummary?
+        public let lastSnapshot: SnapshotRecord?
+        public let displayStatusText: String
+        public let displayDetailText: String
+
+        public init(
+            profileId: UUID,
+            profileName: String,
+            isRunning: Bool,
+            hasSnapshots: Bool,
+            totalSnapshots: Int,
+            lastBackupDate: Date?,
+            lastSessionSummary: BackupSessionSummary?,
+            lastSnapshot: SnapshotRecord?,
+            displayStatusText: String,
+            displayDetailText: String
+        ) {
+            self.profileId = profileId
+            self.profileName = profileName
+            self.isRunning = isRunning
+            self.hasSnapshots = hasSnapshots
+            self.totalSnapshots = totalSnapshots
+            self.lastBackupDate = lastBackupDate
+            self.lastSessionSummary = lastSessionSummary
+            self.lastSnapshot = lastSnapshot
+            self.displayStatusText = displayStatusText
+            self.displayDetailText = displayDetailText
+        }
+
+        public var statusColor: Color {
+            if isRunning {
+                return OtterTheme.oceanicTeal
+            } else if let summary = lastSessionSummary, summary.errorCount > 0 {
+                return OtterTheme.statusWarning
+            } else if hasSnapshots {
+                return OtterTheme.statusGreen
+            } else {
+                return .secondary
+            }
+        }
+    }
+
+    /// Formats a date relative to now in friendly localized terms (e.g., "5 minutes ago", "Yesterday").
+    public static func relativeDateString(for date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    /// Retrieves structured status information for a given profile, reflecting live execution or last snapshot.
+    public func lastStatusInfo(for profile: BackupProfile) -> ProfileBackupStatusInfo {
+        let isRunning = isBackupRunning(for: profile.id)
+        let summary = profileLastSummaries[profile.id]
+        let latestSnap = (selectedProfileId == profile.id ? snapshots.first : nil) ?? profileLatestSnapshots[profile.id]
+        let snapCount = (selectedProfileId == profile.id && !snapshots.isEmpty) ? snapshots.count : (profileSnapshotCounts[profile.id] ?? (latestSnap != nil ? 1 : 0))
+
+        if isRunning {
+            let prog = progressState(for: profile.id)
+            let phaseText = L10n.t(prog.phase.localizedKey)
+            return ProfileBackupStatusInfo(
+                profileId: profile.id,
+                profileName: profile.name,
+                isRunning: true,
+                hasSnapshots: snapCount > 0,
+                totalSnapshots: snapCount,
+                lastBackupDate: latestSnap?.timestamp,
+                lastSessionSummary: summary,
+                lastSnapshot: latestSnap,
+                displayStatusText: L10n.t(.statusRunning),
+                displayDetailText: phaseText
+            )
+        } else if let sum = summary {
+            let isSuccess = sum.errorCount == 0
+            let date = latestSnap?.timestamp ?? Date()
+            let dateStr = Self.relativeDateString(for: date)
+            let statusText = isSuccess ? L10n.t(.lastBackupSuccess) : L10n.t(.lastBackupWarning)
+            return ProfileBackupStatusInfo(
+                profileId: profile.id,
+                profileName: profile.name,
+                isRunning: false,
+                hasSnapshots: true,
+                totalSnapshots: snapCount,
+                lastBackupDate: date,
+                lastSessionSummary: sum,
+                lastSnapshot: latestSnap,
+                displayStatusText: statusText,
+                displayDetailText: L10n.format(.profileStatusLastBackupFormat, dateStr)
+            )
+        } else if let snap = latestSnap {
+            let dateStr = Self.relativeDateString(for: snap.timestamp)
+            return ProfileBackupStatusInfo(
+                profileId: profile.id,
+                profileName: profile.name,
+                isRunning: false,
+                hasSnapshots: true,
+                totalSnapshots: snapCount,
+                lastBackupDate: snap.timestamp,
+                lastSessionSummary: nil,
+                lastSnapshot: snap,
+                displayStatusText: L10n.t(.lastBackupSuccess),
+                displayDetailText: L10n.format(.profileStatusLastBackupFormat, dateStr)
+            )
+        } else {
+            return ProfileBackupStatusInfo(
+                profileId: profile.id,
+                profileName: profile.name,
+                isRunning: false,
+                hasSnapshots: false,
+                totalSnapshots: 0,
+                lastBackupDate: nil,
+                lastSessionSummary: nil,
+                lastSnapshot: nil,
+                displayStatusText: L10n.t(.profileStatusIdleNoBackups),
+                displayDetailText: L10n.t(.sanctuaryNeverBackedUp)
+            )
+        }
     }
 
     /// Backward-compatible progress state resolving to the currently selected profile (or first active).
@@ -642,6 +811,7 @@ public final class AppState: Sendable {
     public func selectProfile(id: UUID) {
         selectedProfileId = id
         activeNavigation = .profile(id)
+        self.lastSessionSummary = self.profileLastSummaries[id]
         refreshVolumeEvaluation()
         loadSnapshots()
     }
@@ -1430,9 +1600,7 @@ public final class AppState: Sendable {
             case .updateAvailable(let info):
                 self.softwareUpdateAvailableInfo = info
                 self.softwareUpdateStatusMessage = L10n.format(.settingsUpdateStatusAvailableFormat, info.version)
-                if silent {
-                    NotificationDeliveryService.shared.notifySoftwareUpdateAvailable(version: info.version)
-                }
+                NotificationDeliveryService.shared.notifySoftwareUpdateAvailable(version: info.version)
             case .upToDate:
                 if !silent {
                     self.softwareUpdateStatusMessage = L10n.t(.settingsUpdateStatusUpToDate)
@@ -1691,6 +1859,9 @@ public final class AppState: Sendable {
                     if snapshotsChanged || self.snapshots.isEmpty {
                         self.snapshots = list
                     }
+                    self.profileLatestSnapshots[profile.id] = list.first
+                    self.profileSnapshotCounts[profile.id] = list.count
+
                     if self.selectedSnapshotId == nil || !list.contains(where: { $0.id == self.selectedSnapshotId }) {
                         self.selectedSnapshotId = list.first?.id
                     }
@@ -1710,7 +1881,30 @@ public final class AppState: Sendable {
                     self.timelineTreeNodes = []
                     self.selectedPathVersions = []
                     self.loadedSnapshotId = nil
+                    self.profileLatestSnapshots[profile.id] = nil
+                    self.profileSnapshotCounts[profile.id] = 0
                 }
+            }
+        }
+    }
+
+    /// Preloads recent snapshot headers and counts for all configured profiles to support instant ambient sidebar status.
+    @MainActor
+    public func preloadAllProfilesStatus() {
+        for profile in profiles {
+            let dbURL = profile.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite")
+            guard FileManager.default.fileExists(atPath: dbURL.path) else { continue }
+            Task {
+                let probeDB = DatabaseEngine()
+                do {
+                    try await probeDB.open(at: dbURL.path)
+                    let snaps = try await probeDB.listSnapshots()
+                    await probeDB.close()
+                    Task { @MainActor in
+                        self.profileLatestSnapshots[profile.id] = snaps.first
+                        self.profileSnapshotCounts[profile.id] = snaps.count
+                    }
+                } catch {}
             }
         }
     }

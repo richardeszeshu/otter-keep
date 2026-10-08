@@ -42,7 +42,7 @@ public struct UnifiedPhotosWorkspaceView: View {
             HStack(spacing: 8) {
                 Image(systemName: "photo.stack.fill")
                     .font(.title3)
-                    .foregroundStyle(OtterTheme.squirrelOrange)
+                    .foregroundStyle(OtterTheme.otterAmber)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.t(.photosBackupHeroTitle))
@@ -50,7 +50,7 @@ public struct UnifiedPhotosWorkspaceView: View {
 
                     HStack(spacing: 4) {
                         Circle()
-                            .fill(appState.isPhotosBackupRunning ? OtterTheme.squirrelOrange : OtterTheme.statusGreen)
+                            .fill(appState.isPhotosBackupRunning ? OtterTheme.otterAmber : OtterTheme.statusGreen)
                             .frame(width: 6, height: 6)
                         Text(appState.isPhotosBackupRunning ? L10n.t(.statusRunning) : L10n.t(.statusReady))
                             .font(.system(size: 9, weight: .semibold))
