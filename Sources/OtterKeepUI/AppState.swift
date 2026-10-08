@@ -219,7 +219,7 @@ public final class AppState: Sendable {
     public var showRemoteDestinationEditorSheet: Bool = false
     public var destinationEditorTargetId: UUID? = nil
     public var destinationEditorName: String = ""
-    public var destinationEditorTypeIndex: Int = 0 // 0: S3, 1: SMB, 2: WebDAV, 3: SFTP
+    public var destinationEditorTypeIndex: Int = 0 // 0: S3, 1: SMB, 2: WebDAV, 3: SFTP, 4: Backblaze B2
     public var destinationEditorS3Endpoint: String = "https://s3.amazonaws.com"
     public var destinationEditorS3Bucket: String = ""
     public var destinationEditorS3Region: String = "eu-central-1"
@@ -241,6 +241,12 @@ public final class AppState: Sendable {
     public var destinationEditorSFTPPasswordOrKey: String = ""
     public var destinationEditorSFTPAuthModeIndex: Int = 0
     public var destinationEditorSFTPPath: String = "/var/backups/otterkeep"
+    public var destinationEditorB2KeyId: String = ""
+    public var destinationEditorB2AppKey: String = ""
+    public var destinationEditorB2BucketName: String = ""
+    public var destinationEditorB2Region: String = "us-west-004"
+    public var destinationEditorB2CustomEndpoint: String = ""
+    public var destinationEditorB2PathPrefix: String = "otterkeep"
     public var destinationEditorArchivePackagingEnabled: Bool = false
     public var destinationEditorArchiveCompressionLevel: Int = 3
     public var destinationEditorIsClientEncryptionEnabled: Bool = true
@@ -390,6 +396,16 @@ public final class AppState: Sendable {
     public var diffFilterType: DiffChangeType? = nil
     public var diffSearchQuery: String = ""
     public var showDiffSheet: Bool = false
+
+    // MARK: - Side-by-Side Snapshot File Diff (1.5.0)
+    public var showSideBySideDiffModal: Bool = false
+    public var activeSideBySideDiffItem: SnapshotDiffItem? = nil
+    public var activeSideBySideDiffComparison: FileComparisonResult? = nil
+    public var isLoadingSideBySideDiff: Bool = false
+
+    // MARK: - Data Integrity Scrubber State (1.5.0)
+    public var isDataScrubInProgress: Bool = false
+    public var scrubProgress: ScrubRunProgress? = nil
 
     // MARK: - Storage Capacity Forecast & Quota Alerts
     public var storageForecastReport: StorageForecastReport?
@@ -1101,6 +1117,14 @@ public final class AppState: Sendable {
                 let sec = KeychainManager.getSecret(for: dest.keychainAccount) ?? ""
                 destinationEditorSFTPPasswordOrKey = sec
                 destinationEditorSFTPAuthModeIndex = (sec.hasPrefix("/") || sec.hasPrefix("~")) ? 1 : 0
+            case .backblazeB2(let cfg):
+                destinationEditorTypeIndex = 4
+                destinationEditorB2KeyId = cfg.keyId
+                destinationEditorB2BucketName = cfg.bucketName
+                destinationEditorB2Region = cfg.region
+                destinationEditorB2CustomEndpoint = cfg.customEndpoint ?? ""
+                destinationEditorB2PathPrefix = cfg.pathPrefix
+                destinationEditorB2AppKey = KeychainManager.getSecret(for: dest.keychainAccount) ?? ""
             }
         } else {
             destinationEditorTargetId = nil
@@ -1183,7 +1207,7 @@ public final class AppState: Sendable {
             if !destinationEditorWebDAVPassword.isEmpty {
                 try? KeychainManager.saveSecret(destinationEditorWebDAVPassword, for: account)
             }
-        } else {
+        } else if destinationEditorTypeIndex == 3 {
             let auth: SFTPAuthMethod
             let secret = destinationEditorSFTPPasswordOrKey.trimmingCharacters(in: .whitespacesAndNewlines)
             if secret.hasPrefix("/") || secret.hasPrefix("~") || FileManager.default.fileExists(atPath: secret) {
@@ -1203,6 +1227,20 @@ public final class AppState: Sendable {
             account = "sftp_\(destId.uuidString)"
             if !destinationEditorSFTPPasswordOrKey.isEmpty {
                 try? KeychainManager.saveSecret(destinationEditorSFTPPasswordOrKey, for: account)
+            }
+        } else {
+            let b2Config = B2Configuration(
+                keyId: destinationEditorB2KeyId.trimmingCharacters(in: .whitespacesAndNewlines),
+                bucketName: destinationEditorB2BucketName.trimmingCharacters(in: .whitespacesAndNewlines),
+                region: destinationEditorB2Region.trimmingCharacters(in: .whitespacesAndNewlines),
+                customEndpoint: destinationEditorB2CustomEndpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : destinationEditorB2CustomEndpoint.trimmingCharacters(in: .whitespacesAndNewlines),
+                pathPrefix: destinationEditorB2PathPrefix.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+            finalType = .backblazeB2(b2Config)
+
+            account = "b2_\(destId.uuidString)"
+            if !destinationEditorB2AppKey.isEmpty {
+                try? KeychainManager.saveSecret(destinationEditorB2AppKey, for: account)
             }
         }
 
@@ -1238,6 +1276,7 @@ public final class AppState: Sendable {
         KeychainManager.deleteSecret(for: "smb_\(destinationId.uuidString)")
         KeychainManager.deleteSecret(for: "webdav_\(destinationId.uuidString)")
         KeychainManager.deleteSecret(for: "sftp_\(destinationId.uuidString)")
+        KeychainManager.deleteSecret(for: "b2_\(destinationId.uuidString)")
         selectedProfile = profile
         if let pIdx = profiles.firstIndex(where: { $0.id == profile.id }) {
             profiles[pIdx] = profile
@@ -1314,7 +1353,7 @@ public final class AppState: Sendable {
                 } catch {
                     self.destinationEditorTestErrorMessage = error.localizedDescription
                 }
-            } else {
+            } else if self.destinationEditorTypeIndex == 3 {
                 let host = self.destinationEditorSFTPHost.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !host.isEmpty else {
                     self.destinationEditorTestErrorMessage = "A megadott SFTP szerver cím érvénytelen."
@@ -1341,6 +1380,21 @@ public final class AppState: Sendable {
                     self.destinationEditorTestSuccessMessage = L10n.format(.testConnectionSuccessSFTPFormat, host)
                 } catch {
                     self.destinationEditorTestErrorMessage = error.localizedDescription
+                }
+            } else {
+                let config = B2Configuration(
+                    keyId: self.destinationEditorB2KeyId.trimmingCharacters(in: .whitespacesAndNewlines),
+                    bucketName: self.destinationEditorB2BucketName.trimmingCharacters(in: .whitespacesAndNewlines),
+                    region: self.destinationEditorB2Region.trimmingCharacters(in: .whitespacesAndNewlines),
+                    customEndpoint: self.destinationEditorB2CustomEndpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : self.destinationEditorB2CustomEndpoint.trimmingCharacters(in: .whitespacesAndNewlines),
+                    pathPrefix: self.destinationEditorB2PathPrefix.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+                let provider = B2StorageProvider(config: config, applicationKey: self.destinationEditorB2AppKey)
+                do {
+                    _ = try await provider.testConnection()
+                    self.destinationEditorTestSuccessMessage = L10n.format(.testConnectionSuccessS3Format, config.bucketName)
+                } catch {
+                    self.destinationEditorTestErrorMessage = L10n.format(.s3ConnectionErrorFormat, error.localizedDescription)
                 }
             }
             self.destinationEditorIsTesting = false
@@ -1850,6 +1904,201 @@ public final class AppState: Sendable {
                     self.snapshotDiffReport = nil
                     self.isLoadingDiff = false
                     LogManager.shared.log("Failed to compute snapshot diff: \(error.localizedDescription)", level: .warning, category: "Diff")
+                }
+            }
+        }
+    }
+
+    @MainActor
+    public func openSideBySideDiff(for item: SnapshotDiffItem) {
+        guard let profile = selectedProfile else { return }
+        self.activeSideBySideDiffItem = item
+        self.showSideBySideDiffModal = true
+        self.isLoadingSideBySideDiff = true
+        self.activeSideBySideDiffComparison = nil
+
+        let targetSnapId = selectedDiffTargetSnapshotId ?? snapshots.first?.id
+        let baseSnapId = selectedDiffBaseSnapshotId ?? (snapshots.count > 1 ? snapshots[1].id : nil)
+
+        guard let tId = targetSnapId, let bId = baseSnapId,
+              let snapTarget = snapshots.first(where: { $0.id == tId }),
+              let snapBase = snapshots.first(where: { $0.id == bId }) else {
+            self.isLoadingSideBySideDiff = false
+            return
+        }
+
+        let urlA = profile.destinationURL.appendingPathComponent(snapBase.snapshotPath).appendingPathComponent("root").appendingPathComponent(item.relativePath)
+        let urlB = profile.destinationURL.appendingPathComponent(snapTarget.snapshotPath).appendingPathComponent("root").appendingPathComponent(item.relativePath)
+
+        Task {
+            let result = try? TextDiffEngine().diffFiles(leftURL: urlA, rightURL: urlB, relativePath: item.relativePath)
+            Task { @MainActor in
+                self.activeSideBySideDiffComparison = result
+                self.isLoadingSideBySideDiff = false
+            }
+        }
+    }
+
+    @MainActor
+    public func openSideBySideDiff(forGlobalSearchResult result: GlobalSearchResult) {
+        guard let profile = selectedProfile else { return }
+
+        let diffItem = SnapshotDiffItem(
+            relativePath: result.relativePath,
+            changeType: .modified,
+            oldRecord: nil,
+            newRecord: result.fileRecord,
+            sizeDelta: 0
+        )
+        self.activeSideBySideDiffItem = diffItem
+        self.showSideBySideDiffModal = true
+        self.isLoadingSideBySideDiff = true
+        self.activeSideBySideDiffComparison = nil
+
+        Task {
+            do {
+                let dbPath = profile.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite").path
+                try await self.database.open(at: dbPath)
+                let versions = try await self.database.listVersions(ofRelativePath: result.relativePath)
+
+                let targetSnap: SnapshotRecord
+                let baseSnap: SnapshotRecord?
+
+                if let idx = versions.firstIndex(where: { $0.snapshot.id == result.snapshotId }) {
+                    targetSnap = versions[idx].snapshot
+                    // The preceding historical version is idx + 1 (older)
+                    if idx + 1 < versions.count {
+                        baseSnap = versions[idx + 1].snapshot
+                    } else if idx - 1 >= 0 {
+                        // If it's the oldest snapshot, compare with the newer one
+                        baseSnap = versions[idx - 1].snapshot
+                    } else {
+                        baseSnap = nil
+                    }
+                } else {
+                    targetSnap = self.snapshots.first(where: { $0.id == result.snapshotId }) ?? SnapshotRecord(
+                        id: result.snapshotId,
+                        timestamp: result.snapshotTimestamp,
+                        status: "completed",
+                        totalFiles: 0,
+                        totalBytes: result.fileSize,
+                        snapshotPath: result.snapshotPath
+                    )
+                    baseSnap = versions.first(where: { $0.snapshot.id != result.snapshotId })?.snapshot
+                }
+
+                let urlTarget = profile.destinationURL
+                    .appendingPathComponent(targetSnap.snapshotPath)
+                    .appendingPathComponent("root")
+                    .appendingPathComponent(result.relativePath)
+
+                let urlBase: URL?
+                if let base = baseSnap {
+                    urlBase = profile.destinationURL
+                        .appendingPathComponent(base.snapshotPath)
+                        .appendingPathComponent("root")
+                        .appendingPathComponent(result.relativePath)
+                } else {
+                    urlBase = nil
+                }
+
+                let comparison = try TextDiffEngine().diffFiles(
+                    leftURL: urlBase,
+                    rightURL: urlTarget,
+                    relativePath: result.relativePath
+                )
+
+                Task { @MainActor in
+                    self.activeSideBySideDiffComparison = comparison
+                    self.isLoadingSideBySideDiff = false
+                }
+            } catch {
+                Task { @MainActor in
+                    self.isLoadingSideBySideDiff = false
+                }
+            }
+        }
+    }
+
+    @MainActor
+    public func openSideBySideDiff(forFileRecord record: FileCatalogRecord, inSnapshotId snapshotId: String) {
+        guard selectedProfile != nil else { return }
+        let snap = snapshots.first(where: { $0.id == snapshotId })
+        let hit = GlobalSearchResult(
+            snapshotId: snapshotId,
+            snapshotTimestamp: snap?.timestamp ?? record.modificationTime,
+            snapshotPath: snap?.snapshotPath ?? snapshotId,
+            relativePath: record.relativePath,
+            fileSize: record.fileSize,
+            modificationDate: record.modificationTime,
+            sha256: record.checksum ?? ""
+        )
+        openSideBySideDiff(forGlobalSearchResult: hit)
+    }
+
+    // MARK: - Data Integrity Scrubber Operations (1.5.0)
+
+    @MainActor
+    public func performManualScrub(profile: BackupProfile? = nil) {
+        guard !isDataScrubInProgress else { return }
+
+        let targetProfile = profile ?? selectedProfile
+        guard let prof = targetProfile else { return }
+
+        isDataScrubInProgress = true
+        scrubProgress = ScrubRunProgress()
+        LogManager.shared.log("Starting manual data integrity scrub for profile '\(prof.name)'", level: .info, category: "Integrity")
+        refreshLogs()
+
+        Task.detached(priority: .background) {
+            let scrubber = DataScrubberEngine()
+            do {
+                let audit = try await scrubber.performScrub(
+                    backupRootURL: prof.destinationURL,
+                    limitSnapshots: nil,
+                    throttleSleepMs: 0
+                ) { progress in
+                    Task { @MainActor in
+                        self.scrubProgress = progress
+                    }
+                }
+
+                await MainActor.run {
+                    self.isDataScrubInProgress = false
+                    self.scrubProgress = nil
+                    self.refreshLogs()
+
+                    if audit.corruptedFilesCount == 0 {
+                        self.activeFeedback = OperationFeedback(
+                            type: .success,
+                            title: L10n.t(.scrubSuccessTitle),
+                            message: L10n.format(.scrubSuccessMessage, prof.name, Int64(audit.checkedSnapshotsCount), Int64(audit.checkedFilesCount)),
+                            profileName: prof.name
+                        )
+                    } else {
+                        self.activeFeedback = OperationFeedback(
+                            type: .failure,
+                            title: L10n.t(.scrubCorruptedTitle),
+                            message: L10n.format(.scrubCorruptedMessage, prof.name, Int64(audit.corruptedFilesCount)),
+                            detailedReason: audit.detailsJson,
+                            profileName: prof.name
+                        )
+                    }
+                    self.showFeedbackModal = true
+                }
+            } catch {
+                await MainActor.run {
+                    self.isDataScrubInProgress = false
+                    self.scrubProgress = nil
+                    self.refreshLogs()
+                    self.activeFeedback = OperationFeedback(
+                        type: .failure,
+                        title: L10n.t(.scrubberCorruptedAlertTitle),
+                        message: error.localizedDescription,
+                        detailedReason: error.localizedDescription,
+                        profileName: prof.name
+                    )
+                    self.showFeedbackModal = true
                 }
             }
         }

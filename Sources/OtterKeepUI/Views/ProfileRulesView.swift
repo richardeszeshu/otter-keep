@@ -548,6 +548,87 @@ public struct ProfileRulesView: View {
                     }
                 }
 
+                Divider()
+
+                // WORM Immutability Lock (uchg / schg)
+                Toggle(isOn: Binding(
+                    get: { profile.isImmutabilityLockEnabled },
+                    set: { enabled in
+                        var updated = profile
+                        updated.isImmutabilityLockEnabled = enabled
+                        appState.selectedProfile = updated
+                    }
+                )) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "lock.shield.fill")
+                                .foregroundStyle(OtterTheme.accentPurple)
+                            Text(L10n.t(.wormLockTitle))
+                                .font(.body.weight(.medium))
+                        }
+                        Text(L10n.t(.wormLockDescription))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .toggleStyle(.checkbox)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                if profile.isImmutabilityLockEnabled {
+                    HStack {
+                        Text(L10n.t(.wormLockDurationDays))
+                            .font(.body)
+                        Spacer()
+                        Stepper(value: Binding(
+                            get: { profile.immutabilityLockDays },
+                            set: { val in
+                                var updated = profile
+                                updated.immutabilityLockDays = max(1, val)
+                                appState.selectedProfile = updated
+                            }
+                        ), in: 1...365) {
+                            Text("\(profile.immutabilityLockDays) nap")
+                                .monospacedDigit()
+                        }
+                    }
+                    .padding(.leading, 24)
+                }
+
+                Divider()
+
+                // Manual Integrity Scrub button
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.shield")
+                                .foregroundStyle(OtterTheme.statusGreen)
+                            Text(L10n.t(.verifySnapshotIntegrityTitle))
+                                .font(.body.weight(.medium))
+                        }
+                        Text(L10n.t(.verifySnapshotIntegrityDesc))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button {
+                        appState.performManualScrub(profile: profile)
+                    } label: {
+                        HStack(spacing: 6) {
+                            if appState.isDataScrubInProgress {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Image(systemName: "play.circle.fill")
+                            }
+                            Text(L10n.t(.verifySnapshotIntegrityButton))
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(OtterTheme.oceanicTeal)
+                    .controlSize(.regular)
+                    .disabled(appState.isDataScrubInProgress)
+                }
+
             }
             .otterCard()
         }
@@ -722,6 +803,30 @@ public struct ProfileRulesView: View {
                         .frame(width: 180)
                     }
 
+                    // Parallel Multi-Destination Replication Toggle
+                    Toggle(isOn: Binding(
+                        get: { profile.isParallelMultiDestinationEnabled },
+                        set: { val in
+                            var updated = profile
+                            updated.isParallelMultiDestinationEnabled = val
+                            appState.selectedProfile = updated
+                        }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.triangle.branch")
+                                    .foregroundStyle(OtterTheme.oceanicTeal)
+                                Text(L10n.t(.parallelMultiDestTitle))
+                                    .font(.body.weight(.medium))
+                            }
+                            Text(L10n.t(.parallelMultiDestDescription))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .toggleStyle(.checkbox)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
                     Divider()
 
                     // Remote Destinations List Header with Add Button
@@ -765,6 +870,7 @@ public struct ProfileRulesView: View {
                                 Image(systemName: {
                                     switch dest.type {
                                     case .s3: return "icloud.fill"
+                                    case .backblazeB2: return "flame.fill"
                                     case .smb: return "server.rack"
                                     case .webdav: return "network"
                                     case .sftp: return "terminal.fill"
@@ -805,6 +911,7 @@ public struct ProfileRulesView: View {
                                     Text({ () -> String in
                                         switch dest.type {
                                         case .s3(let cfg): return "S3: \(cfg.endpoint) [\(cfg.bucket)]"
+                                        case .backblazeB2(let cfg): return "B2: \(cfg.bucketName) (\(cfg.region))"
                                         case .smb(let cfg): return "SMB: \(cfg.shareURL)"
                                         case .webdav(let cfg): return "WebDAV: \(cfg.serverURL)\(cfg.destinationPath)"
                                         case .sftp(let cfg): return "SFTP: \(cfg.host):\(cfg.port)\(cfg.remotePath)"

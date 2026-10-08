@@ -5,9 +5,9 @@
 
 [![macOS](https://img.shields.io/badge/macOS-15.0%2B%20%28Sequoia%29-blue.svg)](https://apple.com/macos)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
-[![Verzió](https://img.shields.io/badge/verzi%C3%B3-1.4.0-emerald.svg)](https://github.com/richardeszeshu/otter-keep/releases)
-[![Build](https://img.shields.io/badge/build-1400-cyan.svg)](https://github.com/richardeszeshu/otter-keep)
-[![Tesztek](https://img.shields.io/badge/tesztek-50%2F50%20sikeres-brightgreen.svg)](https://github.com/richardeszeshu/otter-keep)
+[![Verzió](https://img.shields.io/badge/verzi%C3%B3-1.5.0-emerald.svg)](https://github.com/richardeszeshu/otter-keep/releases)
+[![Build](https://img.shields.io/badge/build-1500-cyan.svg)](https://github.com/richardeszeshu/otter-keep)
+[![Tesztek](https://img.shields.io/badge/tesztek-59%2F59%20sikeres-brightgreen.svg)](https://github.com/richardeszeshu/otter-keep)
 [![Licenc](https://img.shields.io/badge/licenc-MIT-lightgrey.svg)](LICENSE)
 [![English](https://img.shields.io/badge/English-README.md-blue.svg)](README.md)
 
@@ -29,6 +29,12 @@ A hagyományos, ventillátorzajt keltő és akkumulátort merítő mentőszoftve
 ## Főbb jellemzők
 
 - ⚡ **Nulla bájt duplikáció**: Az APFS Copy-on-Write (`clonefile(2)`) révén a változatlan fájlok semennyi extra lemezterületet nem foglalnak az APFS célköteten.
+- 🔍 **Egymás melletti fájl-differencia**: Grafikus és parancssori összehasonlítás Myers LCS algoritmussal és bináris metaadat-vizsgálóval két pillanatkép között.
+- 🛡️ **Csendes háttérbeli adatintegritás-ellenőrző**: Folyamatos, alacsony prioritású (`I/O QoS: .background`) SHA-256 hash újraszámolás és bit-rot riasztás.
+- 🔒 **WORM immutabilitási zárolás**: BSD `uchg` hardveres/fájlrendszeri zárolás védi a pillanatképeket a zsarolóvírusoktól és a törléstől beállítható ideig (alapértelmezett 30 nap).
+- ☁️ **Backblaze B2 felhőtárhely**: Natív S3-kompatibilis B2 integráció távoli felhős másodlagos mentési célpontként.
+- ⚡ **Párhuzamos többcélpontos mentés**: Egyidejű helyi APFS CoW és felhő/NAS másolás hibatűréssel és automatikus háttérbeli pótlólagos szinkronizációval.
+- 🍏 **Adat nélküli iCloud változásdetektálás**: A felhőben tárolt fájlok változásait pusztán méret és mtime alapján detektálja felesleges letöltések nélkül.
 - 🔒 **Kliensoldali nulla-ismeretű titkosítás**: AES-256-GCM titkosítás PBKDF2-HMAC-SHA256 kulcslevezetéssel (600 000 ciklus) védi a távoli szerverekre küldött archívumokat még az átvitel előtt.
 - 🪶 **Suttogóan csendes működés**: Kooperatív párhuzamosság (`Task.yield()`), intelligens I/O ütemezés, alacsony QoS prioritás és energiagazdálkodási felügyelet gátolja meg a Mac felmelegedését.
 - 🛡️ **Zsarolóvírus- és anomáliavédelem**: Elemzi a módosulási arányokat és a tömeges kiterjesztés-változásokat, így meggátolja a sérült vagy titkosított fájlok rögzítését.

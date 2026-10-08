@@ -94,6 +94,12 @@ struct OtterKeepCLI {
             await handleSchedule(subArgs)
         case "scrub":
             await handleScrub(subArgs)
+        case "diff":
+            await handleDiff(subArgs)
+        case "lock":
+            await handleLock(subArgs)
+        case "unlock":
+            await handleUnlock(subArgs)
         default:
             print(L10n.format(.cliUnknownCommand, command))
             exitCLI(1)
@@ -173,6 +179,22 @@ struct OtterKeepCLI {
           scrub                     \(L10n.t(.cliCmdScrubDesc))
             --profile <name|uuid>   Specify profile to scrub
             --limit <number>        Limit count of recent snapshots to inspect
+
+          diff                      Compare two snapshots or side-by-side file contents
+            --profile <name|uuid>   Specify profile
+            --target <id>           Target snapshot ID (default: latest)
+            --base <id>             Base snapshot ID (default: previous)
+            --file <rel_path>       Specific file to compare
+            --side-by-side          Render aligned side-by-side line comparison
+
+          lock                      Apply WORM immutability protection to a snapshot
+            --profile <name|uuid>   Specify profile
+            --snapshot <id>         Specify snapshot ID
+            --days <count>          Lock duration in days (default: 30)
+
+          unlock                    Remove user immutable flag from a snapshot
+            --profile <name|uuid>   Specify profile
+            --snapshot <id>         Specify snapshot ID
 
         Options:
           --debug                   \(L10n.t(.cliOptDebug))
@@ -333,6 +355,9 @@ struct OtterKeepCLI {
                 switch dest.type {
                 case .s3:
                     mediaTypes.insert("cloud_s3")
+                    hasOffsite = true
+                case .backblazeB2:
+                    mediaTypes.insert("cloud_b2")
                     hasOffsite = true
                 case .smb:
                     mediaTypes.insert("network_smb")
@@ -565,7 +590,8 @@ struct OtterKeepCLI {
                 let df = ISO8601DateFormatter()
                 for s in snaps {
                     let typeTag = s.backupType == "full" ? "[FULL]" : "[INC] "
-                    print("• \(typeTag) [\(s.id)]  \(df.string(from: s.timestamp))  \(s.totalFiles) \(L10n.t(.filesCountUnit))  \(formatBytes(s.totalBytes))  (\(s.snapshotPath))")
+                    let lockTag = s.isLocked ? " 🔒[WORM LOCKED]" : ""
+                    print("• \(typeTag) [\(s.id)]  \(df.string(from: s.timestamp))  \(s.totalFiles) \(L10n.t(.filesCountUnit))  \(formatBytes(s.totalBytes))  (\(s.snapshotPath))\(lockTag)")
                 }
             }
         } catch {
@@ -933,6 +959,220 @@ struct OtterKeepCLI {
             exitCLI(0)
         } catch {
             print("\n❌ Scrubbing failed: \(error.localizedDescription)")
+            exitCLI(1)
+        }
+    }
+
+    // MARK: - Diff & Side-by-Side Comparison
+
+    static func handleDiff(_ args: [String]) async {
+        let profileName = getOption("--profile", from: args)
+        let targetId = getOption("--target", from: args)
+        let baseId = getOption("--base", from: args)
+        let fileRel = getOption("--file", from: args)
+        let sideBySide = args.contains("--side-by-side")
+
+        let store = ProfileStore.shared
+        let profiles = store.loadProfiles()
+        guard !profiles.isEmpty else {
+            print(L10n.t(.cliNoProfiles))
+            exitCLI(1)
+        }
+
+        let profile: BackupProfile
+        if let target = profileName {
+            guard let matched = profiles.first(where: { $0.name.lowercased() == target.lowercased() || $0.id.uuidString.lowercased() == target.lowercased() }) else {
+                print(L10n.format(.cliProfileNotFound, target))
+                exitCLI(1)
+            }
+            profile = matched
+        } else {
+            profile = profiles[0]
+        }
+
+        let dbPath = profile.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite").path
+        let db = DatabaseEngine()
+        do {
+            try await db.open(at: dbPath)
+            let snaps = try await db.listSnapshots()
+            guard !snaps.isEmpty else {
+                print(L10n.t(.noSnapshotsAvailable))
+                exitCLI(1)
+            }
+
+            let effectiveTargetId = targetId ?? snaps[0].id
+            let effectiveBaseId = baseId ?? (snaps.count > 1 ? snaps[1].id : nil)
+
+            if let filePath = fileRel {
+                guard let bId = effectiveBaseId,
+                      let snapBase = snaps.first(where: { $0.id == bId }),
+                      let snapTarget = snaps.first(where: { $0.id == effectiveTargetId }) else {
+                    print("❌ Requires at least two snapshots to compare file content.")
+                    exitCLI(1)
+                }
+
+                let urlA = profile.destinationURL.appendingPathComponent(snapBase.snapshotPath).appendingPathComponent("root").appendingPathComponent(filePath)
+                let urlB = profile.destinationURL.appendingPathComponent(snapTarget.snapshotPath).appendingPathComponent("root").appendingPathComponent(filePath)
+
+                let diffResult = try TextDiffEngine().diffFiles(leftURL: urlA, rightURL: urlB, relativePath: filePath)
+                print("📄 File comparison: '\(filePath)'")
+                print("   Base:   [\(snapBase.id)] (\(snapBase.snapshotPath))")
+                print("   Target: [\(snapTarget.id)] (\(snapTarget.snapshotPath))\n")
+
+                if diffResult.isBinary {
+                    print("⚠️ Binary file detected: inline text diff is not available.")
+                    print("   Base size:   \(diffResult.leftSize) bytes")
+                    print("   Target size: \(diffResult.rightSize) bytes")
+                    exitCLI(0)
+                }
+
+                if diffResult.addedLinesCount == 0 && diffResult.deletedLinesCount == 0 && diffResult.modifiedLinesCount == 0 {
+                    print("✅ Files are identical.")
+                    exitCLI(0)
+                }
+
+                print("Changes: +\(diffResult.addedLinesCount) lines, -\(diffResult.deletedLinesCount) lines\n")
+
+                if sideBySide {
+                    print("┌─── BASE ──────────────────────────────┬─── TARGET ────────────────────────────┐")
+                    for row in diffResult.rows {
+                        let leftNum = row.leftLineNumber.map { String(format: "%3d", $0) } ?? "   "
+                        let leftContent = (row.leftText ?? "").prefix(34).padding(toLength: 34, withPad: " ", startingAt: 0)
+                        let rightNum = row.rightLineNumber.map { String(format: "%3d", $0) } ?? "   "
+                        let rightContent = (row.rightText ?? "").prefix(34).padding(toLength: 34, withPad: " ", startingAt: 0)
+                        let sep: String
+                        switch row.type {
+                        case .added: sep = "│ + "
+                        case .deleted: sep = "│ - "
+                        case .modified: sep = "│ ~ "
+                        case .unchanged: sep = "│   "
+                        }
+                        print("│ \(leftNum) \(leftContent) \(sep)\(rightNum) \(rightContent) │")
+                    }
+                    print("└───────────────────────────────────────┴───────────────────────────────────────┘")
+                } else {
+                    for row in diffResult.rows {
+                        switch row.type {
+                        case .added:
+                            print("+ [\(row.rightLineNumber ?? 0)] \(row.rightText ?? "")")
+                        case .deleted:
+                            print("- [\(row.leftLineNumber ?? 0)] \(row.leftText ?? "")")
+                        case .modified:
+                            print("~ [\(row.leftLineNumber ?? 0) → \(row.rightLineNumber ?? 0)] \(row.rightText ?? "")")
+                        case .unchanged:
+                            break
+                        }
+                    }
+                }
+            } else {
+                let report = try await SnapshotDiffEngine.shared.diff(
+                    database: db,
+                    targetSnapshotId: effectiveTargetId,
+                    baseSnapshotId: effectiveBaseId
+                )
+                print("📊 Snapshot Diff Report:")
+                print("   Base:   \(report.baseSnapshotId ?? "Initial State")")
+                print("   Target: \(report.targetSnapshotId)\n")
+                print("   • Added:     \(report.addedCount) files")
+                print("   • Modified:  \(report.modifiedCount) files")
+                print("   • Deleted:   \(report.deletedCount) files")
+                print("   • Net size:  \(formatBytes(report.netBytesDelta))\n")
+
+                for item in report.items where item.changeType != .unchanged {
+                    let symbol = item.changeType == .added ? "+" : (item.changeType == .deleted ? "-" : "~")
+                    print("  \(symbol) \(item.relativePath)")
+                }
+            }
+        } catch {
+            print("❌ Diff failed: \(error.localizedDescription)")
+            exitCLI(1)
+        }
+    }
+
+    // MARK: - WORM Immutability Locking
+
+    static func handleLock(_ args: [String]) async {
+        guard let snapId = getOption("--snapshot", from: args) else {
+            print("❌ Missing required parameter: --snapshot <id>")
+            exitCLI(1)
+        }
+        let profileName = getOption("--profile", from: args)
+        let days = getOption("--days", from: args).flatMap(Int.init) ?? 30
+
+        let store = ProfileStore.shared
+        let profiles = store.loadProfiles()
+        guard !profiles.isEmpty else {
+            print(L10n.t(.cliNoProfiles))
+            exitCLI(1)
+        }
+
+        let profile = profileName.flatMap { target in
+            profiles.first(where: { $0.name.lowercased() == target.lowercased() || $0.id.uuidString.lowercased() == target.lowercased() })
+        } ?? profiles[0]
+
+        let dbPath = profile.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite").path
+        let db = DatabaseEngine()
+        do {
+            try await db.open(at: dbPath)
+            let snaps = try await db.listSnapshots()
+            guard let snap = snaps.first(where: { $0.id == snapId }) else {
+                print("❌ Snapshot '\(snapId)' not found.")
+                exitCLI(1)
+            }
+
+            let lockedUntil = Date().addingTimeInterval(Double(days) * 86400)
+            try await db.updateSnapshotLockedUntil(id: snapId, lockedUntil: lockedUntil)
+
+            let snapURL = profile.destinationURL.appendingPathComponent(snap.snapshotPath)
+            let storage = APFSFileSystemProvider()
+            try? storage.setImmutable(at: snapURL, immutable: true, recursive: true)
+
+            let df = ISO8601DateFormatter()
+            print("🔒 Snapshot '\(snapId)' locked with WORM immutability.")
+            print("   Protected until: \(df.string(from: lockedUntil)) (\(days) days)")
+        } catch {
+            print("❌ Failed to lock snapshot: \(error.localizedDescription)")
+            exitCLI(1)
+        }
+    }
+
+    static func handleUnlock(_ args: [String]) async {
+        guard let snapId = getOption("--snapshot", from: args) else {
+            print("❌ Missing required parameter: --snapshot <id>")
+            exitCLI(1)
+        }
+        let profileName = getOption("--profile", from: args)
+
+        let store = ProfileStore.shared
+        let profiles = store.loadProfiles()
+        guard !profiles.isEmpty else {
+            print(L10n.t(.cliNoProfiles))
+            exitCLI(1)
+        }
+
+        let profile = profileName.flatMap { target in
+            profiles.first(where: { $0.name.lowercased() == target.lowercased() || $0.id.uuidString.lowercased() == target.lowercased() })
+        } ?? profiles[0]
+
+        let dbPath = profile.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite").path
+        let db = DatabaseEngine()
+        do {
+            try await db.open(at: dbPath)
+            let snaps = try await db.listSnapshots()
+            guard let snap = snaps.first(where: { $0.id == snapId }) else {
+                print("❌ Snapshot '\(snapId)' not found.")
+                exitCLI(1)
+            }
+
+            try await db.updateSnapshotLockedUntil(id: snapId, lockedUntil: nil)
+
+            let snapURL = profile.destinationURL.appendingPathComponent(snap.snapshotPath)
+            let storage = APFSFileSystemProvider()
+            try? storage.setImmutable(at: snapURL, immutable: false, recursive: true)
+
+            print("🔓 Snapshot '\(snapId)' unlocked.")
+        } catch {
+            print("❌ Failed to unlock snapshot: \(error.localizedDescription)")
             exitCLI(1)
         }
     }

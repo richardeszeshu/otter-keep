@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import os
 import OtterKeepStorage
 import OtterKeepDatabase
@@ -47,11 +48,13 @@ public actor DataScrubberEngine {
     /// - Parameters:
     ///   - backupRootURL: Root backup folder URL.
     ///   - limitSnapshots: Optional maximum count of recent snapshots to inspect (default: nil = all).
+    ///   - throttleSleepMs: Micro-sleep duration in milliseconds between file checks to throttle I/O.
     ///   - onProgress: Optional progress callback.
     /// - Returns: A persisted `ScrubAuditRecord` documenting the results.
     public func performScrub(
         backupRootURL: URL,
         limitSnapshots: Int? = nil,
+        throttleSleepMs: UInt64 = 0,
         onProgress: (@Sendable (ScrubRunProgress) -> Void)? = nil
     ) async throws -> ScrubAuditRecord {
         let startTime = Date()
@@ -87,6 +90,16 @@ public actor DataScrubberEngine {
             let files = try await database.listFiles(forSnapshotId: snap.id)
             for record in files where record.checksum != nil && !record.isDirectory && !record.isSymlink {
                 try Task.checkCancellation()
+
+                // Thermal state governance: if device is under heavy thermal pressure, pause momentarily
+                if ProcessInfo.processInfo.thermalState == .serious || ProcessInfo.processInfo.thermalState == .critical {
+                    try? await Task.sleep(nanoseconds: 500_000_000) // 500 ms cool-off
+                }
+
+                // Adaptive I/O throttling micro-sleep
+                if throttleSleepMs > 0 {
+                    try? await Task.sleep(nanoseconds: throttleSleepMs * 1_000_000)
+                }
 
                 let fileURL = snapRoot.appendingPathComponent(record.relativePath)
                 let filePath = fileURL.standardizedFileURL.path(percentEncoded: false)
@@ -146,8 +159,32 @@ public actor DataScrubberEngine {
         } else {
             logger.error("Data scrubbing finished with \(corruptedFiles.count) corrupted files detected!")
             LogManager.shared.log("WARNING: Data Scrubbing pass detected errors! \(corruptedFiles.count) corrupted or missing files found.", level: .error, category: "Integrity")
+
+            // Proactively alert the user via macOS native notification center
+            let firstSnapshot = snapshots.first?.id ?? "unknown"
+            NotificationDeliveryService.shared.notifyScrubCorruptionDetected(
+                corruptedCount: corruptedFiles.count,
+                snapshotId: firstSnapshot
+            )
         }
 
         return auditRecord
+    }
+
+    /// Spawns an asynchronous, low-priority background data scrubbing task with `.background` QoS and adaptive I/O throttling.
+    public nonisolated func performSilentBackgroundScrub(
+        backupRootURL: URL,
+        limitSnapshots: Int? = nil,
+        throttleSleepMs: UInt64 = 5,
+        onProgress: (@Sendable (ScrubRunProgress) -> Void)? = nil
+    ) -> Task<ScrubAuditRecord, Error> {
+        Task(priority: .background) {
+            return try await self.performScrub(
+                backupRootURL: backupRootURL,
+                limitSnapshots: limitSnapshots,
+                throttleSleepMs: throttleSleepMs,
+                onProgress: onProgress
+            )
+        }
     }
 }

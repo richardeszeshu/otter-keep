@@ -83,7 +83,11 @@ public final class APFSDriver: BasePOSIXFileSystemDriver, @unchecked Sendable {
         )
     }
 
+    public override func setImmutable(at url: URL, immutable: Bool, recursive: Bool) throws {
+        try darwinSetImmutable(at: url, immutable: immutable, recursive: recursive, allowUnsupportedIgnore: false)
+    }
+
     public override func setImmutable(at url: URL, immutable: Bool) throws {
-        try darwinSetImmutable(at: url, immutable: immutable, allowUnsupportedIgnore: false)
+        try setImmutable(at: url, immutable: immutable, recursive: false)
     }
 }

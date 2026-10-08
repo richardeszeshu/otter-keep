@@ -1,5 +1,5 @@
 cask "otterkeep" do
-  version "1.4.0"
+  version "1.5.0"
   sha256 "REPLACE_WITH_SHA256"
 
   url "https://github.com/richardeszeshu/otter-keep/releases/download/v#{version}/OtterKeep-#{version}.dmg"

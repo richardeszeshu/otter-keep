@@ -107,10 +107,19 @@ public final class DefaultFileSystemProvider: FileSystemProvider, Sendable {
     }
 
     /// Sets or removes the BSD file immutability flag (`UF_IMMUTABLE`) via the driver.
-    /// - Parameters:
-    ///   - url: Target item URL.
-    ///   - immutable: True to set `UF_IMMUTABLE`, false to clear.
+    public func setImmutable(at url: URL, immutable: Bool, recursive: Bool) throws {
+        try registry.driver(for: url).setImmutable(at: url, immutable: immutable, recursive: recursive)
+    }
+
     public func setImmutable(at url: URL, immutable: Bool) throws {
-        try registry.driver(for: url).setImmutable(at: url, immutable: immutable)
+        try setImmutable(at: url, immutable: immutable, recursive: false)
+    }
+
+
+    /// Queries whether the BSD file immutability flag (`UF_IMMUTABLE` or `SF_IMMUTABLE`) is set on the item.
+    /// - Parameter url: Target item URL.
+    /// - Returns: True if immutable.
+    public func isFileImmutable(at url: URL) throws -> Bool {
+        try registry.driver(for: url).isFileImmutable(at: url)
     }
 }

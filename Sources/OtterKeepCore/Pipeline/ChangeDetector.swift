@@ -86,7 +86,11 @@ public struct ChangeDetector: Sendable {
 
 
                 if sizeMatches && mtimeMatches {
-                    if hashMode == .thoroughSampling && !item.metadata.isDirectory && !item.metadata.isSymlink {
+                    if item.isDatalessICloud {
+                        // Dataless iCloud items: Size and modification time match.
+                        // Strictly bypass content hashing or sampling to prevent kernel APFS faults / unintentional downloads.
+                        unmodified.append((current: item, previous: prev))
+                    } else if hashMode == .thoroughSampling && !item.metadata.isDirectory && !item.metadata.isSymlink {
                         // Thorough sampling mode: verify content hash against previous checksum
                         if let prevSample = prev.sampleHash, !prevSample.isEmpty {
                             if FastHashCalculator.samplingMatches(sourceURL: item.url, expectedSamplingHash: prevSample) {
@@ -107,9 +111,13 @@ public struct ChangeDetector: Sendable {
                         unmodified.append((current: item, previous: prev))
                     }
                 } else if sizeMatches && !mtimeMatches && hashMode != .metadataOnly && !item.metadata.isDirectory && !item.metadata.isSymlink {
-                    // Smart Hash: Size matches but mtime changed (e.g. touch, git checkout, meta touch).
-                    // Fast path: Check 64 KB sparse sample hash first for sub-millisecond check!
-                    if let prevSample = prev.sampleHash, !prevSample.isEmpty {
+                    if item.isDatalessICloud {
+                        // Dataless iCloud file with changed modification time indicates remote cloud modification.
+                        // Mark as modified directly without reading sample bytes to prevent premature download faults.
+                        modified.append(item)
+                    } else if let prevSample = prev.sampleHash, !prevSample.isEmpty {
+                        // Smart Hash: Size matches but mtime changed (e.g. touch, git checkout, meta touch).
+                        // Fast path: Check 64 KB sparse sample hash first for sub-millisecond check!
                         if FastHashCalculator.samplingMatches(sourceURL: item.url, expectedSamplingHash: prevSample) {
                             unmodified.append((current: item, previous: prev))
                         } else {

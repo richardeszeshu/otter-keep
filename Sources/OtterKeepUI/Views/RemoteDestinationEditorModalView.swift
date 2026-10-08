@@ -125,7 +125,8 @@ public struct RemoteDestinationEditorModalView: View {
         case 0: return "icloud.and.arrow.up.fill"
         case 1: return "server.rack"
         case 2: return "network"
-        default: return "terminal.fill"
+        case 3: return "terminal.fill"
+        default: return "flame.fill"
         }
     }
 
@@ -134,7 +135,8 @@ public struct RemoteDestinationEditorModalView: View {
         case 0: return OtterTheme.oceanicTeal
         case 1: return OtterTheme.otterAmber
         case 2: return OtterTheme.oceanicTeal
-        default: return OtterTheme.accentPurple
+        case 3: return OtterTheme.accentPurple
+        default: return OtterTheme.statusError
         }
     }
 
@@ -153,6 +155,10 @@ public struct RemoteDestinationEditorModalView: View {
         case 3:
             return !appState.destinationEditorSFTPHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
                    !appState.destinationEditorSFTPUsername.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case 4:
+            return !appState.destinationEditorB2KeyId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+                   !appState.destinationEditorB2AppKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+                   !appState.destinationEditorB2BucketName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         default:
             return false
         }
@@ -182,8 +188,10 @@ public struct RemoteDestinationEditorModalView: View {
                         smbConfigurationCard
                     case 2:
                         webdavConfigurationCard
-                    default:
+                    case 3:
                         sftpConfigurationCard
+                    default:
+                        b2ConfigurationCard
                     }
 
                     // 3. Compressed Packaging Card
@@ -288,6 +296,14 @@ public struct RemoteDestinationEditorModalView: View {
                         subtitle: "Secure Remote Shell",
                         icon: "terminal.fill",
                         accentColor: OtterTheme.accentPurple
+                    )
+
+                    destinationTypeTile(
+                        index: 4,
+                        title: "Backblaze B2",
+                        subtitle: "B2 Native / S3",
+                        icon: "flame.fill",
+                        accentColor: OtterTheme.statusError
                     )
                 }
             }
@@ -700,6 +716,60 @@ public struct RemoteDestinationEditorModalView: View {
                         }
                     }
                 }
+            }
+        }
+        .otterCard(padding: 14)
+    }
+
+    // MARK: - Section 2.5: Backblaze B2 Configuration
+    private var b2ConfigurationCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label(L10n.t(.destTypeBackblazeB2), systemImage: "flame.fill")
+                .font(.headline)
+                .foregroundStyle(OtterTheme.statusError)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L10n.t(.b2KeyId))
+                    .font(.caption.bold())
+                TextField("004abc...", text: Binding(get: { appState.destinationEditorB2KeyId }, set: { appState.destinationEditorB2KeyId = $0 }))
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L10n.t(.b2ApplicationKey))
+                    .font(.caption.bold())
+                SecureField("K004...", text: Binding(get: { appState.destinationEditorB2AppKey }, set: { appState.destinationEditorB2AppKey = $0 }))
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L10n.t(.b2BucketName))
+                        .font(.caption.bold())
+                    TextField("my-backup-bucket", text: Binding(get: { appState.destinationEditorB2BucketName }, set: { appState.destinationEditorB2BucketName = $0 }))
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L10n.t(.b2Region))
+                        .font(.caption.bold())
+                    TextField("us-west-004", text: Binding(get: { appState.destinationEditorB2Region }, set: { appState.destinationEditorB2Region = $0 }))
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L10n.t(.b2CustomEndpoint))
+                    .font(.caption.bold())
+                TextField("s3.us-west-004.backblazeb2.com (optional)", text: Binding(get: { appState.destinationEditorB2CustomEndpoint }, set: { appState.destinationEditorB2CustomEndpoint = $0 }))
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Path Prefix")
+                    .font(.caption.bold())
+                TextField("otterkeep", text: Binding(get: { appState.destinationEditorB2PathPrefix }, set: { appState.destinationEditorB2PathPrefix = $0 }))
+                    .textFieldStyle(.roundedBorder)
             }
         }
         .otterCard(padding: 14)

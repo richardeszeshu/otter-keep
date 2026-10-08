@@ -5,9 +5,9 @@
 
 [![macOS](https://img.shields.io/badge/macOS-15.0%2B%20%28Sequoia%29-blue.svg)](https://apple.com/macos)
 [![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
-[![Version](https://img.shields.io/badge/version-1.4.0-emerald.svg)](https://github.com/richardeszeshu/otter-keep/releases)
-[![Build](https://img.shields.io/badge/build-1400-cyan.svg)](https://github.com/richardeszeshu/otter-keep)
-[![Tests](https://img.shields.io/badge/tests-50%2F50%20passed-brightgreen.svg)](https://github.com/richardeszeshu/otter-keep)
+[![Version](https://img.shields.io/badge/version-1.5.0-emerald.svg)](https://github.com/richardeszeshu/otter-keep/releases)
+[![Build](https://img.shields.io/badge/build-1500-cyan.svg)](https://github.com/richardeszeshu/otter-keep)
+[![Tests](https://img.shields.io/badge/tests-59%2F59%20passed-brightgreen.svg)](https://github.com/richardeszeshu/otter-keep)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
 [![Hungarian](https://img.shields.io/badge/Magyar%20nyelv-README.hu.md-red.svg)](README.hu.md)
 
@@ -29,6 +29,12 @@ Unlike traditional backup utilities that trigger thermal throttling, battery dra
 ## Key Highlights
 
 - ⚡ **Near-Zero Byte Duplication**: Leverages APFS Copy-on-Write (`clonefile(2)`) so duplicate and unchanged files consume zero extra blocks on APFS destinations.
+- 🔍 **Side-by-Side Snapshot Diffing**: Aligned dual-column file comparison with Myers LCS text diffing and binary inspection directly in GUI and CLI.
+- 🛡️ **Silent Background Data Scrubber**: Whisper-quiet background process (`I/O QoS: .background`) continually re-verifying SHA-256 hashes against silent bit-rot.
+- 🔒 **WORM Immutability Locking**: Hardware/BSD-enforced `uchg` flags protect snapshots from deletion or ransomware for configurable retention periods (30 days default).
+- ☁️ **Backblaze B2 Cloud Integration**: Native Backblaze B2 S3-compatible cloud storage destination.
+- ⚡ **Parallel Multi-Destination & Catch-Up**: Simultaneous APFS CoW local and remote replication with offline tolerance and automated background catch-up.
+- 🍏 **Dataless iCloud Change Detection**: Detects modified iCloud files purely from file size and mtime without triggering unwanted downloads.
 - 🔒 **Zero-Knowledge Privacy & Client Encryption**: Client-side AES-256-GCM encryption with PBKDF2-HMAC-SHA256 key derivation (600,000 rounds) protects remote archives before transmission.
 - 🪶 **Whisper-Quiet Efficiency**: Strict cooperative concurrency (`Task.yield()`), I/O throttling, QoS scheduling, and macOS power state awareness eliminate fan noise and thermal spikes.
 - 🛡️ **Ransomware & Anomaly Shield**: Analyzes differential change ratios and mass extension changes before committing snapshots, shielding against mass file corruption.

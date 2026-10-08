@@ -90,7 +90,7 @@ public actor RetentionManager {
         var deletedIds: [String] = []
 
         for snap in snapshotsToDelete {
-            try await deleteSnapshot(destinationURL: destinationURL, snapshot: snap)
+            try await deleteSnapshot(destinationURL: destinationURL, snapshot: snap, isPruning: true)
             deletedIds.append(snap.id)
         }
 
@@ -131,15 +131,22 @@ public actor RetentionManager {
     /// - Parameters:
     ///   - destinationURL: Backup destination root URL.
     ///   - snapshot: The snapshot record to remove.
-    public func deleteSnapshot(destinationURL: URL, snapshot: SnapshotRecord) async throws {
+    ///   - isPruning: True when triggered by automated retention pruning policy.
+    public func deleteSnapshot(destinationURL: URL, snapshot: SnapshotRecord, isPruning: Bool = false) async throws {
+        if snapshot.isLocked && !isPruning {
+            let msg = "Snapshot '\(snapshot.id)' is locked with WORM immutability until \(snapshot.lockedUntil?.description ?? ""). Deletion rejected."
+            logger.error("\(msg)")
+            throw FileSystemError.permissionDenied(path: "\(snapshot.snapshotPath) (\(msg))")
+        }
+
         let snapshotDir = destinationURL.standardizedFileURL.appendingPathComponent(snapshot.snapshotPath)
         let trashDir = destinationURL.standardizedFileURL.appendingPathComponent(".trash_\(snapshot.snapshotPath)")
 
-        logger.info("Initiating snapshot deletion: \(snapshot.id) (\(snapshot.snapshotPath))")
+        logger.info("Initiating snapshot deletion (pruning: \(isPruning)): \(snapshot.id) (\(snapshot.snapshotPath))")
 
-        // 0. Unlock BSD immutability (UF_IMMUTABLE) before renaming/deleting
+        // 0. Unlock BSD immutability (UF_IMMUTABLE) recursively before renaming/deleting
         if FileManager.default.fileExists(atPath: snapshotDir.standardizedFileURL.path(percentEncoded: false)) {
-            try? storage.setImmutable(at: snapshotDir, immutable: false)
+            try? storage.setImmutable(at: snapshotDir, immutable: false, recursive: true)
         }
 
         // 1. Atomically rename to hidden `.trash` directory so it disappears instantly from Finder
@@ -152,7 +159,7 @@ public actor RetentionManager {
 
         // 3. Remove physical files in background
         if FileManager.default.fileExists(atPath: trashDir.standardizedFileURL.path(percentEncoded: false)) {
-            try? storage.setImmutable(at: trashDir, immutable: false)
+            try? storage.setImmutable(at: trashDir, immutable: false, recursive: true)
             try storage.removeItem(at: trashDir)
         }
 

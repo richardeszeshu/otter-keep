@@ -41,8 +41,19 @@ public protocol FileSystemDriver: Sendable {
     func createDirectory(at url: URL) throws
 
     /// Sets or clears immutability / protection flags.
-    func setImmutable(at url: URL, immutable: Bool) throws
+    func setImmutable(at url: URL, immutable: Bool, recursive: Bool) throws
+
+    /// Queries whether the item is immutable.
+    func isFileImmutable(at url: URL) throws -> Bool
 }
+
+public extension FileSystemDriver {
+    /// Convenience overload default for non-recursive immutability flag manipulation.
+    func setImmutable(at url: URL, immutable: Bool) throws {
+        try setImmutable(at: url, immutable: immutable, recursive: false)
+    }
+}
+
 
 /// Abstract base POSIX implementation providing shared low-level utilities for filesystem drivers.
 open class BasePOSIXFileSystemDriver: FileSystemDriver, @unchecked Sendable {
@@ -424,10 +435,58 @@ open class BasePOSIXFileSystemDriver: FileSystemDriver, @unchecked Sendable {
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
     }
 
-    public func darwinSetImmutable(at url: URL, immutable: Bool, allowUnsupportedIgnore: Bool) throws {
+    public func darwinSetImmutable(
+        at url: URL,
+        immutable: Bool,
+        recursive: Bool = false,
+        allowUnsupportedIgnore: Bool = true
+    ) throws {
         let path = normalizedPath(for: url)
+        var isDir: ObjCBool = false
+        let exists = FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
+        guard exists else {
+            throw FileSystemError.itemNotFound(path: path)
+        }
 
+        if !recursive || !isDir.boolValue {
+            try applyDarwinImmutability(toPath: path, isDir: isDir.boolValue, immutable: immutable, allowUnsupportedIgnore: allowUnsupportedIgnore)
+            return
+        }
+
+        // Recursive application
         if !immutable {
+            // Unlocking: unlock root directory first so contents can be accessed and modified
+            try applyDarwinImmutability(toPath: path, isDir: true, immutable: false, allowUnsupportedIgnore: allowUnsupportedIgnore)
+
+            if let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: []) {
+                for case let itemURL as URL in enumerator {
+                    let subPath = normalizedPath(for: itemURL)
+                    var subIsDir: ObjCBool = false
+                    _ = FileManager.default.fileExists(atPath: subPath, isDirectory: &subIsDir)
+                    try applyDarwinImmutability(toPath: subPath, isDir: subIsDir.boolValue, immutable: false, allowUnsupportedIgnore: allowUnsupportedIgnore)
+                }
+            }
+        } else {
+            // Locking: lock descendants first, then lock root directory
+            if let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.isDirectoryKey], options: []) {
+                for case let itemURL as URL in enumerator {
+                    let subPath = normalizedPath(for: itemURL)
+                    var subIsDir: ObjCBool = false
+                    _ = FileManager.default.fileExists(atPath: subPath, isDirectory: &subIsDir)
+                    try applyDarwinImmutability(toPath: subPath, isDir: subIsDir.boolValue, immutable: true, allowUnsupportedIgnore: allowUnsupportedIgnore)
+                }
+            }
+            try applyDarwinImmutability(toPath: path, isDir: true, immutable: true, allowUnsupportedIgnore: allowUnsupportedIgnore)
+        }
+    }
+
+    private func applyDarwinImmutability(
+        toPath path: String,
+        isDir: Bool,
+        immutable: Bool,
+        allowUnsupportedIgnore: Bool
+    ) throws {
+        if !immutable && isDir {
             var st = stat()
             if lstat(path, &st) == 0 && (st.st_mode & S_IFMT) == S_IFDIR {
                 _ = chmod(path, st.st_mode | mode_t(0o700))
@@ -449,7 +508,7 @@ open class BasePOSIXFileSystemDriver: FileSystemDriver, @unchecked Sendable {
             )
         }
 
-        if immutable {
+        if immutable && isDir {
             var st = stat()
             if lstat(path, &st) == 0 && (st.st_mode & S_IFMT) == S_IFDIR {
                 _ = chmod(path, st.st_mode & ~mode_t(0o222))
@@ -457,7 +516,30 @@ open class BasePOSIXFileSystemDriver: FileSystemDriver, @unchecked Sendable {
         }
     }
 
+    public func darwinIsImmutable(at url: URL) throws -> Bool {
+        let path = normalizedPath(for: url)
+        var st = stat()
+        guard lstat(path, &st) == 0 else {
+            let err = errno
+            if err == ENOENT {
+                throw FileSystemError.itemNotFound(path: path)
+            }
+            throw FileSystemError.unknown(String(cString: strerror(err)))
+        }
+        let immutableMask = UInt32(UF_IMMUTABLE) | UInt32(SF_IMMUTABLE)
+        return (st.st_flags & immutableMask) != 0
+    }
+
+    open func isFileImmutable(at url: URL) throws -> Bool {
+        try darwinIsImmutable(at: url)
+    }
+
+    open func setImmutable(at url: URL, immutable: Bool, recursive: Bool) throws {
+        try darwinSetImmutable(at: url, immutable: immutable, recursive: recursive, allowUnsupportedIgnore: true)
+    }
+
     open func setImmutable(at url: URL, immutable: Bool) throws {
-        try darwinSetImmutable(at: url, immutable: immutable, allowUnsupportedIgnore: true)
+        try setImmutable(at: url, immutable: immutable, recursive: false)
     }
 }
+
