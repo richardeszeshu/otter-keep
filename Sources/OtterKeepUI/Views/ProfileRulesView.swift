@@ -542,7 +542,7 @@ public struct ProfileRulesView: View {
                                 appState.selectedProfile = updated
                             }
                         ), in: 1...100) {
-                            Text("\(profile.pruningPolicy.maxSnapshotsToKeep ?? 5) db")
+                            Text(L10n.format(.unitCountFormat, profile.pruningPolicy.maxSnapshotsToKeep ?? 5))
                                 .monospacedDigit()
                         }
                     }

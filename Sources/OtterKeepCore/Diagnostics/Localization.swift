@@ -1210,6 +1210,23 @@ public enum L10n {
         case scrubSuccessMessage
         case scrubCorruptedTitle
         case scrubCorruptedMessage
+
+        // MARK: - v1.6.0: Sanctuary Experience & Profile Status
+        case sanctuaryHeroTitle
+        case sanctuaryHeroSubtitleFormat
+        case sanctuaryNeverBackedUp
+        case sanctuaryNeverBackedUpAction
+        case profileStatusIdleNoBackups
+        case profileStatusLastBackupFormat
+        case profileStatusSnapshotsFormat
+        case menuBarReplicationRunning
+        case menuBarMoreProfilesFormat
+        case settingsFdaActiveSubtitle
+        case settingsFdaRequiredSubtitle
+        case settingsFinderActiveSubtitle
+        case settingsFinderInactiveSubtitle
+        case quickLookKeyboardHint
+        case daysCountUnitFormat
     }
 
 
@@ -2150,7 +2167,24 @@ public enum L10n {
         .scrubSuccessTitle: "Minden adat sértetlen!",
         .scrubSuccessMessage: "A(z) '%@' profil %lld pillanatképében található %lld fájl SHA-256 ellenőrzése sikeresen lezajlott. Nincs sérülés.",
         .scrubCorruptedTitle: "Adatsérülés észlelve!",
-        .scrubCorruptedMessage: "A(z) '%@' profilban az ellenőrzés %lld sérült vagy hiányzó fájlt észlelt. Tekintse meg a részleteket."
+        .scrubCorruptedMessage: "A(z) '%@' profilban az ellenőrzés %lld sérült vagy hiányzó fájlt észlelt. Tekintse meg a részleteket.",
+
+        // MARK: - v1.6.0: Sanctuary Experience & Profile Status
+        .sanctuaryHeroTitle: "Minden féltett kincsed biztonságban van",
+        .sanctuaryHeroSubtitleFormat: "Legutóbbi mentés: %@ • %@ őrzi",
+        .sanctuaryNeverBackedUp: "Ehhez a mappához még nem készült pillanatkép.",
+        .sanctuaryNeverBackedUpAction: "Készítsd el az első biztonságos mentést most!",
+        .profileStatusIdleNoBackups: "Még nincs mentés",
+        .profileStatusLastBackupFormat: "Legutóbb: %@",
+        .profileStatusSnapshotsFormat: "%d pillanatkép",
+        .menuBarReplicationRunning: "3-2-1 Távoli replikáció...",
+        .menuBarMoreProfilesFormat: "+ még %d profil...",
+        .settingsFdaActiveSubtitle: "macOS Teljes lemezhozzáférés aktív",
+        .settingsFdaRequiredSubtitle: "Szükséges a háttérmentésekhez",
+        .settingsFinderActiveSubtitle: "Kontextus menü és jelvények aktívak",
+        .settingsFinderInactiveSubtitle: "Finder kontextusos visszaállítás és jelvények",
+        .quickLookKeyboardHint: "Szóköz: Gyorsnézet",
+        .daysCountUnitFormat: "%d nap"
     ]
 
 
@@ -3084,7 +3118,24 @@ public enum L10n {
         .scrubSuccessTitle: "All Data Intact!",
         .scrubSuccessMessage: "In profile '%@', cryptographic SHA-256 verification of %lld snapshots (%lld files) completed successfully. No corruption found.",
         .scrubCorruptedTitle: "Data Corruption Detected!",
-        .scrubCorruptedMessage: "In profile '%@', the integrity check found %lld corrupted or missing files. Please review details."
+        .scrubCorruptedMessage: "In profile '%@', the integrity check found %lld corrupted or missing files. Please review details.",
+
+        // MARK: - v1.6.0: Sanctuary Experience & Profile Status
+        .sanctuaryHeroTitle: "All your cherished treasures are safe and protected",
+        .sanctuaryHeroSubtitleFormat: "Last backup: %@ • Guarded by %@",
+        .sanctuaryNeverBackedUp: "No snapshots have been captured for this folder yet.",
+        .sanctuaryNeverBackedUpAction: "Create your first safe backup now!",
+        .profileStatusIdleNoBackups: "No backups yet",
+        .profileStatusLastBackupFormat: "Last: %@",
+        .profileStatusSnapshotsFormat: "%d snapshots",
+        .menuBarReplicationRunning: "3-2-1 Offsite Replication...",
+        .menuBarMoreProfilesFormat: "+ %d more profiles...",
+        .settingsFdaActiveSubtitle: "macOS Full Disk Access active",
+        .settingsFdaRequiredSubtitle: "Required for background backups",
+        .settingsFinderActiveSubtitle: "Context menu & badges active",
+        .settingsFinderInactiveSubtitle: "Finder contextual restore & badges",
+        .quickLookKeyboardHint: "Space: Quick Look",
+        .daysCountUnitFormat: "%d days"
     ]
 }
 

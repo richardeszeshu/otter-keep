@@ -54,6 +54,8 @@ public struct RestoreExplorerView: View {
             switch appState.restoreBrowseMode {
             case .snapshot:
                 snapshotBrowseView
+            case .timeline:
+                fileTimelineBrowseView
             case .globalSearch:
                 globalSearchBrowseView
             }
@@ -116,7 +118,7 @@ public struct RestoreExplorerView: View {
                 }
             )) {
                 ForEach(RestoreBrowseMode.allCases) { mode in
-                    Text(mode.localizedTitle).tag(mode)
+                    Label(mode.localizedTitle, systemImage: mode.iconName).tag(mode)
                 }
             }
             .pickerStyle(.segmented)
@@ -125,24 +127,33 @@ public struct RestoreExplorerView: View {
 
             Spacer()
 
-            // Quick Look preview button
+            // Quick Look preview button with Space indicator
             Button {
                 appState.toggleQuickLook()
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: 5) {
                     Image(systemName: "eye")
                     Text(L10n.t(.previewSpaceButton))
+                    Text("⎵")
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(.quaternary, in: RoundedRectangle(cornerRadius: 3))
                 }
                 .font(.body)
             }
             .buttonStyle(.bordered)
             .controlSize(.regular)
             .disabled(appState.currentSelectedFileURL() == nil)
+            .help(L10n.t(.quickLookKeyboardHint))
 
             // Side-by-Side comparison button
             Button {
                 if appState.restoreBrowseMode == .globalSearch, let hit = appState.selectedGlobalSearchResult {
                     appState.openSideBySideDiff(forGlobalSearchResult: hit)
+                } else if appState.restoreBrowseMode == .timeline, let item = appState.selectedTimelineVersion {
+                    appState.openSideBySideDiff(forFileRecord: item.file, inSnapshotId: item.snapshot.id)
                 } else if appState.restoreBrowseMode == .snapshot, let file = appState.selectedFile, let snapId = appState.selectedSnapshotId {
                     appState.openSideBySideDiff(forFileRecord: file, inSnapshotId: snapId)
                 }
@@ -177,6 +188,9 @@ public struct RestoreExplorerView: View {
         if appState.restoreBrowseMode == .globalSearch {
             guard let hit = appState.selectedGlobalSearchResult else { return true }
             return hit.fileRecord.isDirectory
+        } else if appState.restoreBrowseMode == .timeline {
+            guard let item = appState.selectedTimelineVersion else { return true }
+            return item.file.isDirectory
         } else {
             guard let file = appState.selectedFile, appState.selectedSnapshotId != nil else { return true }
             return file.isDirectory

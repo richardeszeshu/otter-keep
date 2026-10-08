@@ -84,7 +84,7 @@ public struct ProfileRulesAndMaintenanceView: View {
             HStack(spacing: 8) {
                 Image(systemName: "scissors")
                     .font(.title3)
-                    .foregroundStyle(OtterTheme.squirrelOrange)
+                    .foregroundStyle(OtterTheme.otterAmber)
                 Text(L10n.t(.maintenanceConsolidationTitle))
                     .font(.headline)
             }
@@ -109,7 +109,7 @@ public struct ProfileRulesAndMaintenanceView: View {
                     appState.showConfirmPrune = true
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(OtterTheme.squirrelOrange)
+                .tint(OtterTheme.otterAmber)
                 .disabled(appState.snapshots.count <= appState.maxSnapshotsToKeep)
             }
         }

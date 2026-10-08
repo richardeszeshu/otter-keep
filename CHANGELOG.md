@@ -4,6 +4,39 @@ All notable changes to OtterKeep are documented in this file in accordance with 
 
 ---
 
+## [1.6.0] - 2026-10-08 (Build 1600)
+
+### 🌟 Release Summary / Verzióösszefoglaló
+Version **1.6.0** delivers a comprehensive UX and human interface polish across the entire OtterKeep GUI, adhering to native macOS Human Interface Guidelines (HIG) and the brand's Sanctuary Principle:
+- **Profile-Aware Last Backup Status**: Switching between backup profiles immediately and distinctly reflects that profile's last backup outcome, relative timestamp, and snapshot count across the sidebar, header bar, and dashboard hero card.
+- **Sanctuary Hero Card & Reassuring Hierarchy**: When idle, the dashboard presents a calm, non-alarmist Sanctuary card providing peace of mind and one-click actions; seamlessly transitions to a live telemetry HUD during operations.
+- **Time Machine Timeline Mode Reactivation**: Reactivated the vertical snapshot timeline view (`RestoreBrowseMode.timeline`) alongside Snapshot Browser and Global Search, with file difference comparison and QuickLook preview (`Space`).
+- **macOS Native Keyboard Shortcuts**: Fast navigation with `⌘1` (Overview), `⌘2` (Time Machine), `⌘3` (Rules & Maintenance), `⌘B` (Backup Now), `⌘D` (Dry-Run), and `⌘.` (Stop).
+- **Arculat Token Purge & Bilingual Localization**: Eliminated legacy color tokens in favor of OtterKeep's signature `otterAmber` and `oceanicTeal`, and fully localized system status subtitles, units, and menu bar descriptions in English and Hungarian.
+
+---
+
+### 🎨 Human Interface & Sanctuary UX / Felhasználói élmény és felület
+- **Sidebar Profile Status Indicators**: Each profile row in the sidebar list now displays a dynamic status dot and localized status line (e.g. *"Utolsó mentés: 5 perce"* / *"Last backup: 5 minutes ago"*, snapshot count, or live phase).
+- **Workspace Header Status Badge**: The header bar displays the selected profile's last backup state directly adjacent to its APFS Copy-on-Write badge.
+- **Cross-Profile Isolation**: Resolved summary leaks between profiles by implementing per-profile snapshot caching and status resolution (`lastStatusInfo(for:)`).
+- **QuickLook (`⎵`) Integration**: File rows in the restore explorer timeline support native macOS QuickLook file previews.
+
+### ⌨️ Native macOS Keyboard Shortcuts / Gyorsbillentyűk
+- `⌘1`: Áttekintés / Overview workspace tab
+- `⌘2`: Időgép / Time Machine restore explorer tab
+- `⌘3`: Szabályok és karbantartás / Rules & Maintenance tab
+- `⌘B`: Mentés indítása / Start backup now
+- `⌘D`: Próbafuttatás / Quick dry-run analysis
+- `⌘.`: Mentés megszakítása / Cancel active backup
+
+### 🌐 Bilingual Parity & String Localization / Kétnyelvű lokalizáció
+- Replaced hardcoded replication strings in `MenuBarContentView` with localized tokens (`.menuBarReplicationRunning`, `.menuBarMoreProfilesFormat`).
+- Localized Full Disk Access and Finder Extension card status descriptions in `SettingsView`.
+- Replaced raw unit strings with `.unitCountFormat` and `.daysCountUnitFormat`.
+
+---
+
 ## [1.5.0] - 2026-10-08 (Build 1500)
 
 ### 🌟 Release Summary / Verzióösszefoglaló

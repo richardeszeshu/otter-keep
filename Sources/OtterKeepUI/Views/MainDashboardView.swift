@@ -15,18 +15,22 @@ public struct MainDashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: OtterTheme.spacing16) {
                 if let profile = appState.selectedProfile {
-                    // SPOF Warning Banner (Hardware Redundancy Alert)
-                    if appState.volumeEvaluation?.isSameVolume == true {
-                        spofWarningBanner()
+                    // MARK: - Zone 1: Sanctuary Hero & Live Status (Top Priority)
+                    if appState.isBackupRunning(for: profile.id) {
+                        liveTelemetryHUD(for: profile)
+                    } else {
+                        sanctuaryHeroCard(for: profile)
                     }
 
-                    // 1. Visual APFS CoW Pipeline
-                    BackupPipelineView(
-                        sourceURL: profile.sourceURL,
-                        destinationURL: profile.destinationURL,
-                        cowMode: appState.volumeEvaluation?.cowMode ?? .intraVolumeCoW,
-                        isActive: appState.isBackupRunning(for: profile.id)
-                    )
+                    // Live Replication Banner
+                    if appState.isReplicationRunning {
+                        liveReplicationBanner
+                    }
+
+                    // Hardware Redundancy Recommendation (SPOF)
+                    if appState.volumeEvaluation?.isSameVolume == true {
+                        spofRecommendationBanner()
+                    }
 
                     // Profile Settings Locked Banner (While Active)
                     if appState.isBackupRunning(for: profile.id) {
@@ -48,7 +52,15 @@ public struct MainDashboardView: View {
                         .otterCard(padding: OtterTheme.spacing12)
                     }
 
-                    // 2. Storage Gauge Card
+                    // MARK: - Zone 2: Protection Pipeline & Storage Harmony
+                    BackupPipelineView(
+                        sourceURL: profile.sourceURL,
+                        destinationURL: profile.destinationURL,
+                        cowMode: appState.volumeEvaluation?.cowMode ?? .intraVolumeCoW,
+                        isActive: appState.isBackupRunning(for: profile.id)
+                    )
+
+                    // Storage Gauge Card
                     if let capacity = appState.destinationStorageCapacity() {
                         StorageGaugeBar(
                             totalBytes: capacity.totalBytes,
@@ -60,30 +72,16 @@ public struct MainDashboardView: View {
                         .otterCard()
                     }
 
-                    // 3. 3-2-1 Rule & Off-site Compliance Card
-                    rule321ComplianceCard(profile: profile)
-
-                    // 4. Live Replication Banner
-                    if appState.isReplicationRunning {
-                        liveReplicationBanner
-                    }
-
-                    // 5. Live Telemetry HUD (When backup is actively running for this profile) or Last Session Summary
-                    if appState.isBackupRunning(for: profile.id) {
-                        liveTelemetryHUD(for: profile)
-                    } else if let summary = appState.profileLastSummaries[profile.id] ?? appState.lastSessionSummary {
-                        lastSessionCard(summary: summary)
-                    } else if appState.progressState(for: profile.id).phase != .idle {
-                        liveTelemetryHUD(for: profile)
-                    }
-
                     // Storage Capacity Forecasting & Quota Alerts
                     StorageForecastCardView(appState: appState)
 
-                    // 4. Source & Destination Folders Overview
+                    // MARK: - Zone 3: Guardianship & Resilience
+                    rule321ComplianceCard(profile: profile)
+
+                    // Source & Destination Folders Overview
                     storageOverviewSection(profile: profile)
 
-                    // 5. Quick Statistics
+                    // Quick Statistics
                     quickStatsSection(profile: profile)
 
                 } else {
@@ -107,12 +105,90 @@ public struct MainDashboardView: View {
         }
     }
 
-    // MARK: - SPOF Warning Banner
-    private func spofWarningBanner() -> some View {
+    // MARK: - Sanctuary Hero Card
+    private func sanctuaryHeroCard(for profile: BackupProfile) -> some View {
+        let status = appState.lastStatusInfo(for: profile)
+        return HStack(alignment: .center, spacing: 16) {
+            OtterKeepLogoView(size: 44, withGlow: true, withBorder: true)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(L10n.t(.sanctuaryHeroTitle))
+                        .font(OtterTheme.cardTitleFont)
+                        .foregroundStyle(.primary)
+
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(status.hasSnapshots ? OtterTheme.statusGreen : OtterTheme.otterAmber)
+                            .frame(width: 6, height: 6)
+                        Text(status.displayStatusText)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(status.hasSnapshots ? OtterTheme.statusGreen : OtterTheme.otterAmber)
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background((status.hasSnapshots ? OtterTheme.statusGreen : OtterTheme.otterAmber).opacity(0.12), in: Capsule())
+                }
+
+                if status.hasSnapshots {
+                    HStack(spacing: 8) {
+                        Text(status.displayDetailText)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        Text("•")
+                            .foregroundStyle(.tertiary)
+
+                        Text(L10n.format(.profileStatusSnapshotsFormat, status.totalSnapshots))
+                            .font(.subheadline.bold().monospacedDigit())
+                            .foregroundStyle(OtterTheme.oceanicTeal)
+                    }
+                } else {
+                    Text(L10n.t(.sanctuaryNeverBackedUp))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            if let sum = status.lastSessionSummary {
+                VStack(alignment: .trailing, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text(String(format: "%.1fs", sum.durationSeconds))
+                            .font(.caption.monospacedDigit().bold())
+                    }
+                    Text(ByteCountFormatter.string(fromByteCount: sum.totalScannedBytes, countStyle: .file))
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Button {
+                appState.startBackup(for: profile)
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "arrow.clockwise.circle.fill")
+                    Text(L10n.t(.quickBackupAction))
+                }
+                .font(.callout.bold())
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(OtterTheme.otterAmber)
+            .controlSize(.regular)
+        }
+        .otterHeroCard(padding: 16)
+    }
+
+    // MARK: - Hardware Redundancy Recommendation Banner (SPOF)
+    private func spofRecommendationBanner() -> some View {
         HStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.title2)
-                .foregroundStyle(OtterTheme.statusWarning)
+            Image(systemName: "info.circle.fill")
+                .font(.title3)
+                .foregroundStyle(OtterTheme.otterAmber)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.t(.spofBannerTitle))
@@ -127,10 +203,10 @@ public struct MainDashboardView: View {
             Spacer()
         }
         .padding(12)
-        .background(OtterTheme.statusWarning.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(OtterTheme.otterAmber.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(OtterTheme.statusWarning.opacity(0.3), lineWidth: 1)
+                .stroke(OtterTheme.otterAmber.opacity(0.2), lineWidth: 1)
         )
     }
 

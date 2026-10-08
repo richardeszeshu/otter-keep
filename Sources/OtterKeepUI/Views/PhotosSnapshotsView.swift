@@ -134,7 +134,7 @@ public struct PhotosSnapshotsView: View {
                             Label(L10n.t(.revealInFinderButton), systemImage: "arrow.up.forward.app")
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(OtterTheme.squirrelOrange)
+                        .tint(OtterTheme.otterAmber)
                     }
                     .padding(12)
                     .background(OtterTheme.cardBackground)

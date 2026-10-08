@@ -43,9 +43,9 @@ public struct NewProfileModalView: View {
             HStack(spacing: 12) {
                 Image(systemName: "folder.badge.plus")
                     .font(.title2)
-                    .foregroundStyle(OtterTheme.squirrelOrange)
+                    .foregroundStyle(OtterTheme.otterAmber)
                     .frame(width: 36, height: 36)
-                    .background(OtterTheme.squirrelOrange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                    .background(OtterTheme.otterAmber.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.t(.newProfileSheetTitle))
@@ -166,7 +166,7 @@ public struct NewProfileModalView: View {
                 HStack {
                     Label(L10n.t(.destinationFolderTitle), systemImage: "internaldrive.fill")
                         .font(.caption.bold())
-                        .foregroundStyle(OtterTheme.squirrelOrange)
+                        .foregroundStyle(OtterTheme.otterAmber)
                     Spacer()
                     Text(L10n.t(.newProfileDestinationDesc))
                         .font(.caption2)
@@ -176,7 +176,7 @@ public struct NewProfileModalView: View {
 
                 HStack(spacing: 10) {
                     Image(systemName: "internaldrive.fill")
-                        .foregroundStyle(OtterTheme.squirrelOrange)
+                        .foregroundStyle(OtterTheme.otterAmber)
                         .font(.title3)
 
                     Text(appState.newProfileDestinationURL.path)

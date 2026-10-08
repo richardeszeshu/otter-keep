@@ -108,12 +108,12 @@ public struct BackupPipelineView: View {
         VStack(spacing: 4) {
             ZStack {
                 Circle()
-                    .fill(OtterTheme.squirrelOrange.opacity(0.12))
+                    .fill(OtterTheme.otterAmber.opacity(0.12))
                     .frame(width: 32, height: 32)
 
                 Image(systemName: "cpu")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(OtterTheme.squirrelOrange)
+                    .foregroundStyle(OtterTheme.otterAmber)
                     .symbolEffect(.pulse, isActive: isActive)
             }
 
@@ -132,12 +132,12 @@ public struct BackupPipelineView: View {
         HStack(spacing: 3) {
             ForEach(0..<4, id: \.self) { _ in
                 Circle()
-                    .fill(isActive ? OtterTheme.squirrelOrange : Color.secondary.opacity(0.25))
+                    .fill(isActive ? OtterTheme.otterAmber : Color.secondary.opacity(0.25))
                     .frame(width: 3, height: 3)
             }
             Image(systemName: "chevron.right")
                 .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(isActive ? OtterTheme.squirrelOrange : Color.secondary.opacity(0.4))
+                .foregroundStyle(isActive ? OtterTheme.otterAmber : Color.secondary.opacity(0.4))
         }
         .padding(.horizontal, 6)
     }

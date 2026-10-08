@@ -1,6 +1,6 @@
 # OtterKeep Architecture Blueprint
 
-This document specifies the technical architecture of OtterKeep v1.5.0, detailing concurrency boundaries, actor isolation, multi-subsystem topology, and modern data verification pipelines.
+This document specifies the technical architecture of OtterKeep v1.6.0, detailing concurrency boundaries, actor isolation, multi-subsystem topology, and modern data verification pipelines.
 
 ---
 

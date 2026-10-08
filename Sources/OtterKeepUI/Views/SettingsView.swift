@@ -686,7 +686,7 @@ public struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 1) {
                             Text(hasFDA ? L10n.t(.permissionFDAGranted) : L10n.t(.permissionFDAMissing))
                                 .font(.callout.weight(.medium))
-                            Text(hasFDA ? "macOS Full Disk Access active" : "Required for background backups")
+                            Text(hasFDA ? L10n.t(.settingsFdaActiveSubtitle) : L10n.t(.settingsFdaRequiredSubtitle))
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -720,7 +720,7 @@ public struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 1) {
                             Text(isFinderEnabled ? L10n.t(.permissionFinderActive) : L10n.t(.permissionFinderInactive))
                                 .font(.callout.weight(.medium))
-                            Text(isFinderEnabled ? "Context menu & badges active" : "Finder contextual restore & badges")
+                            Text(isFinderEnabled ? L10n.t(.settingsFinderActiveSubtitle) : L10n.t(.settingsFinderInactiveSubtitle))
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }

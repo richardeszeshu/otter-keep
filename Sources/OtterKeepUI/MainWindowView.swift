@@ -174,25 +174,39 @@ public struct MainWindowView: View {
                 // MARK: 1. Backup Profiles Section
                 Section {
                     ForEach(appState.profiles) { profile in
+                        let statusInfo = appState.lastStatusInfo(for: profile)
                         NavigationLink(value: NavigationSection.profile(profile.id)) {
-                            Label {
-                                HStack {
-                                    Text(profile.name)
-                                        .font(.body)
-                                    Spacer()
-                                    if appState.isBackupRunning(for: profile.id) {
-                                        ProgressView()
-                                            .controlSize(.mini)
-                                    } else {
-                                        Circle()
-                                            .fill(OtterTheme.statusGreen)
-                                            .frame(width: 6, height: 6)
-                                    }
-                                }
-                            } icon: {
+                            HStack(alignment: .center, spacing: 8) {
                                 Image(systemName: "folder.fill")
                                     .foregroundStyle(.blue)
+                                    .font(.body)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    HStack(spacing: 4) {
+                                        Text(profile.name)
+                                            .font(.body.weight(.medium))
+                                            .lineLimit(1)
+                                        if appState.isBackupRunning(for: profile.id) {
+                                            ProgressView()
+                                                .controlSize(.mini)
+                                        }
+                                    }
+
+                                    Text(statusInfo.displayDetailText)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+
+                                Spacer(minLength: 4)
+
+                                if !appState.isBackupRunning(for: profile.id) {
+                                    Circle()
+                                        .fill(statusInfo.statusColor)
+                                        .frame(width: 6, height: 6)
+                                }
                             }
+                            .padding(.vertical, 2)
                         }
                         .contextMenu {
                             Button {

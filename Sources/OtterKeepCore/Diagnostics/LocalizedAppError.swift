@@ -47,10 +47,10 @@ public struct LocalizedAppError: Sendable {
                     isPermissionError: false,
                     isSpaceError: false
                 )
-            case .cloneFailed(let path, let code, let msg):
+            case .cloneFailed(let path, _, let msg):
                 return LocalizedAppError(
                     title: L10n.t(.errCloneFailedTitle),
-                    message: "\(path): [errno \(code)] \(msg)",
+                    message: "\(path): \(msg)",
                     remediation: L10n.t(.errCloneFailedRemediation),
                     isPermissionError: false,
                     isSpaceError: false

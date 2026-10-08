@@ -65,7 +65,7 @@ public struct PhotosBackupView: View {
                     appState.requestPhotosAuthorization()
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(OtterTheme.squirrelOrange)
+                .tint(OtterTheme.otterAmber)
                 .controlSize(.regular)
             }
             .padding(14)
@@ -146,7 +146,7 @@ public struct PhotosBackupView: View {
                 HStack {
                     Text(appState.photosProgressState.phaseDescription)
                         .font(.headline)
-                        .foregroundStyle(OtterTheme.squirrelOrange)
+                        .foregroundStyle(OtterTheme.otterAmber)
                     Spacer()
                     Text("\(Int(appState.photosProgressState.progressFraction * 100))%")
                         .font(.subheadline.bold().monospacedDigit())
@@ -199,7 +199,7 @@ public struct PhotosBackupView: View {
                             .font(.body.bold())
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(OtterTheme.squirrelOrange)
+                    .tint(OtterTheme.otterAmber)
                     .controlSize(.regular)
                 }
             }
@@ -208,7 +208,7 @@ public struct PhotosBackupView: View {
         .background(OtterTheme.cardBackground, in: RoundedRectangle(cornerRadius: OtterTheme.cardCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: OtterTheme.cardCornerRadius)
-                .stroke(appState.isPhotosBackupRunning ? OtterTheme.squirrelOrange.opacity(0.3) : OtterTheme.subtleBorder, lineWidth: 1)
+                .stroke(appState.isPhotosBackupRunning ? OtterTheme.otterAmber.opacity(0.3) : OtterTheme.subtleBorder, lineWidth: 1)
         )
     }
 
@@ -223,7 +223,7 @@ public struct PhotosBackupView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "internaldrive.fill")
                         .font(.title3)
-                        .foregroundStyle(OtterTheme.squirrelOrange)
+                        .foregroundStyle(OtterTheme.otterAmber)
                         .frame(width: 24)
 
                     VStack(alignment: .leading, spacing: 2) {
