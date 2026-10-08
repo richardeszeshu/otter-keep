@@ -1,126 +1,41 @@
-# Remote Destinations & 3-2-1 Backup Rule
+# Remote Destinations: SFTP, NAS & S3
 
-A local backup protects you from accidental file deletions, software corruption, and failed macOS updates. However, physical drive failures, theft, fires, or water damage require offsite protection.
-
-OtterKeep implements an enterprise-grade **3-2-1 Backup Engine** directly within a native macOS interface.
+OtterKeep supports storing encrypted backups across network attached storage (NAS) and remote servers using modern network storage adapters.
 
 ---
 
-## 1. The 3-2-1 Backup Standard
+## 1. Network Attached Storage (SMB / NFS / AFP)
 
-```mermaid
-flowchart TD
-    DATA["Your Vital Data\n(Mac Internal SSD)"]
-    COPY1["Copy 1: Local APFS Snapshot\n(Zero-Cost CoW on Internal/Secondary Volume)"]
-    COPY2["Copy 2: External Media\n(USB-C / Thunderbolt NVMe SSD)"]
-    COPY3["Copy 3: Offsite / Cloud Destination\n(Encrypted S3, SFTP, or WebDAV)"]
+If your local network includes a Synology, QNAP, TrueNAS, or macOS file server:
 
-    DATA --> COPY1
-    DATA --> COPY2
-    DATA --> COPY3
-```
-
-OtterKeep continuously audits your backup profile and displays real-time compliance badges:
-* 🟢 **3-2-1 Compliant**: Local primary + external drive + offsite remote replica.
-* 🟡 **Partially Protected**: Local backup + external drive (lacks offsite replication).
-* 🔴 **Single Point of Failure (SPOF)**: Backup resides on the same physical drive as the source data.
+1. Mount the network share in Finder (`Finder` → `Connect to Server` or `Cmd + K`, e.g. `smb://nas.local/backups`).
+2. Open OtterKeep and navigate to **Profile & Rules**.
+3. Under **Destination**, select the mounted volume path (e.g. `/Volumes/backups/OtterKeep`).
+4. **POSIX Hardlink Fallback**: When saving to an SMB/NFS share (which lacks APFS Copy-on-Write support), OtterKeep seamlessly falls back to POSIX hardlinks or intelligent differential file syncing to conserve disk bandwidth.
 
 ---
 
-## 2. Supported Remote Destinations
+## 2. Secure Shell File Transfer (SFTP)
 
-| Destination Type | Protocols / Providers | Best For | Encryption |
-|---|---|---|---|
-| **External SSD / Drive** | APFS, HFS+, ExFAT (USB-C/Thunderbolt) | Rapid full restores & Time Machine replacement | FileVault / Native APFS |
-| **S3 Object Storage** | AWS S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO | Cost-effective offsite cloud archiving | Client-Side AES-256-GCM |
-| **SFTP (SSH)** | Linux NAS, TrueNAS, Unraid, Remote Servers | Custom home servers & secure offsite SSH storage | Client-Side AES-256-GCM + SSH |
-| **WebDAV** | Nextcloud, ownCloud, Synology DSM, QNAP | Private clouds & multi-user NAS environments | Client-Side AES-256-GCM + HTTPS |
-| **SMB Network Share** | macOS / Windows / Samba file shares | Local office gigabit/10GbE network drives | Client-Side AES-256-GCM + SMB |
+For dedicated Linux servers or offsite storage hosts:
 
----
-
-## 3. Setting Up an S3 Destination (AWS, Cloudflare R2, MinIO, Backblaze B2)
-
-OtterKeep features built-in S3-compatible replication with support for custom endpoints and Path-Style addressing.
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Remote Destination: Cloudflare R2 / AWS S3                 │
-├─────────────────────────────────────────────────────────────┤
-│ Endpoint:    https://<account_id>.r2.cloudflarestorage.com  │
-│ Bucket Name: my-mac-backups                                 │
-│ Region:      auto (or us-east-1, eu-central-1)              │
-│ Prefix:      work-macbook-pro/                              │
-│ Access Key:  AKIAIOSFODNN7EXAMPLE                           │
-│ Secret Key:  ••••••••••••••••••••••••••••••••••••••••       │
-│ [x] Enable Client-Side Encryption (AES-GCM-256)            │
-│ [x] Enable Compressed Packaging (Tar.Zstandard)             │
-│                                                             │
-│ [ Test Connection ]                      [ Save & Verify ]  │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Steps:
-1. In OtterKeep, select your profile and navigate to **Remote Destinations**.
-2. Click **Add Remote Destination...** and choose **Amazon S3 / S3-Compatible**.
-3. Select a preset (AWS S3, Cloudflare R2, Backblaze B2, MinIO) or choose Custom.
-4. Input your **Endpoint URL**, **Bucket Name**, and **Credentials**.
-5. Enable **Client-Side Encryption** and enter a master encryption password (stored securely in the macOS Keychain).
-6. Click **Test Connection** to verify endpoint reachability and bucket permissions.
-7. Click **Save**.
+- Protocol: SFTP over SSH (Port 22 by default).
+- Authentication:
+  - **SSH Private Key** (Recommended): Ed25519 or RSA keys stored in `~/.ssh/`.
+  - **Password Authentication**: Persisted securely in the macOS Keychain.
+- **Security Features**:
+  - Arguments are shell-escaped to prevent command injection.
+  - Strict host key checking verifies server identity.
+  - Connections are verified before the backup begins.
 
 ---
 
-## 4. Setting Up SFTP (SSH)
+## 3. S3-Compatible Cloud Storage & Client Encryption
 
-For home servers, remote VPSs, and TrueNAS appliances:
+When streaming backups to Amazon S3, Cloudflare R2, Backblaze B2, or MinIO:
 
-1. Click **Add Remote Destination...** and choose **SFTP (SSH)**.
-2. Enter the **Hostname / IP Address** and **Port** (default: `22`).
-3. Enter your **Username**.
-4. Choose your **Authentication Method**:
-   * **SSH Private Key (Recommended)**: Click **Browse...** to select your `~/.ssh/id_ed25519` or `id_rsa` key file.
-   * **Password**: Securely stored in your encrypted macOS Keychain.
-5. Specify the remote directory path (e.g., `/mnt/storage/backups/otterkeep`).
-6. Click **Test Connection** to confirm SSH handshake and SFTP write privileges.
-
----
-
-## 5. Setting Up WebDAV (Nextcloud / Synology)
-
-1. Select **Add Remote Destination...** and choose **WebDAV**.
-2. Enter the WebDAV URL (e.g. `https://cloud.yourdomain.com/remote.php/dav/files/username/Backups`).
-3. Enter your Username and App Password.
-4. Test and save.
-
----
-
-## 6. Zero-Knowledge Client-Side Encryption (AES-GCM-256)
-
-When replicating to public clouds or third-party storage, privacy is paramount:
-
-* **Zero-Knowledge Architecture**: Files, folder hierarchies, and metadata are encrypted on your Mac **before** transmission over the network.
-* **Cipher**: Industry-standard **AES-256-GCM** authenticated encryption with hardware acceleration via Apple Silicon NEON / AES instructions.
-* **Key Derivation**: Passphrases are hardened using **Argon2id / PBKDF2** with dynamic salting.
-* **Key Storage**: Keys are stored in the hardware-backed **macOS Keychain** with biometric Touch ID / Apple Watch authorization.
-
----
-
-## 7. Compressed Packaging (Tar.Zstandard / Tar.Gzip)
-
-Uploading thousands of small files to cloud storage incurs significant API latency and per-request costs (such as AWS S3 PUT fees).
-
-OtterKeep offers **Archive Packaging**:
-* Streams your backup snapshot into a single `.tar.zst` (Zstandard) or `.tar.gz` archive.
-* **Zstandard (Zstd)** provides extreme compression ratios while decompressing at over 1 GB/s on Apple Silicon chips.
-* Dramatically slashes cloud storage fees and reduces replication time by up to 80%.
-
----
-
-## 8. Smart Bandwidth Throttling & Wi-Fi Protection
-
-Replications should never degrade your video conference calls or burn through your mobile data plan:
-
-* **Bandwidth Throttling**: Choose from **Unlimited**, **Fast** (25 MB/s), **Recommended** (10 MB/s), or **Gentle** (2 MB/s).
-* **Wi-Fi Filtering**: Configure an **Allowed Wi-Fi Networks** whitelist (e.g. `Home-Fiber-5G`, `Office-LAN`) to block replication when connected to public hotspots.
-* **Personal Hotspot Protection**: Automatically suspends replication when connected to an iPhone Personal Hotspot or metered cellular connection.
+### Zero-Knowledge Cryptography
+Before any file or metadata record leaves your Mac:
+1. **Key Derivation**: OtterKeep derives a 256-bit AES encryption key using **PBKDF2-HMAC-SHA256** with **600,000 iterations** and a unique cryptographic salt.
+2. **Authenticated Encryption**: Payloads are sealed into authenticated envelopes using **AES-256-GCM** with 128-bit authentication tags (`OKENC2` format).
+3. **Zero Knowledge**: The remote cloud provider receives only encrypted ciphertext blobs. Even in the event of a cloud server breach, your files remain completely inaccessible without your master passphrase.

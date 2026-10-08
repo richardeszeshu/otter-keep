@@ -1,198 +1,140 @@
-<div align="center">
-
 # OtterKeep 🦦
 
-### Autonomous, APFS-Native Incremental Backup & Replication Engine for macOS
+> **The Serene Guardian for Your macOS Digital Sanctuary**  
+> *Lightning-fast, whisper-quiet incremental backups powered by native APFS Copy-on-Write and modern Swift 6.*
 
-[![macOS](https://img.shields.io/badge/macOS-14.0%2B%20Sonoma%20%7C%2015.0%2B%20Sequoia-007AFF?style=flat&logo=apple&logoColor=white)](https://apple.com/macos)
-[![Swift](https://img.shields.io/badge/Swift-6.0-FA7343?style=flat&logo=swift&logoColor=white)](https://swift.org)
-[![Architecture](https://img.shields.io/badge/Architecture-Apple%20Silicon%20%7C%20Intel-000000?style=flat&logo=apple)](https://apple.com)
-[![License](https://img.shields.io/badge/License-MIT-teal.svg?style=flat)](LICENSE)
-[![Status](https://img.shields.io/badge/Release-1.3.0%20Production-2EA043?style=flat)](https://github.com/richardeszeshu/otter-keep/releases)
-
-<br/>
-
-**„Keep what you love close to your chest.”**  
-*„Őrizd a legfontosabb kincseidet biztos kezekben.”*
-
-<br/>
-
-[**Explore User Guides**](docs/userguide/getting-started.md) • 
-[**Download v1.3.0**](https://github.com/richardeszeshu/otter-keep/releases) • 
-[**Apple Photos Protection**](docs/userguide/photos-protection.md) • 
-[**Developer Docs**](docs/dev/architecture.md) • 
-[**Brand Guidelines**](docs/BRAND.md)
-
-</div>
+[![macOS](https://img.shields.io/badge/macOS-15.0%2B%20%28Sequoia%29-blue.svg)](https://apple.com/macos)
+[![Swift](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org)
+[![Version](https://img.shields.io/badge/version-1.4.0-emerald.svg)](https://github.com/richardeszeshu/otter-keep/releases)
+[![Build](https://img.shields.io/badge/build-1400-cyan.svg)](https://github.com/richardeszeshu/otter-keep)
+[![Tests](https://img.shields.io/badge/tests-50%2F50%20passed-brightgreen.svg)](https://github.com/richardeszeshu/otter-keep)
+[![License](https://img.shields.io/badge/license-MIT-lightgrey.svg)](LICENSE)
+[![Hungarian](https://img.shields.io/badge/Magyar%20nyelv-README.hu.md-red.svg)](README.hu.md)
 
 ---
 
-## 🌊 The Story of OtterKeep (Brand Lore)
+## Overview
 
-> *Sea otters have an extraordinary, instinctive ritual: throughout their entire lives, they carry their most prized favorite pebble tucked securely into a hidden pocket of skin beneath their forearms. They use it to open shells, play with it on the waves, and never let it go under any circumstances.*  
->
-> *OtterKeep protects the files, historical snapshots, and precious memories on your Mac with that exact same tender vigilance and devotion.*
+> 🌊 **The Story of OtterKeep (Brand Lore)**  
+> Sea otters have an extraordinary, instinctive ritual: throughout their entire lives, they carry their most prized favorite pebble tucked securely into a hidden pocket of skin beneath their forearms. They use it to open shells, play with it on the waves, and never let it go under any circumstances.  
+>  
+> **OtterKeep** protects the files, historical snapshots, and precious memories on your Mac with that exact same tender vigilance and devotion.
 
----
+**OtterKeep** is an open-source, human-centric backup and recovery solution engineered exclusively for modern macOS. Designed around **Ollie the Otter**—the calm guardian who meticulously collects and preserves treasures in an underwater pouch—OtterKeep treats your files as cherished memories that deserve lifelong sanctuary.
 
-## ⚡ Why OtterKeep?
-
-Traditional backup solutions on macOS are heavy, slow, and opaque. Full-disk Time Machine bundles are prone to image corruption, while basic rsync scripts duplicate files unnecessarily and break APFS deduplication.
-
-**OtterKeep** is engineered from the ground up for modern macOS:
-* **Zero-Cost Reflink Cloning**: Unmodified files take **0 additional bytes** on APFS drives using kernel-level `clonefile()` Copy-on-Write.
-* **Multi-Filesystem Driver Engine**: Unified strategy architecture supporting **APFS**, **exFAT** (with 10ms timestamp tolerance), **NTFS** (native source read & read-only pre-flight protection), and legacy FAT.
-* **Apple Photos Supercharged**: Full incremental backups for `.photoslibrary` with **iCloud Eviction Guard**—downloading full-res originals temporarily and evicting local cache so your Mac never runs out of disk space.
-* **True 3-2-1 Compliance**: Local point-in-time snapshots, external SSD mounts, and client-side encrypted replication to AWS S3, Cloudflare R2, MinIO, SFTP, and WebDAV.
-* **Active Ransomware Shield**: Detects suspicious mass file mutations or file deletions and aborts backups before snapshots can be compromised.
-* **Interactive Finder Integration**: Right-click any file directly in macOS Finder to inspect chronological versions and restore with one click.
+Unlike traditional backup utilities that trigger thermal throttling, battery drain, and unmount locks, OtterKeep leverages Apple's native **APFS Copy-on-Write (`clonefile`)** primitives to create instantaneous, differential filesystem snapshots with **zero additional storage overhead** until files change.
 
 ---
 
-## 📊 Feature Comparison Matrix
+## Key Highlights
 
-| Feature | OtterKeep 1.3.0 | Apple Time Machine | Traditional Cloud / Rsync |
-|---|:---:|:---:|:---:|
-| **Zero-Storage APFS CoW Reflinks** | ✅ **Yes (Kernel Native)** | ⚠️ Limited | ❌ No (Full Copies) |
-| **Multi-Filesystem Drivers (exFAT/NTFS)** | ✅ **Yes (Dedicated Drivers)** | ❌ APFS/HFS+ Only | ⚠️ Manual Scripting |
-| **Apple Photos Incremental & iCloud Guard** | ✅ **Yes (Full-Res + Evict)** | ❌ Cloud-only skipped | ❌ Broken Bundles |
-| **Encrypted 3-2-1 Offsite Replication** | ✅ **S3 / SFTP / WebDAV** | ❌ Local Only | ⚠️ Requires 3rd-party CLI |
-| **Ransomware & Anomaly Interceptor** | ✅ **Real-Time Guard** | ❌ No | ❌ No |
-| **Snapshot "What Changed?" Diff Engine** | ✅ **Visual GUI & CLI** | ❌ No | ⚠️ Complex Diff Tools |
-| **Native macOS Finder Context Menu** | ✅ **Built-In Extension** | ⚠️ Full App Only | ❌ No |
-| **Storage Depletion Forecasting** | ✅ **Linear Growth AI** | ❌ Fails when full | ❌ No |
-| **Bilingual UI (Hungarian & English)** | ✅ **Native EN & HU** | ⚠️ System Default | ❌ English Only |
-| **Open Source (MIT License)** | ✅ **100% Open Source** | ❌ Closed Source | ⚠️ Varies |
+- ⚡ **Near-Zero Byte Duplication**: Leverages APFS Copy-on-Write (`clonefile(2)`) so duplicate and unchanged files consume zero extra blocks on APFS destinations.
+- 🔒 **Zero-Knowledge Privacy & Client Encryption**: Client-side AES-256-GCM encryption with PBKDF2-HMAC-SHA256 key derivation (600,000 rounds) protects remote archives before transmission.
+- 🪶 **Whisper-Quiet Efficiency**: Strict cooperative concurrency (`Task.yield()`), I/O throttling, QoS scheduling, and macOS power state awareness eliminate fan noise and thermal spikes.
+- 🛡️ **Ransomware & Anomaly Shield**: Analyzes differential change ratios and mass extension changes before committing snapshots, shielding against mass file corruption.
+- 📸 **Apple Photos Sanctuary**: Native PhotoKit integration with differential asset scanning, live metadata sidecar generation (EXIF/IPTC/GPS to XMP), and ephemeral cache rate-limiting.
+- 🔌 **Safe Drive Management**: Explicit SQLite database closure (`PRAGMA wal_checkpoint(TRUNCATE)`) and connection release prevents external drive unmount locks during volume ejection.
+- 🇭🇺 **100% Native Bilingual Parity**: Fully localized in English and Hungarian across every interface screen, CLI command, and documentation guide.
 
 ---
 
-## 🛠 High-Level Architecture
+## Architectural Topology
 
-```mermaid
-flowchart TD
-    subgraph macOS Environment
-        SRC["User Folders & Photos Library\n(~/, ~/Pictures)"]
-        FSE["Finder Sync Extension\n(Badges & Context Menus)"]
-        MB["Menu Bar Status Item\n(Live Telemetry & Controls)"]
-    end
-
-    subgraph OtterKeep Core Engine
-        CORE["CoreEngine & SessionCoordinator"]
-        COW["APFS CoW Reflink Engine\n(Kernel clonefile)"]
-        DIFF["SnapshotDiffEngine"]
-        GUARD["Ransomware & Anomaly Guard"]
-        ICLOUD["iCloud Eviction Guard"]
-    end
-
-    subgraph Storage & Replicas
-        LOCAL["Local Destination Volume\n(APFS Snapshot Tree)"]
-        EXT["External SSD / Thunderbolt\n(Auto-Mount & Eject)"]
-        REMOTE["Remote Cloud Storage\n(AES-256 S3 / SFTP / WebDAV)"]
-    end
-
-    SRC --> CORE
-    FSE <--> CORE
-    MB <--> CORE
-    CORE --> COW & DIFF & GUARD & ICLOUD
-    COW --> LOCAL & EXT
-    CORE -->|Client-Side Encrypted| REMOTE
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    OtterKeep User Surface                   │
+│      SwiftUI Menu Bar Extra  •  Window  •  CLI Engine       │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+            Unix Domain Socket │ (AF_UNIX / Single Instance)
+            Peer UID Validated │ (getpeereid 0600 socket)
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       OtterKeepCore                         │
+│  ┌───────────────────────┐       ┌───────────────────────┐  │
+│  │ BackupSession         │       │ RestoreEngine         │  │
+│  │ Coordinator           │       │ Safe Collision Avoid. │  │
+│  └───────────┬───────────┘       └───────────┬───────────┘  │
+│              │                               │              │
+│  ┌───────────▼───────────┐       ┌───────────▼───────────┐  │
+│  │ Differential Scanner  │       │ Ransomware Anomaly    │  │
+│  │ GitIgnore Rule Engine │       │ Detection Guard       │  │
+│  └───────────────────────┘       └───────────────────────┘  │
+└──────────────┬───────────────────────────────┬──────────────┘
+               │                               │
+               ▼                               ▼
+┌─────────────────────────────┐ ┌─────────────────────────────┐
+│      OtterKeepDatabase      │ │      OtterKeepStorage       │
+│  SQLite WAL Mode            │ │  APFS CoW (clonefile)       │
+│  Batch File Cataloging      │ │  POSIX Hardlinks Fallback   │
+│  Timeline & Full-Text Search│ │  SFTP & S3 Adapters         │
+└─────────────────────────────┘ └─────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Quick Start Guide
+## Installation & Quick Start
 
-### 1. Installation
-
-#### Homebrew Cask (Recommended)
-```bash
-brew install --cask richardeszeshu/otterkeep/otterkeep
-```
-
-#### Manual Download
-1. Download the latest release from [Releases](https://github.com/richardeszeshu/otter-keep/releases).
-2. Move `OtterKeep.app` to `/Applications`.
-3. Launch OtterKeep and grant **Full Disk Access** when prompted.
-
----
-
-### 2. Create Your First Backup Profile
-
-1. Open OtterKeep and click **New Profile...**.
-2. Select your **Source Folder** (e.g. `~/Documents` or `~/Projects`).
-3. Select your **Destination Folder** (e.g. `/Volumes/BackupSSD/OtterVault`).
-4. Select a preset:
-   - **Developer**: Ignores `node_modules`, `.build`, `.git/objects`, and respects `.gitignore`.
-   - **Documents**: Tailored for office files, spreadsheets, and PDFs.
-   - **Creative & Media**: Optimized for high-res photography and video assets.
-5. Click **Start Backup Now**.
-
----
-
-### 3. Command Line Interface (CLI)
-
-OtterKeep includes the `otterkeep` CLI tool:
+### Homebrew Tap (Recommended)
 
 ```bash
-# Display system diagnostics and permission status
-otterkeep doctor
+brew tap richardeszeshu/otter-keep
+brew install --cask otterkeep
+```
 
-# Run an incremental backup for your active profile
-otterkeep backup --profile "Documents"
+### Direct Download
 
-# Simulate a backup without writing to disk
-otterkeep dry-run --profile "Documents"
+Download the signed and notarized `.dmg` or `.zip` package from the [Releases](https://github.com/richardeszeshu/otter-keep/releases) page. Mount the DMG and drag `OtterKeep.app` to your `/Applications` directory.
 
-# Inspect what changed between recent snapshots
-otterkeep diff --profile "Documents"
+### CLI Setup
 
-# Trigger an Apple Photos backup
-otterkeep photos backup --evict-icloud
+OtterKeep includes a fully standalone command-line executable `otterkeep-cli`:
+
+```bash
+# Verify installation
+otterkeep-cli version
+
+# Run a dry-run backup session
+otterkeep-cli backup run --dry-run
+
+# Inspect snapshot catalog
+otterkeep-cli snapshots list
 ```
 
 ---
 
-## 📚 Comprehensive Documentation
+## Documentation Index
 
-### 👤 End-User Guides (`docs/userguide/`)
-* [**Getting Started & Permissions Setup**](docs/userguide/getting-started.md) — First run, Full Disk Access (FDA), and profile creation.
-* [**Backup & Restore Master Guide**](docs/userguide/backup-and-restore.md) — APFS CoW, timeline exploration, QuickLook preview, and restoring files.
-* [**Apple Photos Protection Guide**](docs/userguide/photos-protection.md) — Incremental photo backups, iCloud Eviction Guard, and Live Photo pairing.
-* [**Remote Destinations & 3-2-1 Replication**](docs/userguide/remote-destinations.md) — Configuring S3, SFTP, WebDAV, AES-256 client encryption, and Zstd compression.
-* [**Frequently Asked Questions (FAQ)**](docs/userguide/faq.md) — Troubleshooting, performance optimizations, and security FAQs.
+Explore our comprehensive technical and user documentation:
 
-### 💻 Developer Guides (`docs/dev/`)
-* [**System Architecture**](docs/dev/architecture.md) — Swift 6 multi-process design, concurrency model, and modular subsystem breakdown.
-* [**Storage Engine & Provider Internals**](docs/dev/storage-engine.md) — Low-level APFS `clonefile()` mechanics, fallback providers, and cloud transfer engines.
-* [**Database Architecture & Schema Design**](docs/dev/database-design.md) — SQLite manifest catalog, WAL mode, query profiling, and disaster recovery.
-* [**Security Hardening & Privacy-Preserving Logging**](docs/dev/security-and-logging.md) — PBKDF2-HMAC-SHA256 client encryption, Keychain credential security, and PII sanitization.
-* [**Build, Testing & Packaging Pipeline**](docs/dev/build-and-packaging.md) — Compilation with SPM, 100-test suite execution, and macOS app bundling.
-* [**CLI Command Reference**](docs/dev/cli-reference.md) — Full terminal syntax, command flags, and shell automation scripts.
-* [**Contributing Guidelines**](docs/dev/contributing.md) — Building from source, testing with `OtterKeepTestRunner`, and code styling.
+### User Guides (`docs/userguide/`)
+- [**Getting Started**](docs/userguide/getting-started.md) — First-time setup, permissions (Full Disk Access), and quick configuration.
+- [**Backup & Restore**](docs/userguide/backup-and-restore.md) — Differential backup flows, snapshot browsing, and safe file restoration.
+- [**Remote Destinations**](docs/userguide/remote-destinations.md) — Configuring SFTP, NAS volumes, and S3-compatible cloud storage.
+- [**Photos Protection**](docs/userguide/photos-protection.md) — Apple Photos library backup, XMP sidecars, and iCloud eviction safeguards.
+- [**Frequently Asked Questions (FAQ)**](docs/userguide/faq.md) — Common questions, troubleshooting, and disk space management.
 
----
-
-## 🌍 Bilingual Support (HU / EN)
-
-OtterKeep is built from the ground up with first-class **English** and **Hungarian (Magyar)** localization. The interface automatically adapts to your macOS system language, or you can explicitly toggle your preference in **Settings > Language**.
+### Developer Guides (`docs/dev/`)
+- [**Architecture Blueprint**](docs/dev/architecture.md) — Actor isolation, multi-subsystem topology, and concurrency models.
+- [**Storage Engine & Filesystem Fidelity**](docs/dev/storage-engine.md) — APFS `clonefile(2)`, POSIX fallbacks, and metadata preservation.
+- [**Database Design & Cataloging**](docs/dev/database-design.md) — SQLite schema, WAL mode, timeline queries, and batch indexing.
+- [**Security & Unified Logging**](docs/dev/security-and-logging.md) — IPC peer validation, AES-256-GCM encryption, and log sanitization.
+- [**Testing Standards & Verification**](docs/dev/testing.md) — 10-module integration test suite, fault injection, and verification benchmarks.
+- [**CLI Reference**](docs/dev/cli-reference.md) — Complete manual for commands, options, and shell integration.
+- [**Build & Release Protocols**](docs/dev/build-and-packaging.md) — Compiling, DMG generation, notarization, and Sparkle appcasts.
+- [**Contributing Guidelines**](docs/dev/contributing.md) — Coding conventions, Git release flow, and PR checklist.
 
 ---
 
-## 🛡 Security & Privacy
+## Community & Philosophy
 
-* **Zero-Knowledge Encryption**: Cloud replicas are encrypted using **AES-256-GCM** before leaving your Mac.
-* **Apple Keychain**: All tokens, access keys, and passwords are protected inside the hardware-backed macOS Keychain.
-* **Log Sanitization**: Personal file paths, user identities, and sensitive credentials are automatically redacted from diagnostic logs.
-* **No Telemetry / No Tracking**: OtterKeep does not phone home, track usage, or sell your data.
-
----
-
-## 📜 License
-
-OtterKeep is distributed under the **MIT License**. See [LICENSE](LICENSE) for details.
+OtterKeep is built on three core pillars:
+1. **Sanctuary Over Storage**: Backups should not feel like an onerous IT chore. They should evoke feelings of warmth, safety, and reassurance.
+2. **Apple Silicon Harmony**: Modern Macs are powerful yet energy-conscious. Our software honors your battery and hardware by running unobtrusively.
+3. **Absolute Transparency**: Zero telemetry, zero cloud lock-in, open-source code, and native open file formats.
 
 ---
 
-<div align="center">
-<sub>Crafted with care in Hungary 🇭🇺 • Keep what you love close to your chest.</sub>
-</div>
+## License
+
+OtterKeep is licensed under the permissive [MIT License](LICENSE).

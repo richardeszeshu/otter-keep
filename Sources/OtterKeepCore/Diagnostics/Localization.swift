@@ -408,6 +408,8 @@ public enum L10n {
         case settingsEngineDesc
         case settingsProfilesSection
         case settingsProfilesSectionDesc
+        case profileMetadataSectionTitle
+        case profileMetadataSectionDesc
         case settingsCopyUUID
         case settingsUUIDCopied
         case settingsActiveBadge
@@ -501,6 +503,14 @@ public enum L10n {
         case restoreChoosePrompt
         case restoreRootFolder
         case restoreItemsCountFormat
+
+        // MARK: - Full Snapshot Restore
+        case restoreEntireSnapshotButton
+        case restoreEntireSnapshotTitle
+        case restoreEntireSnapshotConfirmFormat
+        case restoreEntireSnapshotSuccessFormat
+        case cliCmdRestoreEntireSnapshot
+        case cliOptionCollision
 
         // MARK: - Timeline State Badges
         case timelineInitialVersion
@@ -1155,6 +1165,13 @@ public enum L10n {
         case feedbackGeneralErrorAdvice
         case profileLockedBannerTitle
         case profileLockedBannerMessage
+
+        // MARK: - Restore & Maintenance (1.4.0)
+        case restoredSuffixFormat
+        case feedbackRestoreSuccessTitle
+        case feedbackRestoreSuccessMessage
+        case feedbackRestoreFailedTitle
+        case feedbackRestoreFailedMessage
     }
 
 
@@ -1319,6 +1336,8 @@ public enum L10n {
         .settingsEngineDesc: "Natív APFS Copy-on-Write alapú inkrementális biztonsági mentőrendszer Apple Silicon és Intel architektúrára.",
         .settingsProfilesSection: "Mentési Profilok és Azonosítók (UUID)",
         .settingsProfilesSectionDesc: "A OtterKeep által kezelt mentési profilok listája és azok egyedi UUID azonosítói.",
+        .profileMetadataSectionTitle: "Profil azonosítók & Rendszerinformációk",
+        .profileMetadataSectionDesc: "A profil egyedi belső azonosítója és konfigurációs elérési útvonalai.",
         .settingsCopyUUID: "Másolás",
         .settingsUUIDCopied: "Kimásolva!",
         .settingsActiveBadge: "Aktív",
@@ -1409,6 +1428,13 @@ public enum L10n {
         .restoreChoosePrompt: "Visszaállítás Ide",
         .restoreRootFolder: "Gyökérkönyvtár",
         .restoreItemsCountFormat: "%d elem",
+
+        .restoreEntireSnapshotButton: "Teljes Snapshot Visszaállítása...",
+        .restoreEntireSnapshotTitle: "Teljes Snapshot Visszaállítása Egyben",
+        .restoreEntireSnapshotConfirmFormat: "Biztosan visszaállítja a(z) '%@' snapshot teljes tartalmát a következő mappába?\n%@",
+        .restoreEntireSnapshotSuccessFormat: "A(z) '%@' snapshot összes fájlja (%lld fájl) sikeresen visszaállítva ide:\n%@",
+        .cliCmdRestoreEntireSnapshot: "Teljes snapshot összes fájljának visszaállítása egyben",
+        .cliOptionCollision: "Névütközés kezelése: overwrite | keepBoth | skip (alapértelmezett: keepBoth)",
 
         .timelineInitialVersion: "Kezdeti verzió",
         .timelineInitialCreated: "Létrehozva (Kezdeti verzió)",
@@ -2041,7 +2067,14 @@ public enum L10n {
         .feedbackGeneralErrorTitle: "A mentési művelet megszakadt",
         .feedbackGeneralErrorAdvice: "A meglévő adataid és korábbi mentéseid sértetlenek maradtak. Tekintsd meg a hibanaplót a hiba pontos részleteiért.",
         .profileLockedBannerTitle: "Mentés folyamatban",
-        .profileLockedBannerMessage: "A profil beállításai a mentés befejezéséig zárolva vannak az adatkonzisztencia megőrzése érdekében."
+        .profileLockedBannerMessage: "A profil beállításai a mentés befejezéséig zárolva vannak az adatkonzisztencia megőrzése érdekében.",
+
+        // MARK: - Restore & Maintenance (1.4.0)
+        .restoredSuffixFormat: " (visszaállított %d)",
+        .feedbackRestoreSuccessTitle: "Visszaállítás sikeresen befejeződött!",
+        .feedbackRestoreSuccessMessage: "A(z) '%@' pillanatképből %lld fájl sikeresen helyreállítva a megadott mappába.",
+        .feedbackRestoreFailedTitle: "A visszaállítás nem sikerült",
+        .feedbackRestoreFailedMessage: "Nem sikerült a pillanatkép visszaállítása: %@"
     ]
 
 
@@ -2199,6 +2232,8 @@ public enum L10n {
         .settingsEngineDesc: "Native APFS Copy-on-Write incremental backup system engineered for Apple Silicon and Intel Macs.",
         .settingsProfilesSection: "Backup Profiles & Identifiers (UUID)",
         .settingsProfilesSectionDesc: "List of managed backup profiles and their unique UUID identifiers.",
+        .profileMetadataSectionTitle: "Profile Identifiers & Metadata",
+        .profileMetadataSectionDesc: "Unique internal identifier and storage configuration paths for this profile.",
         .settingsCopyUUID: "Copy UUID",
         .settingsUUIDCopied: "Copied!",
         .settingsActiveBadge: "Active",
@@ -2289,6 +2324,13 @@ public enum L10n {
         .restoreChoosePrompt: "Restore Here",
         .restoreRootFolder: "Root Directory",
         .restoreItemsCountFormat: "%d items",
+
+        .restoreEntireSnapshotButton: "Restore Entire Snapshot...",
+        .restoreEntireSnapshotTitle: "Restore Entire Snapshot",
+        .restoreEntireSnapshotConfirmFormat: "Are you sure you want to restore the entire contents of snapshot '%@' to:\n%@",
+        .restoreEntireSnapshotSuccessFormat: "All files from snapshot '%@' (%lld files) successfully restored to:\n%@",
+        .cliCmdRestoreEntireSnapshot: "Restore all files from an entire snapshot at once",
+        .cliOptionCollision: "Collision resolution: overwrite | keepBoth | skip (default: keepBoth)",
 
         .timelineInitialVersion: "Initial version",
         .timelineInitialCreated: "Created (Initial version)",
@@ -2921,7 +2963,14 @@ public enum L10n {
         .feedbackGeneralErrorTitle: "Backup Operation Failed",
         .feedbackGeneralErrorAdvice: "Your existing data and snapshots remain untouched. Check the diagnostic logs for detailed error telemetry.",
         .profileLockedBannerTitle: "Backup in Progress",
-        .profileLockedBannerMessage: "Profile settings are temporarily locked while backup is running to preserve data consistency."
+        .profileLockedBannerMessage: "Profile settings are temporarily locked while backup is running to preserve data consistency.",
+
+        // MARK: - Restore & Maintenance (1.4.0)
+        .restoredSuffixFormat: " (restored %d)",
+        .feedbackRestoreSuccessTitle: "Restore Completed Successfully!",
+        .feedbackRestoreSuccessMessage: "Successfully restored %2$lld files from snapshot '%1$@' to the target directory.",
+        .feedbackRestoreFailedTitle: "Restore Operation Failed",
+        .feedbackRestoreFailedMessage: "Failed to restore snapshot: %@"
     ]
 }
 

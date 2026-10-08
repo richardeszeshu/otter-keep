@@ -35,7 +35,7 @@ public final class SingleInstanceManager: @unchecked Sendable {
     /// Shared singleton instance.
     public static let shared = SingleInstanceManager()
 
-    private let logger = Logger(subsystem: "com.otterkeep", category: "SingleInstance")
+    private let logger = Logger(subsystem: "com.otterkeep.desktop", category: "SingleInstance")
     private let lock = NSLock()
     private var serverSocketFD: Int32 = -1
     private var isListening: Bool = false
@@ -54,15 +54,23 @@ public final class SingleInstanceManager: @unchecked Sendable {
     }
 
     private init() {
-        createOtterKeepDirectoryIfNeeded()
+        ensureDirectoryPermissions()
+    }
+
+    /// Enforces strict 0700 permissions on the base ~/.otterkeep/ directory to protect IPC sockets and lock files.
+    public func ensureDirectoryPermissions() {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let dir = home.appendingPathComponent(".otterkeep", isDirectory: true)
+        let dirPath = dir.path(percentEncoded: false)
+        if !FileManager.default.fileExists(atPath: dirPath) {
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        }
+        try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dirPath)
+        chmod(dirPath, 0o700)
     }
 
     private func createOtterKeepDirectoryIfNeeded() {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let dir = home.appendingPathComponent(".otterkeep", isDirectory: true)
-        if !FileManager.default.fileExists(atPath: dir.path) {
-            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        }
+        ensureDirectoryPermissions()
     }
 
     /// Attempts to connect to an existing running primary GUI instance and forward the launch parameters.
@@ -275,6 +283,17 @@ public final class SingleInstanceManager: @unchecked Sendable {
                 continue
             }
 
+            // Verify peer UID matches current process UID to prevent cross-user spoofing
+            var peerUID: uid_t = 0
+            var peerGID: gid_t = 0
+            if getpeereid(clientFD, &peerUID, &peerGID) == 0 {
+                if peerUID != geteuid() {
+                    logger.error("Rejected unauthorized IPC connection from UID \(peerUID) (expected \(geteuid()))")
+                    close(clientFD)
+                    continue
+                }
+            }
+
             var nosigpipe: Int32 = 1
             setsockopt(clientFD, SOL_SOCKET, SO_NOSIGPIPE, &nosigpipe, socklen_t(MemoryLayout<Int32>.size))
 
@@ -330,8 +349,9 @@ public final class SingleInstanceManager: @unchecked Sendable {
             }
         }
 
-        if let path = filePath {
-            return SingleInstanceMessage(action: .openVersionHistory, filePath: path)
+        if let rawPath = filePath {
+            let standardized = URL(fileURLWithPath: rawPath).standardizedFileURL.path(percentEncoded: false)
+            return SingleInstanceMessage(action: .openVersionHistory, filePath: standardized)
         }
         return SingleInstanceMessage(action: .activate)
     }

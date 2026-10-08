@@ -295,7 +295,7 @@ public actor BackupSessionCoordinator {
     private let database: DatabaseEngine
     private let icloudController: ICloudEvictionController
     private let retentionManager: RetentionManager
-    private let logger = Logger(subsystem: "com.otterkeep", category: "BackupCoordinator")
+    private let logger = Logger(subsystem: "com.otterkeep.desktop", category: "BackupCoordinator")
 
     /// Summary of the most recently executed backup session.
     public private(set) var lastSessionSummary: BackupSessionSummary?
@@ -345,7 +345,7 @@ public actor BackupSessionCoordinator {
         reportProgress()
 
         let modeTag = mode == .full ? "[FORCED FULL BACKUP]" : "[INCREMENTAL]"
-        logger.info("\(modeTag) Backup started for profile '\(profile.name)' (UUID: \(profile.id.uuidString)) Source: \(profile.sourceURL.path), Destination: \(profile.destinationURL.path)")
+        logger.info("\(modeTag, privacy: .public) Backup started for profile '\(profile.name, privacy: .private)' (UUID: \(profile.id.uuidString, privacy: .public)) Source: \(profile.sourceURL.path, privacy: .private), Destination: \(profile.destinationURL.path, privacy: .private)")
         LogManager.shared.log("\(modeTag) Backup started for profile '\(profile.name)' [UUID: \(profile.id.uuidString)]. Source: '\(profile.sourceURL.path)', Destination: '\(profile.destinationURL.path)'", level: .info, category: "Backup")
 
         // Lock profile against concurrent operations across processes
@@ -1102,9 +1102,12 @@ public actor BackupSessionCoordinator {
             durationSeconds: duration
         )
 
+        // Safely close the database connection so SQLite locks and file descriptors are released
+        await database.close()
+
         // Automatic unmount/eject if enabled
         if profile.autoEjectOnCompletion && (snapshotStatus == "completed" || snapshotStatus == "completed_with_warnings") {
-            logger.info("Auto-eject enabled for profile '\(profile.name)'. Ejecting destination device...")
+            logger.info("Auto-eject enabled for profile '\(profile.name, privacy: .private)'. Ejecting destination device...")
             do {
                 try NSWorkspace.shared.unmountAndEjectDevice(at: profile.destinationURL)
                 LogManager.shared.log("Destination volume safely unmounted and ejected for profile '\(profile.name)'.", level: .info, category: "Storage")
@@ -1115,6 +1118,7 @@ public actor BackupSessionCoordinator {
 
         return snapshotRecord
     } catch {
+        await database.close()
         let duration = Double((ContinuousClock.now - startTime).components.seconds) + Double((ContinuousClock.now - startTime).components.attoseconds) / 1e18
         await runPostBackupHook(
             profile: profile,
@@ -1148,7 +1152,7 @@ public actor BackupSessionCoordinator {
     /// - Returns: A `DryRunSummary` metric structure.
     public func performDryRun(profile: BackupProfile, mode: BackupMode = .incremental) async throws -> DryRunSummary {
         let modeTag = mode == .full ? "[FORCED FULL BACKUP]" : "[INCREMENTAL]"
-        logger.info("Starting pre-backup analysis (Dry-Run \(modeTag)): '\(profile.name)' (Source: \(profile.sourceURL.path))")
+        logger.info("Starting pre-backup analysis (Dry-Run \(modeTag, privacy: .public)): '\(profile.name, privacy: .private)' (Source: \(profile.sourceURL.path, privacy: .private))")
 
         let destinationURL = profile.destinationURL.standardizedFileURL
         let internalDir = destinationURL.appendingPathComponent(".otterkeep")
@@ -1165,6 +1169,7 @@ public actor BackupSessionCoordinator {
                     }
                 }
             }
+            await database.close()
         }
 
         // Scan source directory respecting exclusion rules

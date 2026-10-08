@@ -61,8 +61,8 @@ public struct ProfileRulesView: View {
                 }
 
                 Group {
-                    // 1. Directory Paths Card
-                    folderPathsSection(profile: profile)
+                    // 1. Directory Overview Header
+                    folderSummaryHeader(profile: profile)
 
                     // 2. iCloud Storage Strategy
                     icloudStrategySection(profile: profile)
@@ -100,96 +100,42 @@ public struct ProfileRulesView: View {
         }
     }
 
-    // MARK: - 1. Folder Paths (Read-Only Overview)
-    private func folderPathsSection(profile: BackupProfile) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(L10n.t(.backupFoldersTitle))
-                    .font(.headline)
-                Spacer()
+    // MARK: - 1. Folder Overview Header
+    private func folderSummaryHeader(profile: BackupProfile) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "folder.badge.gearshape")
+                .font(.title2)
+                .foregroundStyle(OtterTheme.oceanicTeal)
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(profile.sourceURL.lastPathComponent)
+                        .font(.subheadline.bold())
+                    Image(systemName: "arrow.right")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.secondary)
+                    Text(profile.destinationURL.lastPathComponent)
+                        .font(.subheadline.bold())
+                }
+
                 Text(L10n.t(.rulesConfigOnDashboardNotice))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            VStack(alignment: .leading, spacing: 10) {
-                folderRow(
-                    title: L10n.t(.sourceFolderTitle),
-                    url: profile.sourceURL,
-                    icon: "folder.fill",
-                    iconColor: OtterTheme.oceanicTeal,
-                    onChange: {
-                        appState.selectSourceDirectory()
-                    }
-                )
-
-                Divider()
-
-                folderRow(
-                    title: L10n.t(.destinationFolderTitle),
-                    url: profile.destinationURL,
-                    icon: "internaldrive.fill",
-                    iconColor: OtterTheme.otterAmber,
-                    onChange: {
-                        appState.selectDestinationDirectory()
-                    }
-                )
-            }
-            .otterCard()
-        }
-    }
-
-    private func folderRow(
-        title: String,
-        url: URL,
-        icon: String,
-        iconColor: Color,
-        onChange: (() -> Void)? = nil
-    ) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(iconColor)
-                .frame(width: 24)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.caption.bold())
-                    .foregroundStyle(.secondary)
-                Text(url.path)
-                    .font(.callout.monospaced())
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-
             Spacer()
 
-            if let onChange = onChange {
-                Button {
-                    onChange()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "folder.badge.gearshape")
-                        Text(L10n.t(.changeFolderButton))
-                    }
-                    .font(.caption)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
-
             Button {
-                NSWorkspace.shared.activateFileViewerSelecting([url])
+                appState.activeProfileTab = .overview
             } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.up.forward.app")
-                    Text(L10n.t(.revealInFinderButton))
-                }
-                .font(.caption)
+                Label(L10n.t(.tabOverview), systemImage: "gauge.with.needle")
+                    .font(.caption.weight(.medium))
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
         }
+        .padding(14)
+        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - 2. iCloud Strategy

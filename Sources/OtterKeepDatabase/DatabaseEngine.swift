@@ -341,26 +341,42 @@ final class SQLiteHandle: @unchecked Sendable {
     init(pointer: OpaquePointer?) { self.pointer = pointer }
     deinit {
         if let ptr = pointer {
-            sqlite3_close(ptr)
+            sqlite3_close_v2(ptr)
         }
     }
 }
 
 /// High-performance, actor-isolated SQLite database engine managing snapshot metadata and file version history.
 public actor DatabaseEngine {
-    private let logger = Logger(subsystem: "com.otterkeep", category: "Database")
+    private let logger = Logger(subsystem: "com.otterkeep.desktop", category: "Database")
     private var handle: SQLiteHandle?
     private var db: OpaquePointer? { handle?.pointer }
 
     /// Initializes a new `DatabaseEngine` instance.
     public init() {}
 
+    /// Safely closes the active SQLite database connection, checkpoints the WAL journal, and releases all locks and file descriptors.
+    public func close() {
+        guard let handle = self.handle, let db = handle.pointer else { return }
+        _ = sqlite3_wal_checkpoint_v2(db, nil, SQLITE_CHECKPOINT_TRUNCATE, nil, nil)
+        sqlite3_close_v2(db)
+        handle.pointer = nil
+        self.handle = nil
+        logger.debug("Database connection closed and handles cleanly released.")
+    }
+
+    /// Whether the database currently has an active open connection.
+    public var isOpen: Bool {
+        db != nil
+    }
+
     /// Opens the SQLite database at the specified path and initializes tables, pragmas, and indices.
     /// - Parameter path: Full filesystem path to the SQLite file.
     public func open(at path: String) throws {
         if let oldHandle = handle {
             if let ptr = oldHandle.pointer {
-                sqlite3_close(ptr)
+                _ = sqlite3_wal_checkpoint_v2(ptr, nil, SQLITE_CHECKPOINT_TRUNCATE, nil, nil)
+                sqlite3_close_v2(ptr)
                 oldHandle.pointer = nil
             }
             handle = nil
@@ -370,7 +386,7 @@ public actor DatabaseEngine {
         let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
         if sqlite3_open_v2(path, &newPointer, flags, nil) != SQLITE_OK {
             let msg = newPointer.flatMap { String(cString: sqlite3_errmsg($0)) } ?? "Failed to open SQLite"
-            sqlite3_close(newPointer)
+            if let p = newPointer { sqlite3_close_v2(p) }
             throw DatabaseError.openFailed(msg)
         }
         self.handle = SQLiteHandle(pointer: newPointer)
