@@ -100,6 +100,12 @@ public struct SnapshotDiffView: View {
                 appState.loadSnapshotDiff()
             }
         }
+        .sheet(isPresented: Binding(
+            get: { appState.showSideBySideDiffModal },
+            set: { appState.showSideBySideDiffModal = $0 }
+        )) {
+            SideBySideDiffModalView(appState: appState)
+        }
     }
 
     // MARK: - 1. Top Controls Header
@@ -330,6 +336,17 @@ public struct SnapshotDiffView: View {
             sizeChangeLabel(for: item)
 
             // Context Actions
+            if item.changeType == .modified && !item.isDirectory {
+                Button {
+                    appState.openSideBySideDiff(for: item)
+                } label: {
+                    Image(systemName: "square.split.2x1")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .help(L10n.t(.diffSideBySideCompare))
+            }
+
             if let record = item.newRecord ?? item.oldRecord {
                 Button {
                     appState.selectedFile = record

@@ -48,6 +48,12 @@ public actor RetentionManager {
             snapshotsToKeep.insert(newestSnapshot.id)
         }
 
+        // Immutability Protection: Any snapshot with an active WORM lock (lockedUntil > Date()) must NEVER be pruned!
+        for snap in snapshots where snap.isLocked {
+            snapshotsToKeep.insert(snap.id)
+            logger.info("Snapshot '\(snap.id)' is locked with WORM immutability until \(snap.lockedUntil?.description ?? ""). Pruning skipped.")
+        }
+
         for snap in snapshots {
             if snap.timestamp >= oneDayAgo {
                 // 1. Preserve all snapshots taken within the last 24 hours (hourly granularity)
@@ -76,6 +82,10 @@ public actor RetentionManager {
                 if let newest = snapshots.first {
                     trimmed.insert(newest.id)
                 }
+                // Always preserve locked snapshots even when capped
+                for snap in snapshots where snap.isLocked {
+                    trimmed.insert(snap.id)
+                }
                 snapshotsToKeep = trimmed
             }
         }
@@ -86,7 +96,7 @@ public actor RetentionManager {
             return []
         }
 
-        let snapshotsToDelete = snapshots.filter { !snapshotsToKeep.contains($0.id) }
+        let snapshotsToDelete = snapshots.filter { !snapshotsToKeep.contains($0.id) && !$0.isLocked }
         var deletedIds: [String] = []
 
         for snap in snapshotsToDelete {
@@ -132,6 +142,12 @@ public actor RetentionManager {
     ///   - destinationURL: Backup destination root URL.
     ///   - snapshot: The snapshot record to remove.
     public func deleteSnapshot(destinationURL: URL, snapshot: SnapshotRecord) async throws {
+        if snapshot.isLocked {
+            let msg = "Snapshot '\(snapshot.id)' is locked with WORM immutability until \(snapshot.lockedUntil?.description ?? ""). Deletion rejected."
+            logger.error("\(msg)")
+            throw FileSystemError.permissionDenied(path: "\(snapshot.snapshotPath) (\(msg))")
+        }
+
         let snapshotDir = destinationURL.standardizedFileURL.appendingPathComponent(snapshot.snapshotPath)
         let trashDir = destinationURL.standardizedFileURL.appendingPathComponent(".trash_\(snapshot.snapshotPath)")
 

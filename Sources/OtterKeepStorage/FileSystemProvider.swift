@@ -269,4 +269,9 @@ public protocol FileSystemProvider: Sendable {
     ///   - url: Target item URL.
     ///   - immutable: True to set `UF_IMMUTABLE`, false to clear.
     func setImmutable(at url: URL, immutable: Bool) throws
+
+    /// Queries whether the BSD file immutability flag (`UF_IMMUTABLE` or `SF_IMMUTABLE`) is currently set on the target item.
+    /// - Parameter url: Target item URL.
+    /// - Returns: True if the file or directory is immutable.
+    func isFileImmutable(at url: URL) throws -> Bool
 }

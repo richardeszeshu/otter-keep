@@ -19,6 +19,8 @@ public struct SnapshotRecord: Sendable, Identifiable, Equatable {
     public let snapshotPath: String
     /// Type of the backup ("incremental" or "full").
     public let backupType: String
+    /// Immutability lock expiration date (nil if not locked).
+    public let lockedUntil: Date?
 
     /// Initializes a new `SnapshotRecord`.
     /// - Parameters:
@@ -29,6 +31,7 @@ public struct SnapshotRecord: Sendable, Identifiable, Equatable {
     ///   - totalBytes: Total byte size.
     ///   - snapshotPath: Relative snapshot directory name.
     ///   - backupType: Backup type ("incremental" or "full").
+    ///   - lockedUntil: Optional immutability lock expiration date.
     public init(
         id: String,
         timestamp: Date,
@@ -36,7 +39,8 @@ public struct SnapshotRecord: Sendable, Identifiable, Equatable {
         totalFiles: Int64,
         totalBytes: Int64,
         snapshotPath: String,
-        backupType: String = "incremental"
+        backupType: String = "incremental",
+        lockedUntil: Date? = nil
     ) {
         self.id = id
         self.timestamp = timestamp
@@ -45,6 +49,51 @@ public struct SnapshotRecord: Sendable, Identifiable, Equatable {
         self.totalBytes = totalBytes
         self.snapshotPath = snapshotPath
         self.backupType = backupType
+        self.lockedUntil = lockedUntil
+    }
+
+    /// Whether this snapshot is currently immutable and protected against pruning.
+    public var isLocked: Bool {
+        guard let lockDate = lockedUntil else { return false }
+        return lockDate > Date()
+    }
+}
+
+/// Representation of a deferred or pending secondary replication task awaiting destination availability.
+public struct PendingReplicationRecord: Sendable, Identifiable, Equatable {
+    public let id: String
+    public let profileId: UUID
+    public let snapshotId: String
+    public let destinationId: UUID
+    public let destinationType: String
+    public let status: String
+    public let retryCount: Int
+    public let createdAt: Date
+    public let lastAttemptAt: Date?
+    public let errorMessage: String?
+
+    public init(
+        id: String = UUID().uuidString,
+        profileId: UUID,
+        snapshotId: String,
+        destinationId: UUID,
+        destinationType: String,
+        status: String = "pending",
+        retryCount: Int = 0,
+        createdAt: Date = Date(),
+        lastAttemptAt: Date? = nil,
+        errorMessage: String? = nil
+    ) {
+        self.id = id
+        self.profileId = profileId
+        self.snapshotId = snapshotId
+        self.destinationId = destinationId
+        self.destinationType = destinationType
+        self.status = status
+        self.retryCount = retryCount
+        self.createdAt = createdAt
+        self.lastAttemptAt = lastAttemptAt
+        self.errorMessage = errorMessage
     }
 }
 
@@ -437,7 +486,8 @@ public actor DatabaseEngine {
             total_files INTEGER NOT NULL,
             total_bytes INTEGER NOT NULL,
             snapshot_path TEXT NOT NULL,
-            backup_type TEXT NOT NULL DEFAULT 'incremental'
+            backup_type TEXT NOT NULL DEFAULT 'incremental',
+            locked_until REAL
         );
 
         CREATE TABLE IF NOT EXISTS file_records (
@@ -521,11 +571,28 @@ public actor DatabaseEngine {
 
         CREATE INDEX IF NOT EXISTS idx_rep_files_lookup ON replication_files(destination_identifier, relative_path);
         CREATE INDEX IF NOT EXISTS idx_rep_files_snapshot ON replication_files(snapshot_id);
+
+        CREATE TABLE IF NOT EXISTS pending_replications (
+            id TEXT PRIMARY KEY,
+            profile_id TEXT NOT NULL,
+            snapshot_id TEXT NOT NULL,
+            destination_id TEXT NOT NULL,
+            destination_type TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            retry_count INTEGER NOT NULL DEFAULT 0,
+            created_at REAL NOT NULL,
+            last_attempt_at REAL,
+            error_message TEXT
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_pending_rep_status ON pending_replications(status);
+        CREATE INDEX IF NOT EXISTS idx_pending_rep_profile ON pending_replications(profile_id);
         """
         try execute(query: sql)
 
         // Schema migrations for existing databases
         try? execute(query: "ALTER TABLE snapshots ADD COLUMN backup_type TEXT NOT NULL DEFAULT 'incremental';")
+        try? execute(query: "ALTER TABLE snapshots ADD COLUMN locked_until REAL;")
         try? execute(query: "ALTER TABLE file_records ADD COLUMN sample_hash TEXT;")
     }
 
@@ -549,8 +616,8 @@ public actor DatabaseEngine {
     public func insertSnapshot(_ record: SnapshotRecord) throws {
         guard let db = db else { throw DatabaseError.openFailed("Database is not open") }
         let query = """
-        INSERT OR REPLACE INTO snapshots (id, timestamp, status, total_files, total_bytes, snapshot_path, backup_type)
-        VALUES (?, ?, ?, ?, ?, ?, ?);
+        INSERT OR REPLACE INTO snapshots (id, timestamp, status, total_files, total_bytes, snapshot_path, backup_type, locked_until)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?);
         """
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK else {
@@ -565,6 +632,11 @@ public actor DatabaseEngine {
         sqlite3_bind_int64(stmt, 5, record.totalBytes)
         sqlite3_bind_text(stmt, 6, record.snapshotPath, -1, SQLITE_TRANSIENT)
         sqlite3_bind_text(stmt, 7, record.backupType, -1, SQLITE_TRANSIENT)
+        if let lockedUntil = record.lockedUntil {
+            sqlite3_bind_double(stmt, 8, lockedUntil.timeIntervalSince1970)
+        } else {
+            sqlite3_bind_null(stmt, 8)
+        }
 
         guard sqlite3_step(stmt) == SQLITE_DONE else {
             throw DatabaseError.stepFailed(query, String(cString: sqlite3_errmsg(db)))
@@ -575,7 +647,7 @@ public actor DatabaseEngine {
     /// - Returns: Array of `SnapshotRecord` objects.
     public func listSnapshots() throws -> [SnapshotRecord] {
         guard let db = db else { throw DatabaseError.openFailed("Database is not open") }
-        let query = "SELECT id, timestamp, status, total_files, total_bytes, snapshot_path, backup_type FROM snapshots ORDER BY timestamp DESC;"
+        let query = "SELECT id, timestamp, status, total_files, total_bytes, snapshot_path, backup_type, locked_until FROM snapshots ORDER BY timestamp DESC;"
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK else {
             throw DatabaseError.prepareFailed(query, String(cString: sqlite3_errmsg(db)))
@@ -593,6 +665,13 @@ public actor DatabaseEngine {
             var bType = columnText(stmt, 6)
             if bType.isEmpty { bType = "incremental" }
 
+            let lockedUntil: Date?
+            if sqlite3_column_type(stmt, 7) != SQLITE_NULL {
+                lockedUntil = Date(timeIntervalSince1970: sqlite3_column_double(stmt, 7))
+            } else {
+                lockedUntil = nil
+            }
+
             results.append(SnapshotRecord(
                 id: id,
                 timestamp: Date(timeIntervalSince1970: ts),
@@ -600,10 +679,36 @@ public actor DatabaseEngine {
                 totalFiles: totalFiles,
                 totalBytes: totalBytes,
                 snapshotPath: path,
-                backupType: bType
+                backupType: bType,
+                lockedUntil: lockedUntil
             ))
         }
         return results
+    }
+
+    /// Updates the immutability lock expiration date for a snapshot.
+    /// - Parameters:
+    ///   - id: Snapshot identifier.
+    ///   - lockedUntil: Expiration date or nil to unlock.
+    public func updateSnapshotLockedUntil(id: String, lockedUntil: Date?) throws {
+        guard let db = db else { throw DatabaseError.openFailed("Database is not open") }
+        let query = "UPDATE snapshots SET locked_until = ? WHERE id = ?;"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK else {
+            throw DatabaseError.prepareFailed(query, String(cString: sqlite3_errmsg(db)))
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        if let lock = lockedUntil {
+            sqlite3_bind_double(stmt, 1, lock.timeIntervalSince1970)
+        } else {
+            sqlite3_bind_null(stmt, 1)
+        }
+        sqlite3_bind_text(stmt, 2, id, -1, SQLITE_TRANSIENT)
+
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw DatabaseError.stepFailed(query, String(cString: sqlite3_errmsg(db)))
+        }
     }
 
     /// Deletes a snapshot record by ID, automatically cascading deletion to associated file records.
@@ -611,6 +716,135 @@ public actor DatabaseEngine {
     public func deleteSnapshot(id: String) throws {
         guard let db = db else { throw DatabaseError.openFailed("Database is not open") }
         let query = "DELETE FROM snapshots WHERE id = ?;"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK else {
+            throw DatabaseError.prepareFailed(query, String(cString: sqlite3_errmsg(db)))
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        sqlite3_bind_text(stmt, 1, id, -1, SQLITE_TRANSIENT)
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw DatabaseError.stepFailed(query, String(cString: sqlite3_errmsg(db)))
+        }
+    }
+
+    // MARK: - Pending Replication Operations
+
+    /// Inserts a pending replication task into the queue.
+    public func insertPendingReplication(_ record: PendingReplicationRecord) throws {
+        guard let db = db else { throw DatabaseError.openFailed("Database is not open") }
+        let query = """
+        INSERT OR REPLACE INTO pending_replications (id, profile_id, snapshot_id, destination_id, destination_type, status, retry_count, created_at, last_attempt_at, error_message)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK else {
+            throw DatabaseError.prepareFailed(query, String(cString: sqlite3_errmsg(db)))
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        sqlite3_bind_text(stmt, 1, record.id, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(stmt, 2, record.profileId.uuidString, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(stmt, 3, record.snapshotId, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(stmt, 4, record.destinationId.uuidString, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(stmt, 5, record.destinationType, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(stmt, 6, record.status, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_int(stmt, 7, Int32(record.retryCount))
+        sqlite3_bind_double(stmt, 8, record.createdAt.timeIntervalSince1970)
+        if let last = record.lastAttemptAt {
+            sqlite3_bind_double(stmt, 9, last.timeIntervalSince1970)
+        } else {
+            sqlite3_bind_null(stmt, 9)
+        }
+        if let err = record.errorMessage {
+            sqlite3_bind_text(stmt, 10, err, -1, SQLITE_TRANSIENT)
+        } else {
+            sqlite3_bind_null(stmt, 10)
+        }
+
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw DatabaseError.stepFailed(query, String(cString: sqlite3_errmsg(db)))
+        }
+    }
+
+    /// Lists pending replication tasks with optional status and profile filtering.
+    public func listPendingReplications(status: String? = nil, profileId: UUID? = nil) throws -> [PendingReplicationRecord] {
+        guard let db = db else { throw DatabaseError.openFailed("Database is not open") }
+        var conditions: [String] = []
+        if let st = status {
+            conditions.append("status = '\(st)'")
+        }
+        if let prof = profileId {
+            conditions.append("profile_id = '\(prof.uuidString)'")
+        }
+        let whereClause = conditions.isEmpty ? "" : "WHERE " + conditions.joined(separator: " AND ")
+        let query = "SELECT id, profile_id, snapshot_id, destination_id, destination_type, status, retry_count, created_at, last_attempt_at, error_message FROM pending_replications \(whereClause) ORDER BY created_at ASC;"
+
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK else {
+            throw DatabaseError.prepareFailed(query, String(cString: sqlite3_errmsg(db)))
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        var results: [PendingReplicationRecord] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            let id = columnText(stmt, 0)
+            let profId = UUID(uuidString: columnText(stmt, 1)) ?? UUID()
+            let snapId = columnText(stmt, 2)
+            let destId = UUID(uuidString: columnText(stmt, 3)) ?? UUID()
+            let destType = columnText(stmt, 4)
+            let itemStatus = columnText(stmt, 5)
+            let retries = Int(sqlite3_column_int(stmt, 6))
+            let created = Date(timeIntervalSince1970: sqlite3_column_double(stmt, 7))
+            let lastAttempt: Date? = sqlite3_column_type(stmt, 8) != SQLITE_NULL ? Date(timeIntervalSince1970: sqlite3_column_double(stmt, 8)) : nil
+            let errMsg = columnOptionalText(stmt, 9)
+
+            results.append(PendingReplicationRecord(
+                id: id,
+                profileId: profId,
+                snapshotId: snapId,
+                destinationId: destId,
+                destinationType: destType,
+                status: itemStatus,
+                retryCount: retries,
+                createdAt: created,
+                lastAttemptAt: lastAttempt,
+                errorMessage: errMsg
+            ))
+        }
+        return results
+    }
+
+    /// Updates status and error information for a pending replication task.
+    public func updatePendingReplicationStatus(id: String, status: String, errorMessage: String? = nil, incrementRetry: Bool = false) throws {
+        guard let db = db else { throw DatabaseError.openFailed("Database is not open") }
+        let now = Date().timeIntervalSince1970
+        let retryUpdate = incrementRetry ? "retry_count = retry_count + 1," : ""
+        let query = "UPDATE pending_replications SET status = ?, \(retryUpdate) last_attempt_at = ?, error_message = ? WHERE id = ?;"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK else {
+            throw DatabaseError.prepareFailed(query, String(cString: sqlite3_errmsg(db)))
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        sqlite3_bind_text(stmt, 1, status, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_double(stmt, 2, now)
+        if let err = errorMessage {
+            sqlite3_bind_text(stmt, 3, err, -1, SQLITE_TRANSIENT)
+        } else {
+            sqlite3_bind_null(stmt, 3)
+        }
+        sqlite3_bind_text(stmt, 4, id, -1, SQLITE_TRANSIENT)
+
+        guard sqlite3_step(stmt) == SQLITE_DONE else {
+            throw DatabaseError.stepFailed(query, String(cString: sqlite3_errmsg(db)))
+        }
+    }
+
+    /// Removes a completed or cancelled pending replication task.
+    public func deletePendingReplication(id: String) throws {
+        guard let db = db else { throw DatabaseError.openFailed("Database is not open") }
+        let query = "DELETE FROM pending_replications WHERE id = ?;"
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK else {
             throw DatabaseError.prepareFailed(query, String(cString: sqlite3_errmsg(db)))

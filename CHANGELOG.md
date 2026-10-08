@@ -4,6 +4,68 @@ All notable changes to OtterKeep are documented in this file in accordance with 
 
 ---
 
+## [1.5.0] - 2026-10-08 (Build 1500)
+
+### 🌟 Release Summary / Verzióösszefoglaló
+Version **1.5.0** introduces major modern data protection, verification, and comparison capabilities to OtterKeep:
+- **Side-by-side file content diffing** between snapshots (Myers LCS algorithm for text, binary metadata comparison).
+- **Silent background data scrubber** running with Darwin `.background` I/O QoS to detect bit-rot and silent corruption with native notifications.
+- **WORM (Write Once, Read Many) immutability locking** with BSD `uchg` flags protecting snapshots from accidental deletion, ransomware, or premature pruning for configurable retention periods (default: 30 days).
+- **Backblaze B2 Cloud Storage API support** as a native remote secondary backup target via S3-compatible endpoints.
+- **Intelligent parallel multi-destination backup** allowing simultaneous CoW local and remote transfers with decoupled fault tolerance and background catch-up replication upon reconnection.
+- **Dataless iCloud file change detection** eliminating unwanted cloud download triggers by strictly evaluating metadata.
+- **Enhanced dual-tier logging** offering clear user-facing operational summaries alongside forensic verbose diagnostics.
+
+---
+
+### 🔍 Side-by-Side File Content Comparison / Egymás melletti fájlösszehasonlítás
+- **Myers LCS Alignment**: Implemented `TextDiffEngine` computing line-by-line differences with side-by-side row alignment, additions/deletions counts, and modification markers.
+- **Binary Signature Inspection**: Non-UTF8 files or files containing null bytes are safely handled as binary, displaying metadata diffs (file size, SHA-256 digests, modification timestamps) without garbling text views.
+- **SwiftUI Modal & CLI Viewer**:
+  - GUI: Added `SideBySideDiffModalView` with synchronized dual-column scrolling, syntax-aware line coloration, and line numbers.
+  - CLI: Enhanced `otterkeep diff --profile <id> --file <rel_path> --side-by-side` with terminal column formatting.
+
+### 🛡️ Silent Background Data Scrubber / Csendes háttérbeli adatintegritás-ellenőrző
+- **Low-Priority Background Execution**: `DataScrubberEngine` operates using Swift Concurrency `Task(priority: .background)` (Darwin `QOS_CLASS_BACKGROUND`) with adaptive micro-sleep throttling (5ms default) and thermal-governance pausing.
+- **Cryptographic Bit-Rot Auditing**: Periodically recomputes full SHA-256 hashes for all physical snapshot files and compares them against the SQLite snapshot catalog.
+- **Audit History & Alerts**: Persists scan outcomes to SQLite (`scrub_audits` table) and delivers proactive macOS User Notifications upon detecting corrupted or tampered blocks.
+- **CLI & GUI Access**: Run on-demand via `otterkeep scrub --profile <id> [--limit <n>]`.
+
+### 🔒 WORM Immutability & Retention Immunity / WORM immutabilitás és törlésvédelem
+- **BSD File Flag Locking**: Added `isFileImmutable` and `setImmutable` in `FileSystemProvider` using BSD `chflags(2)` (`UF_IMMUTABLE` / `SF_IMMUTABLE`).
+- **Configurable Retention Duration**: Snapshots can be locked for a configured period (default: 30 days) stored in the database schema (`locked_until`).
+- **Pruning Safety Immunity**: `RetentionManager` GFS rotation strictly protects locked snapshots from auto-pruning or manual deletion attempts, returning access denied errors until expiration.
+- **CLI Management**: Added `otterkeep lock --profile <id> --snapshot <id> [--days <count>]` and `otterkeep unlock`.
+
+### ☁️ Backblaze B2 Native Cloud Destination / Backblaze B2 felhőtárhely támogatás
+- **B2 Configuration & Storage Provider**: Implemented `B2Configuration` and `B2StorageProvider` supporting Backblaze B2 application keys, automatic S3 region endpoint resolution (`s3.<region>.backblazeb2.com`), and bucket path prefixes.
+- **3-2-1 Compliance Integration**: Fully integrated into `RemoteStorageFactory`, `BackupCopyJobCoordinator`, and `RestoreEngine`.
+- **GUI Destination Editor**: Added dedicated Backblaze B2 configuration tile, credentials inputs, and live credential validation in `RemoteDestinationEditorModalView`.
+
+### ⚡ Parallel Multi-Destination & Catch-Up Replication / Párhuzamos többcélpontos mentés és utólagos replikáció
+- **Decoupled Failure Isolation**: Local APFS CoW snapshot creation succeeds even if secondary cloud/NAS destinations are offline or fail mid-flight.
+- **Replication Catch-Up Coordinator**: Failed or offline secondary destinations queue tasks into the SQLite `pending_replications` table, which automatically catch up in the background once network connectivity is restored.
+- **UI Settings Toggle**: Added `isParallelExecutionEnabled` toggle to Profile Copy Job settings.
+
+### 🍏 Dataless iCloud Change Detection / Adat nélküli iCloud változásdetektálás
+- **Zero-Download Verification**: Enhanced `ChangeDetector` to identify dataless/ubiquitous iCloud Drive files (`isDatalessICloud`) and verify them strictly by file size and modification timestamp.
+- **Kernel Fault Prevention**: Completely eliminates inadvertent payload hashing or sampling that triggers forced iCloud file downloads during routine scans.
+
+### 📝 Dual-Tier Diagnostic Logging / Kétszintű diagnosztikai naplózás
+- **User-Facing High-Value Summaries**: Default log tier focuses on essential, human-friendly milestones (snapshot started, transfer speed, files scanned, immutability locked, scrub healthy).
+- **Forensic Verbose Mode**: Activated via `--debug` or app preferences, outputting detailed per-file decisions, socket state changes, and cryptographic metrics to timestamped `.log` files.
+
+### 🧪 System Test Suite Expansion (Module 11) / Rendszerteszt bővítés
+- Added **Module 11** to `OtterKeepTestRunner`, expanding the deterministic system test suite to 59 tests with 100% pass rate:
+  - 11.1: TextDiffEngine Side-by-Side LCS Text & Binary Detection
+  - 11.2: DataScrubberEngine Background Bit-Rot & Corruption Detection
+  - 11.3: WORM Immutability Flags & GFS Retention Immunity
+  - 11.4: Backblaze B2 S3 Configuration Mapping & Provider Resolution
+  - 11.5: ReplicationCatchUpCoordinator Deferred Task Queueing & Lifecycle
+  - 11.6: Dataless iCloud Drive Change Detection Without Forced Download
+
+---
+
 ## [1.4.0] - 2026-10-07 (Build 1400)
 
 ### 🌟 Release Summary

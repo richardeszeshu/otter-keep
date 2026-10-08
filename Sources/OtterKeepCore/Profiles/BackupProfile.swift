@@ -214,6 +214,12 @@ public struct BackupProfile: Identifiable, Codable, Sendable, Equatable {
     public var detectKnownRansomwareExtensions: Bool
     /// Whether to abort the backup operation immediately upon detecting an anomaly.
     public var abortOnAnomaly: Bool
+    /// Whether WORM immutability locking (UF_IMMUTABLE / uchg) is enforced on snapshots.
+    public var isImmutabilityLockEnabled: Bool
+    /// Number of days snapshots remain immutably locked (default: 30 days).
+    public var immutabilityLockDays: Int
+    /// Whether secondary replication copy jobs are dispatched in parallel with local CoW backups.
+    public var isParallelMultiDestinationEnabled: Bool
 
     /// Initializes a `BackupProfile`.
     /// - Parameters:
@@ -239,6 +245,9 @@ public struct BackupProfile: Identifiable, Codable, Sendable, Equatable {
     ///   - maxDeletedThresholdCount: Mass deletion threshold count.
     ///   - detectKnownRansomwareExtensions: Detect ransomware extensions.
     ///   - abortOnAnomaly: Abort backup if anomaly detected.
+    ///   - isImmutabilityLockEnabled: True to lock snapshots with WORM immutability.
+    ///   - immutabilityLockDays: Lock duration in days.
+    ///   - isParallelMultiDestinationEnabled: True to replicate to targets in parallel.
     public init(
         id: UUID = UUID(),
         name: String,
@@ -261,7 +270,10 @@ public struct BackupProfile: Identifiable, Codable, Sendable, Equatable {
         maxChangeThresholdPercent: Double = 50.0,
         maxDeletedThresholdCount: Int = 100,
         detectKnownRansomwareExtensions: Bool = true,
-        abortOnAnomaly: Bool = false
+        abortOnAnomaly: Bool = false,
+        isImmutabilityLockEnabled: Bool = false,
+        immutabilityLockDays: Int = 30,
+        isParallelMultiDestinationEnabled: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -285,6 +297,9 @@ public struct BackupProfile: Identifiable, Codable, Sendable, Equatable {
         self.maxDeletedThresholdCount = maxDeletedThresholdCount
         self.detectKnownRansomwareExtensions = detectKnownRansomwareExtensions
         self.abortOnAnomaly = abortOnAnomaly
+        self.isImmutabilityLockEnabled = isImmutabilityLockEnabled
+        self.immutabilityLockDays = immutabilityLockDays
+        self.isParallelMultiDestinationEnabled = isParallelMultiDestinationEnabled
     }
 
     /// 3-2-1 Remote Backup Copy Job replication configuration.
@@ -295,6 +310,7 @@ public struct BackupProfile: Identifiable, Codable, Sendable, Equatable {
         case enableIgnoreFiles, respectGitIgnore, backupOnVolumeMount, autoEjectOnCompletion
         case webhookConfig, quotaWarningThresholdGB, enableQuotaAlerts
         case enableRateOfChangeGuard, maxChangeThresholdPercent, maxDeletedThresholdCount, detectKnownRansomwareExtensions, abortOnAnomaly
+        case isImmutabilityLockEnabled, immutabilityLockDays, isParallelMultiDestinationEnabled
     }
 
     public init(from decoder: Decoder) throws {
@@ -339,6 +355,9 @@ public struct BackupProfile: Identifiable, Codable, Sendable, Equatable {
         self.maxDeletedThresholdCount = try container.decodeIfPresent(Int.self, forKey: .maxDeletedThresholdCount) ?? 100
         self.detectKnownRansomwareExtensions = try container.decodeIfPresent(Bool.self, forKey: .detectKnownRansomwareExtensions) ?? true
         self.abortOnAnomaly = try container.decodeIfPresent(Bool.self, forKey: .abortOnAnomaly) ?? false
+        self.isImmutabilityLockEnabled = try container.decodeIfPresent(Bool.self, forKey: .isImmutabilityLockEnabled) ?? false
+        self.immutabilityLockDays = try container.decodeIfPresent(Int.self, forKey: .immutabilityLockDays) ?? 30
+        self.isParallelMultiDestinationEnabled = try container.decodeIfPresent(Bool.self, forKey: .isParallelMultiDestinationEnabled) ?? true
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -366,6 +385,9 @@ public struct BackupProfile: Identifiable, Codable, Sendable, Equatable {
         try container.encode(maxDeletedThresholdCount, forKey: .maxDeletedThresholdCount)
         try container.encode(detectKnownRansomwareExtensions, forKey: .detectKnownRansomwareExtensions)
         try container.encode(abortOnAnomaly, forKey: .abortOnAnomaly)
+        try container.encode(isImmutabilityLockEnabled, forKey: .isImmutabilityLockEnabled)
+        try container.encode(immutabilityLockDays, forKey: .immutabilityLockDays)
+        try container.encode(isParallelMultiDestinationEnabled, forKey: .isParallelMultiDestinationEnabled)
     }
 
 

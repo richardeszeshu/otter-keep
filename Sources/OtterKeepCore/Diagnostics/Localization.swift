@@ -1172,6 +1172,36 @@ public enum L10n {
         case feedbackRestoreSuccessMessage
         case feedbackRestoreFailedTitle
         case feedbackRestoreFailedMessage
+
+        // MARK: - Version 1.5.0 Features
+        case diffSideBySideTitle
+        case diffSideBySideCompare
+        case diffSideBySideSnapshotA
+        case diffSideBySideSnapshotB
+        case diffBinaryFileNotice
+        case diffIdenticalFiles
+        case diffLinesAddedFormat
+        case diffLinesRemovedFormat
+        case wormLockTitle
+        case wormLockDescription
+        case wormLockDurationDays
+        case wormLockedBadge
+        case wormLockedUntilFormat
+        case wormLockProtectionNotice
+        case destTypeBackblazeB2
+        case b2KeyId
+        case b2ApplicationKey
+        case b2BucketName
+        case b2Region
+        case b2CustomEndpoint
+        case scrubberTitle
+        case scrubberDescription
+        case scrubbingInProgress
+        case scrubberCorruptedAlertTitle
+        case scrubberCorruptedAlertMessage
+        case parallelMultiDestTitle
+        case parallelMultiDestDescription
+        case parallelReplicationQueuedNotice
     }
 
 
@@ -2074,7 +2104,37 @@ public enum L10n {
         .feedbackRestoreSuccessTitle: "Visszaállítás sikeresen befejeződött!",
         .feedbackRestoreSuccessMessage: "A(z) '%@' pillanatképből %lld fájl sikeresen helyreállítva a megadott mappába.",
         .feedbackRestoreFailedTitle: "A visszaállítás nem sikerült",
-        .feedbackRestoreFailedMessage: "Nem sikerült a pillanatkép visszaállítása: %@"
+        .feedbackRestoreFailedMessage: "Nem sikerült a pillanatkép visszaállítása: %@",
+
+        // MARK: - Version 1.5.0 Features
+        .diffSideBySideTitle: "Pillanatképek összehasonlítása",
+        .diffSideBySideCompare: "Összehasonlítás",
+        .diffSideBySideSnapshotA: "Kiindulási pillanatkép (A)",
+        .diffSideBySideSnapshotB: "Összevetett pillanatkép (B)",
+        .diffBinaryFileNotice: "Bináris fájl: a közvetlen szöveges összehasonlítás nem elérhető.",
+        .diffIdenticalFiles: "A két pillanatkép fájltartalma megegyezik.",
+        .diffLinesAddedFormat: "+%d hozzáadott sor",
+        .diffLinesRemovedFormat: "-%d törölt sor",
+        .wormLockTitle: "WORM & Megváltoztathatatlansági zárolás (Immutability)",
+        .wormLockDescription: "Pillanatképek védelme törlés és módosítás ellen (uchg / schg) a beállított időtartamig.",
+        .wormLockDurationDays: "Zárolási időszak (nap)",
+        .wormLockedBadge: "WORM Zárolva",
+        .wormLockedUntilFormat: "Zárolva eddig: %@",
+        .wormLockProtectionNotice: "Ez a pillanatkép WORM védelem alatt áll, és a lejárati dátum előtt nem törölhető vagy módosítható.",
+        .destTypeBackblazeB2: "Backblaze B2 felhőtárhely",
+        .b2KeyId: "B2 Kulcsazonosító (Key ID)",
+        .b2ApplicationKey: "B2 Alkalmazáskulcs (Application Key)",
+        .b2BucketName: "B2 Vödör neve (Bucket Name)",
+        .b2Region: "B2 Régió",
+        .b2CustomEndpoint: "Egyéni B2 Végpont (opcionális)",
+        .scrubberTitle: "Csendes adatintegritás-ellenőrzés (Bit-rot scrubber)",
+        .scrubberDescription: "Alacsony prioritású háttérellenőrzés, amely periodikusan újraszámolja a fájlok SHA-256 hash-ét az adatsérülések kiszűrésére.",
+        .scrubbingInProgress: "Adatintegritás-ellenőrzés folyamatban...",
+        .scrubberCorruptedAlertTitle: "Fájlsérülés észlelve!",
+        .scrubberCorruptedAlertMessage: "A háttérellenőrzés %lld sérült fájlt talált a(z) '%@' pillanatképben.",
+        .parallelMultiDestTitle: "Intelligens párhuzamos többcélpontos mentés",
+        .parallelMultiDestDescription: "Párhuzamos replikáció NAS vagy felhő célpontokra. Ha egy célpont offline állapotba kerül, a mentés nem akad el, és az újrakapcsolódáskor a háttérben pótlásra kerül.",
+        .parallelReplicationQueuedNotice: "Az offline célpont mentése beütemezve a háttérben történő pótlásra."
     ]
 
 
@@ -2970,7 +3030,37 @@ public enum L10n {
         .feedbackRestoreSuccessTitle: "Restore Completed Successfully!",
         .feedbackRestoreSuccessMessage: "Successfully restored %2$lld files from snapshot '%1$@' to the target directory.",
         .feedbackRestoreFailedTitle: "Restore Operation Failed",
-        .feedbackRestoreFailedMessage: "Failed to restore snapshot: %@"
+        .feedbackRestoreFailedMessage: "Failed to restore snapshot: %@",
+
+        // MARK: - Version 1.5.0 Features
+        .diffSideBySideTitle: "Snapshot File Comparison",
+        .diffSideBySideCompare: "Compare",
+        .diffSideBySideSnapshotA: "Baseline Snapshot (A)",
+        .diffSideBySideSnapshotB: "Compared Snapshot (B)",
+        .diffBinaryFileNotice: "Binary file: inline text comparison is not available.",
+        .diffIdenticalFiles: "File contents in both snapshots are identical.",
+        .diffLinesAddedFormat: "+%d lines added",
+        .diffLinesRemovedFormat: "-%d lines removed",
+        .wormLockTitle: "WORM & Immutability Lock",
+        .wormLockDescription: "Protects snapshots against deletion and modification (uchg / schg) until the configured expiration date.",
+        .wormLockDurationDays: "Lock Duration (days)",
+        .wormLockedBadge: "WORM Locked",
+        .wormLockedUntilFormat: "Locked until: %@",
+        .wormLockProtectionNotice: "This snapshot is protected by WORM immutability and cannot be pruned or modified before its expiration date.",
+        .destTypeBackblazeB2: "Backblaze B2 Cloud Storage",
+        .b2KeyId: "B2 Key ID",
+        .b2ApplicationKey: "B2 Application Key",
+        .b2BucketName: "B2 Bucket Name",
+        .b2Region: "B2 Region",
+        .b2CustomEndpoint: "Custom B2 Endpoint (optional)",
+        .scrubberTitle: "Silent Background Bit-rot Scrubber",
+        .scrubberDescription: "Low-priority background integrity process periodically recalculating SHA-256 file hashes to detect silent bit corruption.",
+        .scrubbingInProgress: "Data scrubbing in progress...",
+        .scrubberCorruptedAlertTitle: "Data Corruption Detected!",
+        .scrubberCorruptedAlertMessage: "Background scrubber detected %lld corrupted files in snapshot '%@'.",
+        .parallelMultiDestTitle: "Intelligent Parallel Multi-Destination",
+        .parallelMultiDestDescription: "Parallel replication to NAS or cloud targets. If a target is offline, it is queued and replicated in the background upon reconnection.",
+        .parallelReplicationQueuedNotice: "Offline destination queued for automatic background replication."
     ]
 }
 

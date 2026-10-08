@@ -194,6 +194,17 @@ public actor BackupCopyJobCoordinator {
                     throttler: throttler,
                     state: &state
                 )
+            case .backblazeB2(let b2Config):
+                result = try await replicateS3(
+                    dest: dest,
+                    s3Config: b2Config.toS3Configuration(),
+                    snapshot: snapshot,
+                    snapshotRoot: snapshotRoot,
+                    filesToSync: filesToSync,
+                    profile: profile,
+                    throttler: throttler,
+                    state: &state
+                )
             case .smb(let smbConfig):
                 result = try await replicateSMB(
                     dest: dest,

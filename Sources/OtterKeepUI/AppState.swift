@@ -219,7 +219,7 @@ public final class AppState: Sendable {
     public var showRemoteDestinationEditorSheet: Bool = false
     public var destinationEditorTargetId: UUID? = nil
     public var destinationEditorName: String = ""
-    public var destinationEditorTypeIndex: Int = 0 // 0: S3, 1: SMB, 2: WebDAV, 3: SFTP
+    public var destinationEditorTypeIndex: Int = 0 // 0: S3, 1: SMB, 2: WebDAV, 3: SFTP, 4: Backblaze B2
     public var destinationEditorS3Endpoint: String = "https://s3.amazonaws.com"
     public var destinationEditorS3Bucket: String = ""
     public var destinationEditorS3Region: String = "eu-central-1"
@@ -241,6 +241,12 @@ public final class AppState: Sendable {
     public var destinationEditorSFTPPasswordOrKey: String = ""
     public var destinationEditorSFTPAuthModeIndex: Int = 0
     public var destinationEditorSFTPPath: String = "/var/backups/otterkeep"
+    public var destinationEditorB2KeyId: String = ""
+    public var destinationEditorB2AppKey: String = ""
+    public var destinationEditorB2BucketName: String = ""
+    public var destinationEditorB2Region: String = "us-west-004"
+    public var destinationEditorB2CustomEndpoint: String = ""
+    public var destinationEditorB2PathPrefix: String = "otterkeep"
     public var destinationEditorArchivePackagingEnabled: Bool = false
     public var destinationEditorArchiveCompressionLevel: Int = 3
     public var destinationEditorIsClientEncryptionEnabled: Bool = true
@@ -390,6 +396,12 @@ public final class AppState: Sendable {
     public var diffFilterType: DiffChangeType? = nil
     public var diffSearchQuery: String = ""
     public var showDiffSheet: Bool = false
+
+    // MARK: - Side-by-Side Snapshot File Diff (1.5.0)
+    public var showSideBySideDiffModal: Bool = false
+    public var activeSideBySideDiffItem: SnapshotDiffItem? = nil
+    public var activeSideBySideDiffComparison: FileComparisonResult? = nil
+    public var isLoadingSideBySideDiff: Bool = false
 
     // MARK: - Storage Capacity Forecast & Quota Alerts
     public var storageForecastReport: StorageForecastReport?
@@ -1101,6 +1113,14 @@ public final class AppState: Sendable {
                 let sec = KeychainManager.getSecret(for: dest.keychainAccount) ?? ""
                 destinationEditorSFTPPasswordOrKey = sec
                 destinationEditorSFTPAuthModeIndex = (sec.hasPrefix("/") || sec.hasPrefix("~")) ? 1 : 0
+            case .backblazeB2(let cfg):
+                destinationEditorTypeIndex = 4
+                destinationEditorB2KeyId = cfg.keyId
+                destinationEditorB2BucketName = cfg.bucketName
+                destinationEditorB2Region = cfg.region
+                destinationEditorB2CustomEndpoint = cfg.customEndpoint ?? ""
+                destinationEditorB2PathPrefix = cfg.pathPrefix
+                destinationEditorB2AppKey = KeychainManager.getSecret(for: dest.keychainAccount) ?? ""
             }
         } else {
             destinationEditorTargetId = nil
@@ -1183,7 +1203,7 @@ public final class AppState: Sendable {
             if !destinationEditorWebDAVPassword.isEmpty {
                 try? KeychainManager.saveSecret(destinationEditorWebDAVPassword, for: account)
             }
-        } else {
+        } else if destinationEditorTypeIndex == 3 {
             let auth: SFTPAuthMethod
             let secret = destinationEditorSFTPPasswordOrKey.trimmingCharacters(in: .whitespacesAndNewlines)
             if secret.hasPrefix("/") || secret.hasPrefix("~") || FileManager.default.fileExists(atPath: secret) {
@@ -1203,6 +1223,20 @@ public final class AppState: Sendable {
             account = "sftp_\(destId.uuidString)"
             if !destinationEditorSFTPPasswordOrKey.isEmpty {
                 try? KeychainManager.saveSecret(destinationEditorSFTPPasswordOrKey, for: account)
+            }
+        } else {
+            let b2Config = B2Configuration(
+                keyId: destinationEditorB2KeyId.trimmingCharacters(in: .whitespacesAndNewlines),
+                bucketName: destinationEditorB2BucketName.trimmingCharacters(in: .whitespacesAndNewlines),
+                region: destinationEditorB2Region.trimmingCharacters(in: .whitespacesAndNewlines),
+                customEndpoint: destinationEditorB2CustomEndpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : destinationEditorB2CustomEndpoint.trimmingCharacters(in: .whitespacesAndNewlines),
+                pathPrefix: destinationEditorB2PathPrefix.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+            finalType = .backblazeB2(b2Config)
+
+            account = "b2_\(destId.uuidString)"
+            if !destinationEditorB2AppKey.isEmpty {
+                try? KeychainManager.saveSecret(destinationEditorB2AppKey, for: account)
             }
         }
 
@@ -1238,6 +1272,7 @@ public final class AppState: Sendable {
         KeychainManager.deleteSecret(for: "smb_\(destinationId.uuidString)")
         KeychainManager.deleteSecret(for: "webdav_\(destinationId.uuidString)")
         KeychainManager.deleteSecret(for: "sftp_\(destinationId.uuidString)")
+        KeychainManager.deleteSecret(for: "b2_\(destinationId.uuidString)")
         selectedProfile = profile
         if let pIdx = profiles.firstIndex(where: { $0.id == profile.id }) {
             profiles[pIdx] = profile
@@ -1314,7 +1349,7 @@ public final class AppState: Sendable {
                 } catch {
                     self.destinationEditorTestErrorMessage = error.localizedDescription
                 }
-            } else {
+            } else if self.destinationEditorTypeIndex == 3 {
                 let host = self.destinationEditorSFTPHost.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !host.isEmpty else {
                     self.destinationEditorTestErrorMessage = "A megadott SFTP szerver cím érvénytelen."
@@ -1341,6 +1376,21 @@ public final class AppState: Sendable {
                     self.destinationEditorTestSuccessMessage = L10n.format(.testConnectionSuccessSFTPFormat, host)
                 } catch {
                     self.destinationEditorTestErrorMessage = error.localizedDescription
+                }
+            } else {
+                let config = B2Configuration(
+                    keyId: self.destinationEditorB2KeyId.trimmingCharacters(in: .whitespacesAndNewlines),
+                    bucketName: self.destinationEditorB2BucketName.trimmingCharacters(in: .whitespacesAndNewlines),
+                    region: self.destinationEditorB2Region.trimmingCharacters(in: .whitespacesAndNewlines),
+                    customEndpoint: self.destinationEditorB2CustomEndpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : self.destinationEditorB2CustomEndpoint.trimmingCharacters(in: .whitespacesAndNewlines),
+                    pathPrefix: self.destinationEditorB2PathPrefix.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+                let provider = B2StorageProvider(config: config, applicationKey: self.destinationEditorB2AppKey)
+                do {
+                    _ = try await provider.testConnection()
+                    self.destinationEditorTestSuccessMessage = L10n.format(.testConnectionSuccessS3Format, config.bucketName)
+                } catch {
+                    self.destinationEditorTestErrorMessage = L10n.format(.s3ConnectionErrorFormat, error.localizedDescription)
                 }
             }
             self.destinationEditorIsTesting = false
@@ -1851,6 +1901,36 @@ public final class AppState: Sendable {
                     self.isLoadingDiff = false
                     LogManager.shared.log("Failed to compute snapshot diff: \(error.localizedDescription)", level: .warning, category: "Diff")
                 }
+            }
+        }
+    }
+
+    @MainActor
+    public func openSideBySideDiff(for item: SnapshotDiffItem) {
+        guard let profile = selectedProfile else { return }
+        self.activeSideBySideDiffItem = item
+        self.showSideBySideDiffModal = true
+        self.isLoadingSideBySideDiff = true
+        self.activeSideBySideDiffComparison = nil
+
+        let targetSnapId = selectedDiffTargetSnapshotId ?? snapshots.first?.id
+        let baseSnapId = selectedDiffBaseSnapshotId ?? (snapshots.count > 1 ? snapshots[1].id : nil)
+
+        guard let tId = targetSnapId, let bId = baseSnapId,
+              let snapTarget = snapshots.first(where: { $0.id == tId }),
+              let snapBase = snapshots.first(where: { $0.id == bId }) else {
+            self.isLoadingSideBySideDiff = false
+            return
+        }
+
+        let urlA = profile.destinationURL.appendingPathComponent(snapBase.snapshotPath).appendingPathComponent("root").appendingPathComponent(item.relativePath)
+        let urlB = profile.destinationURL.appendingPathComponent(snapTarget.snapshotPath).appendingPathComponent("root").appendingPathComponent(item.relativePath)
+
+        Task {
+            let result = try? TextDiffEngine().diffFiles(leftURL: urlA, rightURL: urlB, relativePath: item.relativePath)
+            Task { @MainActor in
+                self.activeSideBySideDiffComparison = result
+                self.isLoadingSideBySideDiff = false
             }
         }
     }

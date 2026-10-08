@@ -113,4 +113,11 @@ public final class FallbackFileSystemProvider: FileSystemProvider, Sendable {
     public func setImmutable(at url: URL, immutable: Bool) throws {
         try apfsFallback.setImmutable(at: url, immutable: immutable)
     }
+
+    /// Queries whether the BSD file immutability flag is set on the item.
+    /// - Parameter url: Target item URL.
+    /// - Returns: True if immutable.
+    public func isFileImmutable(at url: URL) throws -> Bool {
+        try apfsFallback.isFileImmutable(at: url)
+    }
 }

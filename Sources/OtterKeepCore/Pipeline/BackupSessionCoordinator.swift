@@ -479,6 +479,9 @@ public actor BackupSessionCoordinator {
             timestampTolerance: tolerance
         )
 
+        LogManager.shared.log("Scan summary for '\(profile.name)': \(scannedItems.count) items discovered, \(skippedItems.count) skipped.", level: .info, category: "Backup")
+        LogManager.shared.log("Differential analysis: \(changes.added.count) added, \(changes.modified.count) modified, \(changes.unmodified.count) unmodified, \(changes.deleted.count) deleted (Total bytes to transfer: \(changes.totalChangedBytes)).", level: .debug, category: "Backup")
+
 
         logger.info("Differential: \(changes.unmodified.count) unmodified, \(changes.added.count) added, \(changes.modified.count) modified, \(changes.deleted.count) deleted")
 
@@ -947,11 +950,23 @@ public actor BackupSessionCoordinator {
         isCommitted = true
 
         // 11. Activate BSD immutability (UF_IMMUTABLE / WORM protection)
-        do {
-            try storage.setImmutable(at: finalSnapshotDir, immutable: true)
-            logger.info("Immutability (UF_IMMUTABLE) flag activated for: \(finalSnapshotDir.lastPathComponent)")
-        } catch {
-            logger.warning("Notice: Immutability flag could not be set: \(error.localizedDescription)")
+        var lockedUntilDate: Date? = nil
+        if profile.isImmutabilityLockEnabled {
+            let lockDays = max(1, profile.immutabilityLockDays)
+            lockedUntilDate = Calendar.current.date(byAdding: .day, value: lockDays, to: snapshotDate)
+            do {
+                try storage.setImmutable(at: finalSnapshotDir, immutable: true)
+                logger.info("WORM Immutability (UF_IMMUTABLE) activated until \(lockedUntilDate?.description ?? "") for: \(finalSnapshotDir.lastPathComponent)")
+            } catch {
+                logger.warning("Notice: Immutability flag could not be set: \(error.localizedDescription)")
+            }
+        } else {
+            do {
+                try storage.setImmutable(at: finalSnapshotDir, immutable: true)
+                logger.info("Immutability (UF_IMMUTABLE) flag activated for: \(finalSnapshotDir.lastPathComponent)")
+            } catch {
+                logger.warning("Notice: Immutability flag could not be set: \(error.localizedDescription)")
+            }
         }
 
         // 12. Atomically update 'Latest' symbolic link
@@ -986,7 +1001,8 @@ public actor BackupSessionCoordinator {
             totalFiles: Int64(catalogRecordsToSave.count),
             totalBytes: catalogRecordsToSave.reduce(0) { $0 + $1.fileSize },
             snapshotPath: timestampStr,
-            backupType: mode.rawValue
+            backupType: mode.rawValue,
+            lockedUntil: lockedUntilDate
         )
         try await database.insertSnapshot(snapshotRecord)
         try await database.insertFileRecordsBatch(catalogRecordsToSave)
@@ -1101,6 +1117,32 @@ public actor BackupSessionCoordinator {
             copiedBytes: copiedBytes,
             durationSeconds: duration
         )
+
+        // Secondary replication copy job & catch-up queueing
+        if profile.copyJobConfig.isEnabled && profile.isParallelMultiDestinationEnabled {
+            let activeDestinations = profile.copyJobConfig.destinations.filter { $0.isEnabled }
+            if !activeDestinations.isEmpty {
+                logger.info("Dispatching parallel multi-destination copy jobs for snapshot '\(snapshotId)'...")
+                let copyCoordinator = BackupCopyJobCoordinator(storage: self.storage, database: self.database)
+                let catchUpCoordinator = ReplicationCatchUpCoordinator(database: self.database, storage: self.storage)
+                do {
+                    let repSummary = try await copyCoordinator.executeReplication(profile: profile, targetSnapshotId: snapshotId)
+                    if repSummary.successfulDestinations < activeDestinations.count {
+                        logger.warning("Secondary replication completed with errors (\(repSummary.successfulDestinations)/\(activeDestinations.count) successful).")
+                    }
+                } catch {
+                    logger.warning("Parallel secondary replication encountered an error: \(error.localizedDescription). Enqueueing for background catch-up.")
+                    for dest in activeDestinations {
+                        try? await catchUpCoordinator.enqueuePendingReplication(
+                            profileId: profile.id,
+                            snapshotId: snapshotId,
+                            destination: dest,
+                            errorMessage: error.localizedDescription
+                        )
+                    }
+                }
+            }
+        }
 
         // Safely close the database connection so SQLite locks and file descriptors are released
         await database.close()

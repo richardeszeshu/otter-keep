@@ -607,6 +607,40 @@ public actor RestoreEngine {
 
             try finalData.write(to: stagingURL, options: .atomic)
 
+        case .backblazeB2(let b2Config):
+            let b2Provider = RemoteStorageFactory.makeB2Provider(for: destination, config: b2Config)
+
+            let encryptedKey = "\(snapshotId)/\(relativePath).enc"
+            let plainKey = "\(snapshotId)/\(relativePath)"
+
+            let rawDownloadedData: Data
+            var isEncrypted = destination.isClientEncryptionEnabled
+
+            if isEncrypted {
+                do {
+                    rawDownloadedData = try await b2Provider.getObject(key: encryptedKey)
+                } catch {
+                    rawDownloadedData = try await b2Provider.getObject(key: plainKey)
+                    isEncrypted = false
+                }
+            } else {
+                do {
+                    rawDownloadedData = try await b2Provider.getObject(key: plainKey)
+                } catch {
+                    rawDownloadedData = try await b2Provider.getObject(key: encryptedKey)
+                    isEncrypted = true
+                }
+            }
+
+            let finalData: Data
+            if isEncrypted {
+                finalData = try ClientSideEncryptor.decrypt(envelope: rawDownloadedData, passphrase: resolvedPassphrase)
+            } else {
+                finalData = rawDownloadedData
+            }
+
+            try finalData.write(to: stagingURL, options: .atomic)
+
         case .smb(let smbConfig):
             let (mountPoint, resolvedSubpath) = try await RemoteStorageFactory.mountNetworkShare(for: destination, config: smbConfig)
 

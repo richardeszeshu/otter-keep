@@ -191,6 +191,17 @@ public struct RestoreExplorerView: View {
                                             .background(OtterTheme.oceanicTeal.opacity(0.20), in: Capsule())
                                             .foregroundStyle(OtterTheme.oceanicTeal)
                                     }
+                                    if snap.isLocked {
+                                        HStack(spacing: 3) {
+                                            Image(systemName: "lock.shield.fill")
+                                            Text(L10n.t(.wormLockedBadge))
+                                        }
+                                        .font(.system(size: 9, weight: .bold))
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 1.5)
+                                        .background(OtterTheme.accentPurple.opacity(0.20), in: Capsule())
+                                        .foregroundStyle(OtterTheme.accentPurple)
+                                    }
                                     Spacer()
                                     Text(formatBytes(snap.totalBytes))
                                         .font(.caption)

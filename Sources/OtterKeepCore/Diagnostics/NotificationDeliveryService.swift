@@ -275,9 +275,17 @@ public final class NotificationDeliveryService: NSObject, @unchecked Sendable, U
         let content = UNMutableNotificationContent()
         content.title = L10n.t(.notifUpdateAvailableTitle)
         content.body = String(format: L10n.t(.notifUpdateAvailableBodyFormat), version)
-        content.sound = .default
-
         dispatchNotification(identifier: "com.otterkeep.update.available.\(version)", content: content)
+    }
+
+    /// Delivers an urgent alert notification when bit-rot or file corruption is detected by the background scrubber.
+    public func notifyScrubCorruptionDetected(corruptedCount: Int, snapshotId: String) {
+        let content = UNMutableNotificationContent()
+        content.title = "⚠️ Integrity Alert: Data Corruption Detected"
+        content.body = "OtterKeep background scrubber found \(corruptedCount) corrupted file(s) in snapshot '\(snapshotId)'. Click to inspect."
+        content.sound = .defaultCritical
+
+        dispatchNotification(identifier: "com.otterkeep.scrub.corruption.\(UUID().uuidString)", content: content)
     }
 
     // MARK: - UNUserNotificationCenterDelegate

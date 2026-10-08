@@ -4,12 +4,13 @@ import OtterKeepStorage
 /// Target remote backend type (S3 cloud storage, NAS network share, WebDAV, or SFTP).
 public enum RemoteDestinationType: Codable, Sendable, Equatable {
     case s3(S3Configuration)
+    case backblazeB2(B2Configuration)
     case smb(NetworkShareConfiguration)
     case webdav(WebDAVConfiguration)
     case sftp(SFTPConfiguration)
 
     enum CodingKeys: String, CodingKey {
-        case type, s3Config, smbConfig, webdavConfig, sftpConfig
+        case type, s3Config, b2Config, smbConfig, webdavConfig, sftpConfig
     }
 
     public init(from decoder: Decoder) throws {
@@ -19,6 +20,9 @@ public enum RemoteDestinationType: Codable, Sendable, Equatable {
         case "s3":
             let config = try container.decode(S3Configuration.self, forKey: .s3Config)
             self = .s3(config)
+        case "b2", "backblazeB2":
+            let config = try container.decode(B2Configuration.self, forKey: .b2Config)
+            self = .backblazeB2(config)
         case "smb":
             let config = try container.decode(NetworkShareConfiguration.self, forKey: .smbConfig)
             self = .smb(config)
@@ -40,6 +44,9 @@ public enum RemoteDestinationType: Codable, Sendable, Equatable {
         case .s3(let config):
             try container.encode("s3", forKey: .type)
             try container.encode(config, forKey: .s3Config)
+        case .backblazeB2(let config):
+            try container.encode("b2", forKey: .type)
+            try container.encode(config, forKey: .b2Config)
         case .smb(let config):
             try container.encode("smb", forKey: .type)
             try container.encode(config, forKey: .smbConfig)
@@ -56,6 +63,7 @@ public enum RemoteDestinationType: Codable, Sendable, Equatable {
     public var typeDisplayName: String {
         switch self {
         case .s3: return "Cloud S3"
+        case .backblazeB2: return "Backblaze B2"
         case .smb: return "NAS SMB"
         case .webdav: return "WebDAV"
         case .sftp: return "SFTP"

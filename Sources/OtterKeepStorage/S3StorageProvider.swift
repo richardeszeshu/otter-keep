@@ -461,6 +461,35 @@ public actor S3StorageProvider {
         }
     }
 
+    /// Aborts an in-flight multipart upload.
+    public func abortMultipartUpload(key: String, uploadId: String) async throws {
+        let queryItems = [URLQueryItem(name: "uploadId", value: uploadId)]
+        let url = try targetURL(for: key, queryItems: queryItems)
+
+        var headers: [String: String] = [:]
+        headers = S3Signer.signRequestHeaders(
+            method: "DELETE",
+            url: url,
+            headers: headers,
+            payload: Data(),
+            accessKey: config.accessKeyId,
+            secretKey: secretAccessKey,
+            region: config.region
+        )
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        for (k, v) in headers {
+            request.setValue(v, forHTTPHeaderField: k)
+        }
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpRes = response as? HTTPURLResponse, (200...299).contains(httpRes.statusCode) || httpRes.statusCode == 404 else {
+            let msg = String(data: data, encoding: .utf8) ?? "Abort multipart upload failed"
+            throw S3Error.requestFailed(statusCode: (response as? HTTPURLResponse)?.statusCode ?? 500, message: msg)
+        }
+    }
+
     /// Helper to extract simple XML tag contents.
     private func extractXMLTag(_ xml: String, tag: String) -> String? {
         let openTag = "<\(tag)>"

@@ -18,6 +18,19 @@ public enum RemoteStorageFactory {
         return S3StorageProvider(config: config, secretAccessKey: secretKey)
     }
 
+    /// Instantiates an authenticated `B2StorageProvider` for the given destination configuration.
+    /// - Parameters:
+    ///   - destination: The remote destination model containing the keychain account identifier.
+    ///   - config: Backblaze B2 connection and bucket configuration.
+    /// - Returns: Initialized `B2StorageProvider` instance.
+    public static func makeB2Provider(
+        for destination: RemoteDestination,
+        config: B2Configuration
+    ) -> B2StorageProvider {
+        let appKey = KeychainManager.getSecret(for: destination.keychainAccount) ?? ""
+        return B2StorageProvider(config: config, applicationKey: appKey)
+    }
+
     /// Instantiates an authenticated `SFTPStorageProvider` for the given destination configuration.
     /// - Parameters:
     ///   - destination: The remote destination model containing the keychain account identifier.

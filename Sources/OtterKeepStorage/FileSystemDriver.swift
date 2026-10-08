@@ -42,6 +42,9 @@ public protocol FileSystemDriver: Sendable {
 
     /// Sets or clears immutability / protection flags.
     func setImmutable(at url: URL, immutable: Bool) throws
+
+    /// Queries whether the item is immutable.
+    func isFileImmutable(at url: URL) throws -> Bool
 }
 
 /// Abstract base POSIX implementation providing shared low-level utilities for filesystem drivers.
@@ -455,6 +458,24 @@ open class BasePOSIXFileSystemDriver: FileSystemDriver, @unchecked Sendable {
                 _ = chmod(path, st.st_mode & ~mode_t(0o222))
             }
         }
+    }
+
+    public func darwinIsImmutable(at url: URL) throws -> Bool {
+        let path = normalizedPath(for: url)
+        var st = stat()
+        guard lstat(path, &st) == 0 else {
+            let err = errno
+            if err == ENOENT {
+                throw FileSystemError.itemNotFound(path: path)
+            }
+            throw FileSystemError.unknown(String(cString: strerror(err)))
+        }
+        let immutableMask = UInt32(UF_IMMUTABLE) | UInt32(SF_IMMUTABLE)
+        return (st.st_flags & immutableMask) != 0
+    }
+
+    open func isFileImmutable(at url: URL) throws -> Bool {
+        try darwinIsImmutable(at: url)
     }
 
     open func setImmutable(at url: URL, immutable: Bool) throws {

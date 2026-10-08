@@ -57,4 +57,8 @@ public final class ExFATDriver: BasePOSIXFileSystemDriver, @unchecked Sendable {
     public override func setImmutable(at url: URL, immutable: Bool) throws {
         // BSD chflags are not supported on exFAT volumes; treated as non-blocking advisory
     }
+
+    public override func isFileImmutable(at url: URL) throws -> Bool {
+        return false
+    }
 }
