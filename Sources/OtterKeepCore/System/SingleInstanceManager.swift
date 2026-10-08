@@ -54,15 +54,23 @@ public final class SingleInstanceManager: @unchecked Sendable {
     }
 
     private init() {
-        createOtterKeepDirectoryIfNeeded()
+        ensureDirectoryPermissions()
+    }
+
+    /// Enforces strict 0700 permissions on the base ~/.otterkeep/ directory to protect IPC sockets and lock files.
+    public func ensureDirectoryPermissions() {
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let dir = home.appendingPathComponent(".otterkeep", isDirectory: true)
+        let dirPath = dir.path(percentEncoded: false)
+        if !FileManager.default.fileExists(atPath: dirPath) {
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        }
+        try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dirPath)
+        chmod(dirPath, 0o700)
     }
 
     private func createOtterKeepDirectoryIfNeeded() {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let dir = home.appendingPathComponent(".otterkeep", isDirectory: true)
-        if !FileManager.default.fileExists(atPath: dir.path) {
-            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        }
+        ensureDirectoryPermissions()
     }
 
     /// Attempts to connect to an existing running primary GUI instance and forward the launch parameters.

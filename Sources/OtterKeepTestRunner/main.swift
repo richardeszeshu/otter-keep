@@ -931,6 +931,7 @@ final class OtterKeepTestSuite {
 
     private func test6_2_SocketPermissions() throws {
         let manager = SingleInstanceManager.shared
+        manager.ensureDirectoryPermissions()
         let lockPath = manager.lockFilePath
         let socketPath = manager.socketPath
 
