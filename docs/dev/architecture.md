@@ -1,6 +1,6 @@
 # OtterKeep Architecture Blueprint
 
-This document specifies the technical architecture of OtterKeep v1.7.0, detailing concurrency boundaries, actor isolation, multi-subsystem topology, and modern data verification pipelines.
+This document specifies the technical architecture of OtterKeep v1.6.0, detailing concurrency boundaries, actor isolation, multi-subsystem topology, and modern data verification pipelines.
 
 ---
 
@@ -116,7 +116,7 @@ Prevents unintended APFS kernel faults and unwanted cellular/network downloads:
 
 ---
 
-## 10. Human Interface & Sanctuary Architecture (v1.7.0)
+## 10. Human Interface & Sanctuary Architecture (v1.6.0)
 
 Designed according to macOS Human Interface Guidelines and the Sanctuary Principle:
 - **Segmented Sub-Tab Topology**: `ProfileRulesAndMaintenanceView` is partitioned into three discrete workspaces (`rules`, `automation`, `maintenance`) governed by `ProfileMaintenanceSubTab`, eliminating cognitive overload from linear scrolls.

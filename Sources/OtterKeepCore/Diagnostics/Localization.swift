@@ -1228,7 +1228,7 @@ public enum L10n {
         case quickLookKeyboardHint
         case daysCountUnitFormat
 
-        // MARK: - v1.7.0: Dynamic Sanctuary Mood & Profile Rules Redesign
+        // MARK: - v1.6.0: Dynamic Sanctuary Mood & Profile Rules Redesign
         case sanctuaryHeroWarningTitle
         case sanctuaryHeroDangerTitle
         case profileSubTabRules
@@ -2193,7 +2193,7 @@ public enum L10n {
         .quickLookKeyboardHint: "Szóköz: Gyorsnézet",
         .daysCountUnitFormat: "%d nap",
 
-        // MARK: - v1.7.0: Dynamic Sanctuary Mood & Profile Rules Redesign
+        // MARK: - v1.6.0: Dynamic Sanctuary Mood & Profile Rules Redesign
         .sanctuaryHeroWarningTitle: "Kis figyelmet igényel, de kincseid védve vannak",
         .sanctuaryHeroDangerTitle: "Figyelem szükséges, de minden kincsedet megvédjük",
         .profileSubTabRules: "Szabályok és kizárások",
@@ -3151,7 +3151,7 @@ public enum L10n {
         .quickLookKeyboardHint: "Space: Quick Look",
         .daysCountUnitFormat: "%d days",
 
-        // MARK: - v1.7.0: Dynamic Sanctuary Mood & Profile Rules Redesign
+        // MARK: - v1.6.0: Dynamic Sanctuary Mood & Profile Rules Redesign
         .sanctuaryHeroWarningTitle: "Needs a little attention, but your treasures are safe",
         .sanctuaryHeroDangerTitle: "Action needed, but your treasures remain protected",
         .profileSubTabRules: "Rules & Exclusions",

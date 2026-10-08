@@ -4,21 +4,25 @@ All notable changes to OtterKeep are documented in this file in accordance with 
 
 ---
 
-## [1.7.0] - 2026-10-08 (Build 1700)
+## [1.6.0] - 2026-10-08 (Build 1600)
 
 ### 🌟 Release Summary / Verzióösszefoglaló
-Version **1.7.0** transforms the profile configuration and dashboard experience into a serene, uncluttered, and reassuring sanctuary:
-- **3-Tab Segmented Rules & Maintenance Workspace**: Reorganized the previously overwhelming 12-card configuration view into three focused sub-tabs:
-  1. *Rules & Exclusions (`Szabályok és kizárások`)*: Directory headers, exclusions with quick presets & gitignore, iCloud strategy, metered Wi-Fi protection, and ransomware guard.
-  2. *Automation & Schedule (`Automatizáció és ütemezés`)*: Backup triggers, external drive auto-backup on mount, 3-2-1 offsite replication, and outbound webhooks (Slack/Discord/Pushover).
-  3. *Maintenance & Storage (`Karbantartás és tárhely`)*: Unified snapshot retention policy (synchronizing auto-pruning and maximum snapshots), WORM immutability & manual data scrubber, catalog disaster recovery, and technical metadata.
+Version **1.6.0** delivers a comprehensive UX, human interface, and architectural polish across the entire OtterKeep GUI, adhering to native macOS Human Interface Guidelines (HIG) and the brand's Sanctuary Principle:
+- **Profile-Aware Last Backup Status**: Switching between backup profiles immediately reflects that profile's last backup outcome, relative timestamp, and snapshot count across the sidebar, header bar, and dashboard hero card.
 - **Dynamic 3D Pixar Ottie Mascot in Overview**: Replaced the static logo in the Sanctuary Hero card with 3 expressive, transparent-background mascot illustrations reflecting system and storage health:
   - **Safe**: Ottie is proud and joyful, holding a sparkling crystal.
   - **Warning**: Ottie is gently attentive, inspecting a glowing river pebble with care (no alarmist stress).
   - **Danger / Action Needed**: Ottie is empathetic and determined, clutching the protected stone securely to reassure the user that their data is safe.
 - **Integrated Storage Forecasting in Sanctuary Hero Card**: Elevated the card height and integrated live storage depletion telemetry (daily growth rate, days remaining, health badges, quota warnings) directly beside Ottie, eliminating the standalone forecast box.
 - **Direct Pipeline Folder Management**: Moved "Change folder" and "Reveal in Finder" actions directly inside the Source and Destination nodes of the visual `BackupPipelineView`, removing the redundant cards from the bottom of the Overview dashboard.
-- **System Notification on Software Updates**: When an update is detected (automatically or manually), OtterKeep chimes a friendly macOS system banner via `UNUserNotificationCenter` with version details.
+- **3-Tab Segmented Rules & Maintenance Workspace**: Reorganized the previously overwhelming 12-card configuration view into three focused sub-tabs:
+  1. *Rules & Exclusions (`Szabályok és kizárások`)*: Directory headers, exclusions with quick presets & gitignore, iCloud strategy, metered Wi-Fi protection, and ransomware guard.
+  2. *Automation & Schedule (`Automatizáció és ütemezés`)*: Backup triggers, external drive auto-backup on mount, 3-2-1 offsite replication, and outbound webhooks (Slack/Discord/Pushover).
+  3. *Maintenance & Storage (`Karbantartás és tárhely`)*: Unified snapshot retention policy (synchronizing auto-pruning and maximum snapshots), WORM immutability & manual data scrubber, catalog disaster recovery, and technical metadata.
+- **Time Machine Timeline Mode Reactivation**: Reactivated the vertical snapshot timeline view (`RestoreBrowseMode.timeline`) alongside Snapshot Browser and Global Search, with file difference comparison and QuickLook preview (`Space`).
+- **macOS Native Keyboard Shortcuts**: Fast navigation with `⌘1` (Overview), `⌘2` (Time Machine), `⌘3` (Rules & Maintenance), `⌘B` (Backup Now), `⌘D` (Dry-Run), and `⌘.` (Stop).
+- **System Notification on Software Updates**: When an update is detected (automatically or manually), OtterKeep chimes a friendly macOS system banner via `UNUserNotificationCenter` with sound and version details.
+- **Arculat Token Purge & Bilingual Localization**: Eliminated legacy color tokens in favor of OtterKeep's signature `otterAmber` and `oceanicTeal`, and fully localized system status subtitles, units, and menu bar descriptions in English and Hungarian.
 
 ---
 
@@ -34,20 +38,6 @@ Version **1.7.0** transforms the profile configuration and dashboard experience 
 
 ### 🔔 System Telemetry & Notifications / Rendszerértesítések
 - Software update checks trigger system notification chimes with sound (`.default`) and interactive app launch handler upon discovery.
-
----
-
-## [1.6.0] - 2026-10-08 (Build 1600)
-
-### 🌟 Release Summary / Verzióösszefoglaló
-Version **1.6.0** delivers a comprehensive UX and human interface polish across the entire OtterKeep GUI, adhering to native macOS Human Interface Guidelines (HIG) and the brand's Sanctuary Principle:
-- **Profile-Aware Last Backup Status**: Switching between backup profiles immediately and distinctly reflects that profile's last backup outcome, relative timestamp, and snapshot count across the sidebar, header bar, and dashboard hero card.
-- **Sanctuary Hero Card & Reassuring Hierarchy**: When idle, the dashboard presents a calm, non-alarmist Sanctuary card providing peace of mind and one-click actions; seamlessly transitions to a live telemetry HUD during operations.
-- **Time Machine Timeline Mode Reactivation**: Reactivated the vertical snapshot timeline view (`RestoreBrowseMode.timeline`) alongside Snapshot Browser and Global Search, with file difference comparison and QuickLook preview (`Space`).
-- **macOS Native Keyboard Shortcuts**: Fast navigation with `⌘1` (Overview), `⌘2` (Time Machine), `⌘3` (Rules & Maintenance), `⌘B` (Backup Now), `⌘D` (Dry-Run), and `⌘.` (Stop).
-- **Arculat Token Purge & Bilingual Localization**: Eliminated legacy color tokens in favor of OtterKeep's signature `otterAmber` and `oceanicTeal`, and fully localized system status subtitles, units, and menu bar descriptions in English and Hungarian.
-
----
 
 ### 🎨 Human Interface & Sanctuary UX / Felhasználói élmény és felület
 - **Sidebar Profile Status Indicators**: Each profile row in the sidebar list now displays a dynamic status dot and localized status line (e.g. *"Utolsó mentés: 5 perce"* / *"Last backup: 5 minutes ago"*, snapshot count, or live phase).
