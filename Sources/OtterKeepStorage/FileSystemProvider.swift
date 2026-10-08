@@ -268,10 +268,19 @@ public protocol FileSystemProvider: Sendable {
     /// - Parameters:
     ///   - url: Target item URL.
     ///   - immutable: True to set `UF_IMMUTABLE`, false to clear.
-    func setImmutable(at url: URL, immutable: Bool) throws
+    ///   - recursive: Whether to recursively set/clear the flag on all descendants.
+    func setImmutable(at url: URL, immutable: Bool, recursive: Bool) throws
 
     /// Queries whether the BSD file immutability flag (`UF_IMMUTABLE` or `SF_IMMUTABLE`) is currently set on the target item.
     /// - Parameter url: Target item URL.
     /// - Returns: True if the file or directory is immutable.
     func isFileImmutable(at url: URL) throws -> Bool
 }
+
+public extension FileSystemProvider {
+    /// Convenience overload default for non-recursive immutability flag manipulation.
+    func setImmutable(at url: URL, immutable: Bool) throws {
+        try setImmutable(at: url, immutable: immutable, recursive: false)
+    }
+}
+

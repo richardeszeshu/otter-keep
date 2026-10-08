@@ -271,7 +271,7 @@ public struct BackupProfile: Identifiable, Codable, Sendable, Equatable {
         maxDeletedThresholdCount: Int = 100,
         detectKnownRansomwareExtensions: Bool = true,
         abortOnAnomaly: Bool = false,
-        isImmutabilityLockEnabled: Bool = false,
+        isImmutabilityLockEnabled: Bool = true,
         immutabilityLockDays: Int = 30,
         isParallelMultiDestinationEnabled: Bool = true
     ) {
@@ -355,7 +355,7 @@ public struct BackupProfile: Identifiable, Codable, Sendable, Equatable {
         self.maxDeletedThresholdCount = try container.decodeIfPresent(Int.self, forKey: .maxDeletedThresholdCount) ?? 100
         self.detectKnownRansomwareExtensions = try container.decodeIfPresent(Bool.self, forKey: .detectKnownRansomwareExtensions) ?? true
         self.abortOnAnomaly = try container.decodeIfPresent(Bool.self, forKey: .abortOnAnomaly) ?? false
-        self.isImmutabilityLockEnabled = try container.decodeIfPresent(Bool.self, forKey: .isImmutabilityLockEnabled) ?? false
+        self.isImmutabilityLockEnabled = try container.decodeIfPresent(Bool.self, forKey: .isImmutabilityLockEnabled) ?? true
         self.immutabilityLockDays = try container.decodeIfPresent(Int.self, forKey: .immutabilityLockDays) ?? 30
         self.isParallelMultiDestinationEnabled = try container.decodeIfPresent(Bool.self, forKey: .isParallelMultiDestinationEnabled) ?? true
     }

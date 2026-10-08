@@ -403,6 +403,10 @@ public final class AppState: Sendable {
     public var activeSideBySideDiffComparison: FileComparisonResult? = nil
     public var isLoadingSideBySideDiff: Bool = false
 
+    // MARK: - Data Integrity Scrubber State (1.5.0)
+    public var isDataScrubInProgress: Bool = false
+    public var scrubProgress: ScrubRunProgress? = nil
+
     // MARK: - Storage Capacity Forecast & Quota Alerts
     public var storageForecastReport: StorageForecastReport?
     public var isLoadingForecast: Bool = false
@@ -2030,6 +2034,74 @@ public final class AppState: Sendable {
             sha256: record.checksum ?? ""
         )
         openSideBySideDiff(forGlobalSearchResult: hit)
+    }
+
+    // MARK: - Data Integrity Scrubber Operations (1.5.0)
+
+    @MainActor
+    public func performManualScrub(profile: BackupProfile? = nil) {
+        guard !isDataScrubInProgress else { return }
+
+        let targetProfile = profile ?? selectedProfile
+        guard let prof = targetProfile else { return }
+
+        isDataScrubInProgress = true
+        scrubProgress = ScrubRunProgress()
+        LogManager.shared.log("Starting manual data integrity scrub for profile '\(prof.name)'", level: .info, category: "Integrity")
+        refreshLogs()
+
+        Task.detached(priority: .background) {
+            let scrubber = DataScrubberEngine()
+            do {
+                let audit = try await scrubber.performScrub(
+                    backupRootURL: prof.destinationURL,
+                    limitSnapshots: nil,
+                    throttleSleepMs: 0
+                ) { progress in
+                    Task { @MainActor in
+                        self.scrubProgress = progress
+                    }
+                }
+
+                await MainActor.run {
+                    self.isDataScrubInProgress = false
+                    self.scrubProgress = nil
+                    self.refreshLogs()
+
+                    if audit.corruptedFilesCount == 0 {
+                        self.activeFeedback = OperationFeedback(
+                            type: .success,
+                            title: L10n.t(.scrubSuccessTitle),
+                            message: L10n.format(.scrubSuccessMessage, prof.name, Int64(audit.checkedSnapshotsCount), Int64(audit.checkedFilesCount)),
+                            profileName: prof.name
+                        )
+                    } else {
+                        self.activeFeedback = OperationFeedback(
+                            type: .failure,
+                            title: L10n.t(.scrubCorruptedTitle),
+                            message: L10n.format(.scrubCorruptedMessage, prof.name, Int64(audit.corruptedFilesCount)),
+                            detailedReason: audit.detailsJson,
+                            profileName: prof.name
+                        )
+                    }
+                    self.showFeedbackModal = true
+                }
+            } catch {
+                await MainActor.run {
+                    self.isDataScrubInProgress = false
+                    self.scrubProgress = nil
+                    self.refreshLogs()
+                    self.activeFeedback = OperationFeedback(
+                        type: .failure,
+                        title: L10n.t(.scrubberCorruptedAlertTitle),
+                        message: error.localizedDescription,
+                        detailedReason: error.localizedDescription,
+                        profileName: prof.name
+                    )
+                    self.showFeedbackModal = true
+                }
+            }
+        }
     }
 
     // MARK: - Storage Forecast Operations

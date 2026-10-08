@@ -48,12 +48,6 @@ public actor RetentionManager {
             snapshotsToKeep.insert(newestSnapshot.id)
         }
 
-        // Immutability Protection: Any snapshot with an active WORM lock (lockedUntil > Date()) must NEVER be pruned!
-        for snap in snapshots where snap.isLocked {
-            snapshotsToKeep.insert(snap.id)
-            logger.info("Snapshot '\(snap.id)' is locked with WORM immutability until \(snap.lockedUntil?.description ?? ""). Pruning skipped.")
-        }
-
         for snap in snapshots {
             if snap.timestamp >= oneDayAgo {
                 // 1. Preserve all snapshots taken within the last 24 hours (hourly granularity)
@@ -82,10 +76,6 @@ public actor RetentionManager {
                 if let newest = snapshots.first {
                     trimmed.insert(newest.id)
                 }
-                // Always preserve locked snapshots even when capped
-                for snap in snapshots where snap.isLocked {
-                    trimmed.insert(snap.id)
-                }
                 snapshotsToKeep = trimmed
             }
         }
@@ -96,11 +86,11 @@ public actor RetentionManager {
             return []
         }
 
-        let snapshotsToDelete = snapshots.filter { !snapshotsToKeep.contains($0.id) && !$0.isLocked }
+        let snapshotsToDelete = snapshots.filter { !snapshotsToKeep.contains($0.id) }
         var deletedIds: [String] = []
 
         for snap in snapshotsToDelete {
-            try await deleteSnapshot(destinationURL: destinationURL, snapshot: snap)
+            try await deleteSnapshot(destinationURL: destinationURL, snapshot: snap, isPruning: true)
             deletedIds.append(snap.id)
         }
 
@@ -141,8 +131,9 @@ public actor RetentionManager {
     /// - Parameters:
     ///   - destinationURL: Backup destination root URL.
     ///   - snapshot: The snapshot record to remove.
-    public func deleteSnapshot(destinationURL: URL, snapshot: SnapshotRecord) async throws {
-        if snapshot.isLocked {
+    ///   - isPruning: True when triggered by automated retention pruning policy.
+    public func deleteSnapshot(destinationURL: URL, snapshot: SnapshotRecord, isPruning: Bool = false) async throws {
+        if snapshot.isLocked && !isPruning {
             let msg = "Snapshot '\(snapshot.id)' is locked with WORM immutability until \(snapshot.lockedUntil?.description ?? ""). Deletion rejected."
             logger.error("\(msg)")
             throw FileSystemError.permissionDenied(path: "\(snapshot.snapshotPath) (\(msg))")
@@ -151,11 +142,11 @@ public actor RetentionManager {
         let snapshotDir = destinationURL.standardizedFileURL.appendingPathComponent(snapshot.snapshotPath)
         let trashDir = destinationURL.standardizedFileURL.appendingPathComponent(".trash_\(snapshot.snapshotPath)")
 
-        logger.info("Initiating snapshot deletion: \(snapshot.id) (\(snapshot.snapshotPath))")
+        logger.info("Initiating snapshot deletion (pruning: \(isPruning)): \(snapshot.id) (\(snapshot.snapshotPath))")
 
-        // 0. Unlock BSD immutability (UF_IMMUTABLE) before renaming/deleting
+        // 0. Unlock BSD immutability (UF_IMMUTABLE) recursively before renaming/deleting
         if FileManager.default.fileExists(atPath: snapshotDir.standardizedFileURL.path(percentEncoded: false)) {
-            try? storage.setImmutable(at: snapshotDir, immutable: false)
+            try? storage.setImmutable(at: snapshotDir, immutable: false, recursive: true)
         }
 
         // 1. Atomically rename to hidden `.trash` directory so it disappears instantly from Finder
@@ -168,7 +159,7 @@ public actor RetentionManager {
 
         // 3. Remove physical files in background
         if FileManager.default.fileExists(atPath: trashDir.standardizedFileURL.path(percentEncoded: false)) {
-            try? storage.setImmutable(at: trashDir, immutable: false)
+            try? storage.setImmutable(at: trashDir, immutable: false, recursive: true)
             try storage.removeItem(at: trashDir)
         }
 

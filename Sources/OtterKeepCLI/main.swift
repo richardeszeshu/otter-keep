@@ -1125,7 +1125,7 @@ struct OtterKeepCLI {
 
             let snapURL = profile.destinationURL.appendingPathComponent(snap.snapshotPath)
             let storage = APFSFileSystemProvider()
-            try? storage.setImmutable(at: snapURL, immutable: true)
+            try? storage.setImmutable(at: snapURL, immutable: true, recursive: true)
 
             let df = ISO8601DateFormatter()
             print("🔒 Snapshot '\(snapId)' locked with WORM immutability.")
@@ -1168,7 +1168,7 @@ struct OtterKeepCLI {
 
             let snapURL = profile.destinationURL.appendingPathComponent(snap.snapshotPath)
             let storage = APFSFileSystemProvider()
-            try? storage.setImmutable(at: snapURL, immutable: false)
+            try? storage.setImmutable(at: snapURL, immutable: false, recursive: true)
 
             print("🔓 Snapshot '\(snapId)' unlocked.")
         } catch {

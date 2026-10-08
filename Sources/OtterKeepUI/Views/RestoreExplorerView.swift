@@ -269,22 +269,43 @@ public struct RestoreExplorerView: View {
                     }
                     .listStyle(.sidebar)
 
-                    if let selectedSnap = appState.snapshots.first(where: { $0.id == appState.selectedSnapshotId }) {
+                    VStack(spacing: 6) {
+                        if let selectedSnap = appState.snapshots.first(where: { $0.id == appState.selectedSnapshotId }) {
+                            Button {
+                                appState.snapshotToRestoreEntirely = selectedSnap
+                                appState.showRestoreSnapshotDialog = true
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "arrow.counterclockwise.circle.fill")
+                                    Text(L10n.t(.restoreEntireSnapshotButton))
+                                }
+                                .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.regular)
+                        }
+
                         Button {
-                            appState.snapshotToRestoreEntirely = selectedSnap
-                            appState.showRestoreSnapshotDialog = true
+                            appState.performManualScrub()
                         } label: {
                             HStack(spacing: 6) {
-                                Image(systemName: "arrow.counterclockwise.circle.fill")
-                                Text(L10n.t(.restoreEntireSnapshotButton))
+                                if appState.isDataScrubInProgress {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Image(systemName: "checkmark.shield.fill")
+                                }
+                                Text(L10n.t(.verifySnapshotIntegrityButton))
                             }
                             .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.regular)
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 8)
+                        .disabled(appState.isDataScrubInProgress || appState.snapshots.isEmpty)
+                        .help(L10n.t(.verifySnapshotIntegrityTooltip))
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
                 }
             }
             .frame(minWidth: 260, maxWidth: 340)

@@ -53,6 +53,10 @@ public final class FATDriver: BasePOSIXFileSystemDriver, @unchecked Sendable {
         // Ignored on FAT
     }
 
+    public override func setImmutable(at url: URL, immutable: Bool, recursive: Bool) throws {
+        // Ignored on FAT
+    }
+
     public override func setImmutable(at url: URL, immutable: Bool) throws {
         // Ignored on FAT
     }

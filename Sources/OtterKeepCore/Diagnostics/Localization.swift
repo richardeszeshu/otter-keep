@@ -1202,6 +1202,14 @@ public enum L10n {
         case parallelMultiDestTitle
         case parallelMultiDestDescription
         case parallelReplicationQueuedNotice
+        case verifySnapshotIntegrityButton
+        case verifySnapshotIntegrityTitle
+        case verifySnapshotIntegrityDesc
+        case verifySnapshotIntegrityTooltip
+        case scrubSuccessTitle
+        case scrubSuccessMessage
+        case scrubCorruptedTitle
+        case scrubCorruptedMessage
     }
 
 
@@ -2134,7 +2142,15 @@ public enum L10n {
         .scrubberCorruptedAlertMessage: "A háttérellenőrzés %lld sérült fájlt talált a(z) '%@' pillanatképben.",
         .parallelMultiDestTitle: "Intelligens párhuzamos többcélpontos mentés",
         .parallelMultiDestDescription: "Párhuzamos replikáció NAS vagy felhő célpontokra. Ha egy célpont offline állapotba kerül, a mentés nem akad el, és az újrakapcsolódáskor a háttérben pótlásra kerül.",
-        .parallelReplicationQueuedNotice: "Az offline célpont mentése beütemezve a háttérben történő pótlásra."
+        .parallelReplicationQueuedNotice: "Az offline célpont mentése beütemezve a háttérben történő pótlásra.",
+        .verifySnapshotIntegrityButton: "Integritás ellenőrzése",
+        .verifySnapshotIntegrityTitle: "Pillanatképek integritásának ellenőrzése",
+        .verifySnapshotIntegrityDesc: "A mentett fájlok SHA-256 hash-értékeinek manuális összevetése a katalógussal bit-rot és sérülések kiszűrésére.",
+        .verifySnapshotIntegrityTooltip: "Fájlok SHA-256 hash-einek manuális ellenőrzése",
+        .scrubSuccessTitle: "Minden adat sértetlen!",
+        .scrubSuccessMessage: "A(z) '%@' profil %lld pillanatképében található %lld fájl SHA-256 ellenőrzése sikeresen lezajlott. Nincs sérülés.",
+        .scrubCorruptedTitle: "Adatsérülés észlelve!",
+        .scrubCorruptedMessage: "A(z) '%@' profilban az ellenőrzés %lld sérült vagy hiányzó fájlt észlelt. Tekintse meg a részleteket."
     ]
 
 
@@ -3060,7 +3076,15 @@ public enum L10n {
         .scrubberCorruptedAlertMessage: "Background scrubber detected %lld corrupted files in snapshot '%@'.",
         .parallelMultiDestTitle: "Intelligent Parallel Multi-Destination",
         .parallelMultiDestDescription: "Parallel replication to NAS or cloud targets. If a target is offline, it is queued and replicated in the background upon reconnection.",
-        .parallelReplicationQueuedNotice: "Offline destination queued for automatic background replication."
+        .parallelReplicationQueuedNotice: "Offline destination queued for automatic background replication.",
+        .verifySnapshotIntegrityButton: "Verify Integrity",
+        .verifySnapshotIntegrityTitle: "Verify Snapshot Integrity",
+        .verifySnapshotIntegrityDesc: "Manually verify SHA-256 file hashes against catalog to detect bit-rot and corrupted files.",
+        .verifySnapshotIntegrityTooltip: "Verify SHA-256 hashes of files against catalog",
+        .scrubSuccessTitle: "All Data Intact!",
+        .scrubSuccessMessage: "Cryptographic SHA-256 verification of %lld files across %lld snapshots in '%@' completed successfully. No corruption found.",
+        .scrubCorruptedTitle: "Data Corruption Detected!",
+        .scrubCorruptedMessage: "Integrity check found %lld corrupted or missing files in profile '%@'. Please review details."
     ]
 }
 

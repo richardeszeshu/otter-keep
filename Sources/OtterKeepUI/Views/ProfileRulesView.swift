@@ -594,6 +594,41 @@ public struct ProfileRulesView: View {
                     .padding(.leading, 24)
                 }
 
+                Divider()
+
+                // Manual Integrity Scrub button
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.shield")
+                                .foregroundStyle(OtterTheme.statusGreen)
+                            Text(L10n.t(.verifySnapshotIntegrityTitle))
+                                .font(.body.weight(.medium))
+                        }
+                        Text(L10n.t(.verifySnapshotIntegrityDesc))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button {
+                        appState.performManualScrub(profile: profile)
+                    } label: {
+                        HStack(spacing: 6) {
+                            if appState.isDataScrubInProgress {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Image(systemName: "play.circle.fill")
+                            }
+                            Text(L10n.t(.verifySnapshotIntegrityButton))
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(OtterTheme.oceanicTeal)
+                    .controlSize(.regular)
+                    .disabled(appState.isDataScrubInProgress)
+                }
+
             }
             .otterCard()
         }

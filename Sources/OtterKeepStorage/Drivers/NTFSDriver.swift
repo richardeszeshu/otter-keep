@@ -66,6 +66,10 @@ public final class NTFSDriver: BasePOSIXFileSystemDriver, @unchecked Sendable {
         // Gracefully ignore on NTFS if unsupported
     }
 
+    public override func setImmutable(at url: URL, immutable: Bool, recursive: Bool) throws {
+        // Advisory on NTFS
+    }
+
     public override func setImmutable(at url: URL, immutable: Bool) throws {
         // Advisory on NTFS
     }

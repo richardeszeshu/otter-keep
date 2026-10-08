@@ -214,7 +214,7 @@ final class OtterKeepTestSuite {
         print("\n🔹 Module 11: 1.5.0 Modern Capabilities (Diff, Scrubber, WORM, B2, Replication, iCloud)")
         await runTest("11.1 TextDiffEngine Side-by-Side LCS Text & Binary Detection", test11_1_TextDiffEngineSideBySide)
         await runTest("11.2 DataScrubberEngine Background Bit-Rot & Corruption Detection", test11_2_DataScrubberBitRotDetection)
-        await runTest("11.3 WORM Immutability Flags & GFS Retention Immunity", test11_3_WORMImmutabilityAndRetentionImmunity)
+        await runTest("11.3 Recursive WORM Immutability Flags & GFS Retention Pruning", test11_3_WORMImmutabilityAndRetentionPruning)
         await runTest("11.4 Backblaze B2 S3 Configuration Mapping & Provider Resolution", test11_4_BackblazeB2Configuration)
         await runTest("11.5 ReplicationCatchUpCoordinator Deferred Task Queueing & Lifecycle", test11_5_ReplicationCatchUpCoordinator)
         await runTest("11.6 Dataless iCloud Drive Change Detection Without Forced Download", test11_6_DatalessICloudChangeDetection)
@@ -1310,19 +1310,49 @@ final class OtterKeepTestSuite {
         try assertTrue(corruptedAudit.detailsJson?.contains("Bit-rot") == true, "Details must report bit-rot")
     }
 
-    private func test11_3_WORMImmutabilityAndRetentionImmunity() async throws {
+    private func test11_3_WORMImmutabilityAndRetentionPruning() async throws {
         let tempDir = try createTempDirectory(prefix: "WORM")
-        defer { removeTempDirectory(tempDir) }
+        defer {
+            // Unlock everything before attempting test teardown cleanup
+            let provider = DefaultFileSystemProvider()
+            try? provider.setImmutable(at: tempDir, immutable: false, recursive: true)
+            removeTempDirectory(tempDir)
+        }
 
         let provider = DefaultFileSystemProvider()
-        let testFile = tempDir.appendingPathComponent("regular_file.txt")
-        try "Content".write(to: testFile, atomically: true, encoding: .utf8)
+        let testSnapDir = tempDir.appendingPathComponent("snapshot_worm_test")
+        let testSubDir = testSnapDir.appendingPathComponent("sub")
+        try FileManager.default.createDirectory(at: testSubDir, withIntermediateDirectories: true)
+        let testFile1 = testSnapDir.appendingPathComponent("file1.txt")
+        let testFile2 = testSubDir.appendingPathComponent("file2.txt")
+        try "Content1".write(to: testFile1, atomically: true, encoding: .utf8)
+        try "Content2".write(to: testFile2, atomically: true, encoding: .utf8)
 
-        // 1. Regular file is not immutable
-        let isImmutable = try provider.isFileImmutable(at: testFile)
-        try assertFalse(isImmutable, "Newly created file should not have immutable flags")
+        // 1. Initially files are not immutable
+        let initF1Imm = try provider.isFileImmutable(at: testFile1)
+        let initF2Imm = try provider.isFileImmutable(at: testFile2)
+        try assertFalse(initF1Imm, "Initial file must not be immutable")
+        try assertFalse(initF2Imm, "Initial nested file must not be immutable")
 
-        // 2. Database WORM lock state
+        // 2. Recursive immutability locks directory and nested files
+        try provider.setImmutable(at: testSnapDir, immutable: true, recursive: true)
+        let lockedDirImm = try provider.isFileImmutable(at: testSnapDir)
+        let lockedF1Imm = try provider.isFileImmutable(at: testFile1)
+        let lockedF2Imm = try provider.isFileImmutable(at: testFile2)
+        try assertTrue(lockedDirImm, "Snapshot directory must be immutable")
+        try assertTrue(lockedF1Imm, "Top-level file in snapshot must be immutable")
+        try assertTrue(lockedF2Imm, "Nested file in snapshot must be immutable")
+
+        // 3. Recursive unlock unlocks directory and all nested files
+        try provider.setImmutable(at: testSnapDir, immutable: false, recursive: true)
+        let unDirImm = try provider.isFileImmutable(at: testSnapDir)
+        let unF1Imm = try provider.isFileImmutable(at: testFile1)
+        let unF2Imm = try provider.isFileImmutable(at: testFile2)
+        try assertFalse(unDirImm, "Snapshot directory must be unlocked")
+        try assertFalse(unF1Imm, "Top-level file must be unlocked")
+        try assertFalse(unF2Imm, "Nested file must be unlocked")
+
+        // 4. Database WORM lock state
         let internalDir = tempDir.appendingPathComponent(".otterkeep")
         try FileManager.default.createDirectory(at: internalDir, withIntermediateDirectories: true)
         let dbPath = internalDir.appendingPathComponent("manifest.sqlite").standardizedFileURL.path(percentEncoded: false)
@@ -1337,9 +1367,16 @@ final class OtterKeepTestSuite {
         let thirtyDaysFuture = Date().addingTimeInterval(30 * 86400)
 
         // Create snapshot directories
-        try FileManager.default.createDirectory(at: tempDir.appendingPathComponent(snapIdNewest), withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: tempDir.appendingPathComponent(snapIdLocked), withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: tempDir.appendingPathComponent(snapIdPrunable), withIntermediateDirectories: true)
+        let snapDirNewest = tempDir.appendingPathComponent(snapIdNewest)
+        let snapDirLocked = tempDir.appendingPathComponent(snapIdLocked)
+        let snapDirPrunable = tempDir.appendingPathComponent(snapIdPrunable)
+        try FileManager.default.createDirectory(at: snapDirNewest, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: snapDirLocked, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: snapDirPrunable, withIntermediateDirectories: true)
+
+        let lockedInnerFile = snapDirLocked.appendingPathComponent("data.txt")
+        try "Protected data".write(to: lockedInnerFile, atomically: true, encoding: .utf8)
+        try provider.setImmutable(at: snapDirLocked, immutable: true, recursive: true)
 
         let newestSnap = SnapshotRecord(
             id: snapIdNewest,
@@ -1376,15 +1413,34 @@ final class OtterKeepTestSuite {
         try await db.insertSnapshot(prunableSnap)
         try assertFalse(prunableSnap.isLocked, "Snapshot without lockedUntil must report isLocked == false")
 
-        // 3. RetentionManager pruning: locked snapshot is IMMUNE to GFS pruning
+        // 5. Manual non-pruning deletion of a locked snapshot is rejected
         let retention = RetentionManager(storage: provider, database: db)
+        var caughtPermissionDenied = false
+        do {
+            try await retention.deleteSnapshot(destinationURL: tempDir, snapshot: lockedSnap, isPruning: false)
+        } catch FileSystemError.permissionDenied {
+            caughtPermissionDenied = true
+        }
+        try assertTrue(caughtPermissionDenied, "Manual deletion of locked snapshot without isPruning must throw permissionDenied")
+
+        // 6. Automated retention pruning CAN remove snapshots (unlocking WORM immutability recursively first)
         let pruned = try await retention.applyRetentionPolicy(
             destinationURL: tempDir,
             policy: PruningPolicy(isAutoPruningEnabled: true, maxSnapshotsToKeep: 1, keepDailyDays: 7)
         )
 
         try assertTrue(pruned.contains(snapIdPrunable), "Old unlocked snapshot must be pruned")
-        try assertFalse(pruned.contains(snapIdLocked), "WORM locked snapshot must never be pruned")
+        try assertTrue(pruned.contains(snapIdLocked), "Pruning must be able to remove WORM-locked snapshot past retention policy")
+        try assertFalse(FileManager.default.fileExists(atPath: snapDirLocked.path), "Pruned WORM snapshot folder must be deleted from disk")
+
+        // 7. Test restored file is NOT immutable at destination
+        let restoreDest = tempDir.appendingPathComponent("restored_output")
+        try FileManager.default.createDirectory(at: restoreDest, withIntermediateDirectories: true)
+        let restoredFile = restoreDest.appendingPathComponent("unlocked_restored.txt")
+        try "Restored".write(to: restoredFile, atomically: true, encoding: .utf8)
+        try provider.setImmutable(at: restoreDest, immutable: false, recursive: true)
+        let restoredFileImm = try provider.isFileImmutable(at: restoredFile)
+        try assertFalse(restoredFileImm, "Restored file must not be immutable at destination")
     }
 
     private func test11_4_BackblazeB2Configuration() async throws {

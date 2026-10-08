@@ -112,10 +112,12 @@ public struct SideBySideDiffModalView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .frame(width: columnWidth)
+            .frame(width: columnWidth, height: 36)
             .background(Color(NSColor.controlBackgroundColor))
 
-            Divider()
+            Rectangle()
+                .fill(Color(NSColor.separatorColor))
+                .frame(width: 1, height: 20)
 
             HStack {
                 Text(L10n.t(.diffSideBySideSnapshotB))
@@ -135,9 +137,10 @@ public struct SideBySideDiffModalView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .frame(width: columnWidth)
+            .frame(width: columnWidth, height: 36)
             .background(Color(NSColor.controlBackgroundColor))
         }
+        .frame(height: 36)
         .overlay(Divider(), alignment: .bottom)
     }
 
@@ -150,6 +153,7 @@ public struct SideBySideDiffModalView: View {
 
             VStack(spacing: 0) {
                 columnHeaders(columnWidth: columnWidth)
+                    .frame(height: 36)
 
                 ScrollView([.vertical, .horizontal]) {
                     LazyVStack(spacing: 0) {
@@ -160,6 +164,7 @@ public struct SideBySideDiffModalView: View {
                     }
                     .frame(minWidth: totalWidth, alignment: .leading)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

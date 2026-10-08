@@ -550,7 +550,7 @@ public actor BackupSessionCoordinator {
         var isCommitted = false
         defer {
             if !isCommitted {
-                try? storage.setImmutable(at: stagingDir, immutable: false)
+                try? storage.setImmutable(at: stagingDir, immutable: false, recursive: true)
                 try? storage.removeItem(at: stagingDir)
             }
         }
@@ -955,14 +955,14 @@ public actor BackupSessionCoordinator {
             let lockDays = max(1, profile.immutabilityLockDays)
             lockedUntilDate = Calendar.current.date(byAdding: .day, value: lockDays, to: snapshotDate)
             do {
-                try storage.setImmutable(at: finalSnapshotDir, immutable: true)
+                try storage.setImmutable(at: finalSnapshotDir, immutable: true, recursive: true)
                 logger.info("WORM Immutability (UF_IMMUTABLE) activated until \(lockedUntilDate?.description ?? "") for: \(finalSnapshotDir.lastPathComponent)")
             } catch {
                 logger.warning("Notice: Immutability flag could not be set: \(error.localizedDescription)")
             }
         } else {
             do {
-                try storage.setImmutable(at: finalSnapshotDir, immutable: true)
+                try storage.setImmutable(at: finalSnapshotDir, immutable: true, recursive: true)
                 logger.info("Immutability (UF_IMMUTABLE) flag activated for: \(finalSnapshotDir.lastPathComponent)")
             } catch {
                 logger.warning("Notice: Immutability flag could not be set: \(error.localizedDescription)")
@@ -1262,7 +1262,7 @@ public actor BackupSessionCoordinator {
             let name = url.lastPathComponent
             if name.hasPrefix(".in-progress_") || name == ".latest_temp" || name.hasPrefix(".trash_") {
                 logger.warning("Cleaning dangling temporary directory: \(name)")
-                try? storage.setImmutable(at: url, immutable: false)
+                try? storage.setImmutable(at: url, immutable: false, recursive: true)
                 try? storage.removeItem(at: url)
             }
         }

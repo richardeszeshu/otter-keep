@@ -107,12 +107,14 @@ public final class FallbackFileSystemProvider: FileSystemProvider, Sendable {
     }
 
     /// Sets or removes the BSD file immutability flag (`UF_IMMUTABLE`).
-    /// - Parameters:
-    ///   - url: Target item URL.
-    ///   - immutable: True to lock, false to unlock.
-    public func setImmutable(at url: URL, immutable: Bool) throws {
-        try apfsFallback.setImmutable(at: url, immutable: immutable)
+    public func setImmutable(at url: URL, immutable: Bool, recursive: Bool) throws {
+        try apfsFallback.setImmutable(at: url, immutable: immutable, recursive: recursive)
     }
+
+    public func setImmutable(at url: URL, immutable: Bool) throws {
+        try setImmutable(at: url, immutable: immutable, recursive: false)
+    }
+
 
     /// Queries whether the BSD file immutability flag is set on the item.
     /// - Parameter url: Target item URL.

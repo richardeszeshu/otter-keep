@@ -260,7 +260,7 @@ public actor RestoreEngine {
         }
 
         // Clear immutability on staging item
-        try? storage.setImmutable(at: stagingURL, immutable: false)
+        try? storage.setImmutable(at: stagingURL, immutable: false, recursive: true)
 
         // 3. Pre-flight verify cryptographic SHA-256 data integrity BEFORE touching existing destination
         let internalDir = backupRootURL.appendingPathComponent(".otterkeep")
@@ -295,7 +295,7 @@ public actor RestoreEngine {
         // 4. Staging verified successfully! Perform atomic swap to finalDestinationURL
         if FileManager.default.fileExists(atPath: finalDestinationURL.standardizedFileURL.path(percentEncoded: false)) {
             // Unlock destination file if it has UF_IMMUTABLE active so atomic replace succeeds
-            try? storage.setImmutable(at: finalDestinationURL, immutable: false)
+            try? storage.setImmutable(at: finalDestinationURL, immutable: false, recursive: true)
             do {
                 try await storage.atomicMove(from: stagingURL, to: finalDestinationURL)
             } catch {
@@ -308,7 +308,7 @@ public actor RestoreEngine {
         stagingCommitted = true
 
         // Guarantee immutability flag is cleared on final target
-        try? storage.setImmutable(at: finalDestinationURL, immutable: false)
+        try? storage.setImmutable(at: finalDestinationURL, immutable: false, recursive: true)
 
         logger.info("Restoration successfully verified & atomically committed: \(relativePath) -> \(finalDestinationURL.path)")
         return finalDestinationURL
@@ -427,6 +427,9 @@ public actor RestoreEngine {
             processedBytes: processedBytes,
             currentItem: ""
         ))
+
+        // Guarantee all restored files and directories have immutability unlocked
+        try? storage.setImmutable(at: targetURL, immutable: false, recursive: true)
 
         let summary = RestoreSessionSummary(
             snapshotPath: snapshotPath,
@@ -742,7 +745,7 @@ public actor RestoreEngine {
         }
         stagingCommitted = true
 
-        try? storage.setImmutable(at: finalDestinationURL, immutable: false)
+        try? storage.setImmutable(at: finalDestinationURL, immutable: false, recursive: true)
         logger.info("Remote restore successfully committed: \(relativePath) -> \(finalDestinationURL.path)")
         return finalDestinationURL
     }
