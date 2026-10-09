@@ -44,7 +44,7 @@ public actor ICloudEvictionController {
     ///   - minFreeDiskSpaceThreshold: Minimum free disk bytes required (default: 2 GB).
     ///   - downloadTimeoutSeconds: Base download timeout in seconds (default: 30.0).
     public init(
-        storage: FileSystemProvider = APFSFileSystemProvider(),
+        storage: FileSystemProvider = DefaultFileSystemProvider(),
         minFreeDiskSpaceThreshold: Int64 = 2 * 1024 * 1024 * 1024, // 2 GB
         downloadTimeoutSeconds: Double = 30.0
     ) {

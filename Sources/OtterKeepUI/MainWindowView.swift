@@ -129,21 +129,12 @@ public struct MainWindowView: View {
                     description: Text(L10n.t(.noProfileSelectedDesc))
                 )
             }
-        case .photos, .photosBackup, .photosSnapshots:
+        case .photos:
             UnifiedPhotosWorkspaceView(appState: appState)
         case .logs:
             DiagnosticLogView(appState: appState)
         case .settings:
             SettingsView(appState: appState)
-        case .dashboard, .restoreExplorer, .profileRules, .maintenance:
-            if let profile = appState.selectedProfile {
-                ProfileWorkspaceView(profile: profile, appState: appState)
-            } else {
-                ContentUnavailableView(
-                    L10n.t(.noProfileSelectedTitle),
-                    systemImage: "folder.badge.questionmark"
-                )
-            }
         }
     }
 

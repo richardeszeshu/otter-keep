@@ -746,6 +746,11 @@ public enum L10n {
         case rule321StatusCompliant
         case rule321StatusPartial
         case rule321StatusLocalOnly
+        case rule321CopiesFormat
+        case rule321MediaTypesFormat
+        case rule321OffsiteFormat
+        case commonYes
+        case commonNo
         case smartThrottlingTitle
         case smartThrottlingDesc
         case rule321Title
@@ -1234,6 +1239,30 @@ public enum L10n {
         case profileSubTabRules
         case profileSubTabAutomation
         case profileSubTabMaintenance
+
+        // MARK: - v1.7.0: GUI UX Polish
+        case compressionFast
+        case compressionRecommended
+        case compressionMaximum
+        case pathPrefixLabel
+        case protocolBadgeS3
+        case protocolBadgeSMB
+        case protocolBadgeWebDAV
+        case protocolBadgeSFTP
+        case ransomwareAutoPauseBadge
+
+        // MARK: - v1.7.0: MenuBar Polish
+        case menuBarTimeMachine
+        case menuBarEjectVolume
+        case destinationEjectedSuccessFormat
+        case menuBarCheckUpdates
+        case menuBarSimulateDryRun
+        case menuBarRevealDestination
+        case menuBarFullBackup
+        case menuBarOpenRules
+        case menuBarExternalVolumeDisconnected
+        case menuBarTargetVolumeLabel
+        case errBackupInProgress
     }
 
 
@@ -1617,7 +1646,7 @@ public enum L10n {
         .interval4h: "4 óra (240p)",
         .interval8h: "8 óra (480p)",
 
-        .cliDescription: "🦦  OtterKeep CLI v1.0 – Natív APFS Mentő és Helyreállító Eszköz",
+        .cliDescription: "🦦  OtterKeep CLI – Natív APFS Mentő és Helyreállító Eszköz",
         .cliUsage: "Használat: otterkeep <parancs> [opciók]",
         .cliCommandsHeader: "Parancsok:",
         .cliCmdBackup: "Biztonsági mentés vagy előzetes elemzés indítása",
@@ -1720,6 +1749,11 @@ public enum L10n {
         .rule321StatusCompliant: "3-2-1 Megfelelő (Helyi + Off-site Felhő/NAS)",
         .rule321StatusPartial: "Részleges 3-2-1 (Csak helyi másolat aktív)",
         .rule321StatusLocalOnly: "1 Példány (Nincs másolat)",
+        .rule321CopiesFormat: "Másolatok: %d/3 (Forrás + Helyi APFS + %d távoli)",
+        .rule321MediaTypesFormat: "Média típusok: %d/2 (%@)",
+        .rule321OffsiteFormat: "Off-site / Felhő tároló: %@",
+        .commonYes: "Igen",
+        .commonNo: "Nem",
         .smartThrottlingTitle: "Intelligens Sávszélesség-korlátozás",
         .smartThrottlingDesc: "Korlátozza a másolási sebességet a hálózat védelmében.",
         .rule321Title: "3-2-1 Mentési Szabály",
@@ -2198,7 +2232,31 @@ public enum L10n {
         .sanctuaryHeroDangerTitle: "Figyelem szükséges, de minden kincsedet megvédjük",
         .profileSubTabRules: "Szabályok és kizárások",
         .profileSubTabAutomation: "Automatizáció és ütemezés",
-        .profileSubTabMaintenance: "Karbantartás és tárhely"
+        .profileSubTabMaintenance: "Karbantartás és tárhely",
+
+        // MARK: - v1.7.0: GUI UX Polish
+        .compressionFast: "1: Gyors",
+        .compressionRecommended: "3: Ajánlott",
+        .compressionMaximum: "9: Maximális",
+        .pathPrefixLabel: "Útvonal előtag",
+        .protocolBadgeS3: "Zero-Knowledge SigV4",
+        .protocolBadgeSMB: "Natív Apple SMBfs",
+        .protocolBadgeWebDAV: "RFC 4918 HTTP/HTTPS",
+        .protocolBadgeSFTP: "OpenSSH / SFTP",
+        .ransomwareAutoPauseBadge: "Automatikus megállítás",
+
+        // MARK: - v1.7.0: MenuBar Polish
+        .menuBarTimeMachine: "Időgép & Visszaállítás",
+        .menuBarEjectVolume: "Meghajtó biztonságos kiadása",
+        .destinationEjectedSuccessFormat: "A(z) '%@' célmeghajtó sikeresen kiadva.",
+        .menuBarCheckUpdates: "Frissítések keresése",
+        .menuBarSimulateDryRun: "Mentés szimulációja (Dry-Run)",
+        .menuBarRevealDestination: "Célmappa megnyitása a Finderben",
+        .menuBarFullBackup: "Teljes mentés indítása",
+        .menuBarOpenRules: "Szabályok és ütemezés megnyitása",
+        .menuBarExternalVolumeDisconnected: "A mentési meghajtó nincs csatlakoztatva",
+        .menuBarTargetVolumeLabel: "Célmeghajtó",
+        .errBackupInProgress: "A mentés még folyamatban van."
     ]
 
 
@@ -2575,7 +2633,7 @@ public enum L10n {
         .interval4h: "4 hours (240m)",
         .interval8h: "8 hours (480m)",
 
-        .cliDescription: "🦦  OtterKeep CLI v1.0 – Native APFS Backup & Recovery Tool",
+        .cliDescription: "🦦  OtterKeep CLI – Native APFS Backup & Recovery Tool",
         .cliUsage: "Usage: otterkeep <command> [options]",
         .cliCommandsHeader: "Commands:",
         .cliCmdBackup: "Execute backup or pre-backup analysis",
@@ -2678,6 +2736,11 @@ public enum L10n {
         .rule321StatusCompliant: "3-2-1 Compliant (Local + Off-site Cloud/NAS)",
         .rule321StatusPartial: "Partial 3-2-1 (Local copy only)",
         .rule321StatusLocalOnly: "1 Copy (No redundancy)",
+        .rule321CopiesFormat: "Copies: %d/3 (Source + Local APFS + %d remote)",
+        .rule321MediaTypesFormat: "Media types: %d/2 (%@)",
+        .rule321OffsiteFormat: "Off-site / Cloud storage: %@",
+        .commonYes: "Yes",
+        .commonNo: "No",
         .smartThrottlingTitle: "Smart Bandwidth Throttling",
         .smartThrottlingDesc: "Limits upload bandwidth to preserve network throughput.",
         .rule321Title: "3-2-1 Backup Rule",
@@ -3156,7 +3219,31 @@ public enum L10n {
         .sanctuaryHeroDangerTitle: "Action needed, but your treasures remain protected",
         .profileSubTabRules: "Rules & Exclusions",
         .profileSubTabAutomation: "Automation & Schedule",
-        .profileSubTabMaintenance: "Maintenance & Storage"
+        .profileSubTabMaintenance: "Maintenance & Storage",
+
+        // MARK: - v1.7.0: GUI UX Polish
+        .compressionFast: "1: Fast",
+        .compressionRecommended: "3: Recommended",
+        .compressionMaximum: "9: Maximum",
+        .pathPrefixLabel: "Path Prefix",
+        .protocolBadgeS3: "Zero-Knowledge SigV4",
+        .protocolBadgeSMB: "Native Apple SMBfs",
+        .protocolBadgeWebDAV: "RFC 4918 HTTP/HTTPS",
+        .protocolBadgeSFTP: "OpenSSH / SFTP",
+        .ransomwareAutoPauseBadge: "Auto-Pause",
+
+        // MARK: - v1.7.0: MenuBar Polish
+        .menuBarTimeMachine: "Time Machine & Restore",
+        .menuBarEjectVolume: "Safely Eject Volume",
+        .destinationEjectedSuccessFormat: "Destination volume '%@' safely ejected.",
+        .menuBarCheckUpdates: "Check for Updates",
+        .menuBarSimulateDryRun: "Simulate Backup (Dry-Run)",
+        .menuBarRevealDestination: "Reveal Destination in Finder",
+        .menuBarFullBackup: "Start Full Backup",
+        .menuBarOpenRules: "Open Rules & Schedule",
+        .menuBarExternalVolumeDisconnected: "Destination drive is not connected",
+        .menuBarTargetVolumeLabel: "Target Volume",
+        .errBackupInProgress: "Backup is currently in progress."
     ]
 }
 

@@ -223,15 +223,11 @@ public actor SFTPStorageProvider {
 
         arguments.append(contentsOf: [localURL.path(percentEncoded: false), destinationStr])
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/scp")
-        process.arguments = arguments
-
-        var environment = ProcessInfo.processInfo.environment
+        var extraEnv: [String: String] = [:]
         if let pwd = password, !pwd.isEmpty {
-            environment["SSHPASS"] = pwd
+            extraEnv["SSHPASS"] = pwd
         }
-        process.environment = environment
+        let process = createIsolatedProcess(executable: "/usr/bin/scp", arguments: arguments, extraEnvironment: extraEnv)
 
         let errorPipe = Pipe()
         process.standardError = errorPipe
@@ -264,9 +260,11 @@ public actor SFTPStorageProvider {
         }
         arguments.append(contentsOf: [sourceStr, localURL.path(percentEncoded: false)])
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/scp")
-        process.arguments = arguments
+        var extraEnv: [String: String] = [:]
+        if let pwd = password, !pwd.isEmpty {
+            extraEnv["SSHPASS"] = pwd
+        }
+        let process = createIsolatedProcess(executable: "/usr/bin/scp", arguments: arguments, extraEnvironment: extraEnv)
 
         let errorPipe = Pipe()
         process.standardError = errorPipe
@@ -287,6 +285,22 @@ public actor SFTPStorageProvider {
         }
     }
 
+    /// Creates an isolated Process configured with strict minimal environment variables to avoid credential leakage.
+    private func createIsolatedProcess(executable: String, arguments: [String], extraEnvironment: [String: String] = [:]) -> Process {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        var env: [String: String] = [
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "HOME": FileManager.default.homeDirectoryForCurrentUser.path(percentEncoded: false)
+        ]
+        for (k, v) in extraEnvironment {
+            env[k] = v
+        }
+        process.environment = env
+        return process
+    }
+
     /// Sanitizes an argument for safe passing into a POSIX shell command.
     private func sanitizeShellArgument(_ argument: String) -> String {
         return "'" + argument.replacingOccurrences(of: "'", with: "'\\''") + "'"
@@ -303,9 +317,11 @@ public actor SFTPStorageProvider {
         }
         arguments.append(contentsOf: ["\(config.username)@\(config.host)", "mkdir -p \(escapedPath)"])
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
-        process.arguments = arguments
+        var extraEnv: [String: String] = [:]
+        if let pwd = password, !pwd.isEmpty {
+            extraEnv["SSHPASS"] = pwd
+        }
+        let process = createIsolatedProcess(executable: "/usr/bin/ssh", arguments: arguments, extraEnvironment: extraEnv)
         let errPipe = Pipe()
         process.standardError = errPipe
 

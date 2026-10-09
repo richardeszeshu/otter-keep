@@ -226,26 +226,9 @@ struct OtterKeepCLI {
         let isFull = args.contains("--full")
         let backupMode: BackupMode = isFull ? .full : .incremental
         let profileName = getOption("--profile", from: args)
+        let profile = resolveProfile(target: profileName)
 
-        let store = ProfileStore.shared
-        let profiles = store.loadProfiles()
-        guard !profiles.isEmpty else {
-            print(L10n.t(.cliNoProfiles))
-            exitCLI(1)
-        }
-
-        let profile: BackupProfile
-        if let target = profileName {
-            guard let matched = profiles.first(where: { $0.name.lowercased() == target.lowercased() || $0.id.uuidString.lowercased() == target.lowercased() }) else {
-                print(L10n.format(.cliProfileNotFound, target))
-                exitCLI(1)
-            }
-            profile = matched
-        } else {
-            profile = profiles[0]
-        }
-
-        let storage = APFSFileSystemProvider()
+        let storage = DefaultFileSystemProvider()
         let database = DatabaseEngine()
         let retentionManager = RetentionManager(storage: storage, database: database)
         let coordinator = BackupSessionCoordinator(storage: storage, database: database, retentionManager: retentionManager)
@@ -302,7 +285,7 @@ struct OtterKeepCLI {
 
                     var updated = profile
                     updated.schedule.lastRunDate = Date()
-                    try? store.updateProfile(updated)
+                    try? ProfileStore.shared.updateProfile(updated)
                     LogManager.shared.log("CLI backup completed successfully for profile '\(profile.name)' [UUID: \(profile.id.uuidString)]: Snapshot \(sum.snapshotId), Copied: \(sum.copiedCount), Cloned: \(sum.clonedCount)", level: .info, category: "CLI")
                 }
                 LogManager.shared.flush()
@@ -344,40 +327,24 @@ struct OtterKeepCLI {
                 print("    \(L10n.t(.autoPruningToggleTitle)): \(L10n.format(.autoPruningRetainFormat, p.pruningPolicy.maxSnapshotsToKeep ?? 5))")
             }
 
-            // 3-2-1 Compliance Calculation & Remote Targets
-            var copies = 2 // Source + Local Destination
-            var mediaTypes: Set<String> = ["local_source", "local_destination"]
-            var hasOffsite = false
-            let activeDestinations = p.copyJobConfig.isEnabled ? p.copyJobConfig.destinations.filter { $0.isEnabled } : []
-
-            for dest in activeDestinations {
-                copies += 1
-                switch dest.type {
-                case .s3:
-                    mediaTypes.insert("cloud_s3")
-                    hasOffsite = true
-                case .backblazeB2:
-                    mediaTypes.insert("cloud_b2")
-                    hasOffsite = true
-                case .smb:
-                    mediaTypes.insert("network_smb")
-                    hasOffsite = true
-                case .webdav:
-                    mediaTypes.insert("cloud_webdav")
-                    hasOffsite = true
-                case .sftp:
-                    mediaTypes.insert("remote_sftp")
-                    hasOffsite = true
-                }
+            // 3-2-1 Compliance Evaluation & Remote Targets
+            let report = ComplianceEvaluator.evaluate(profile: p)
+            let complianceTag: String
+            switch report.status {
+            case .compliant:
+                complianceTag = "✅ \(L10n.t(.rule321StatusCompliant))"
+            case .partial:
+                complianceTag = "⚠️ \(L10n.t(.rule321StatusPartial))"
+            case .localOnly:
+                complianceTag = "⚠️ \(L10n.t(.rule321StatusLocalOnly))"
             }
 
-            let isCompliant = copies >= 3 && mediaTypes.count >= 2 && hasOffsite
-            let complianceTag = isCompliant ? "✅ \(L10n.t(.rule321StatusCompliant))" : (hasOffsite ? "⚠️ \(L10n.t(.rule321StatusPartial))" : "⚠️ \(L10n.t(.rule321StatusLocalOnly))")
-
-            print("    🛡️ 3-2-1 Mentési Szabály: \(complianceTag)")
-            print("       • Másolatok: \(copies)/3 (Forrás + Helyi APFS + \(activeDestinations.count) távoli)")
-            print("       • Média típusok: \(mediaTypes.count)/2 (\(mediaTypes.joined(separator: ", ")))")
-            print("       • Off-site / Felhő tároló: \(hasOffsite ? "Igen" : "Nem")")
+            print("    🛡️ \(L10n.t(.rule321Title)): \(complianceTag)")
+            print("       • \(L10n.format(.rule321CopiesFormat, report.copiesCount, report.activeRemoteDestinationsCount)) (\(p.sourceURL.lastPathComponent) + \(p.destinationURL.lastPathComponent) + \(report.activeRemoteDestinationsCount))")
+            let mediaTypesList = report.mediaTypeIdentifiers.sorted().joined(separator: ", ")
+            print("       • \(L10n.format(.rule321MediaTypesFormat, report.mediaTypesCount, mediaTypesList))")
+            let offsiteTag = report.hasOffsite ? L10n.t(.commonYes) : L10n.t(.commonNo)
+            print("       • \(L10n.format(.rule321OffsiteFormat, offsiteTag))")
 
             if p.copyJobConfig.isEnabled && !p.copyJobConfig.destinations.isEmpty {
                 print("    🌐 Távoli célok (Backup Copy Job) [\(p.copyJobConfig.trigger.localizedTitle)]:")
@@ -399,34 +366,15 @@ struct OtterKeepCLI {
         let profileName = getOption("--profile", from: args)
         let snapshotId = getOption("--snapshot", from: args)
 
-        let store = ProfileStore.shared
-        let profiles = store.loadProfiles()
-        guard !profiles.isEmpty else {
-            print(L10n.t(.cliNoProfiles))
-            exitCLI(1)
-        }
-
-        let profile: BackupProfile
-        if let target = profileName {
-            guard let matched = profiles.first(where: { $0.name.lowercased() == target.lowercased() || $0.id.uuidString.lowercased() == target.lowercased() }) else {
-                print(L10n.format(.cliProfileNotFound, target))
-                exitCLI(1)
-            }
-            profile = matched
-        } else {
-            profile = profiles[0]
-        }
+        let profile = resolveProfile(target: profileName)
 
         guard profile.copyJobConfig.isEnabled, !profile.copyJobConfig.destinations.filter({ $0.isEnabled }).isEmpty else {
             print("⚠️ No remote replication destinations enabled for profile '\(profile.name)'.")
             exitCLI(0)
         }
 
-        let dbPath = profile.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite").path
-        let db = DatabaseEngine()
         do {
-            try await db.open(at: dbPath)
-            let snaps = try await db.listSnapshots()
+            let snaps = try await SnapshotCatalogService.shared.listSnapshots(for: profile)
             guard !snaps.isEmpty else {
                 print("❌ No snapshots available to replicate in profile '\(profile.name)'.")
                 exitCLI(1)
@@ -452,41 +400,50 @@ struct OtterKeepCLI {
             }
             print()
 
-            let storage = APFSFileSystemProvider()
-            let coordinator = BackupCopyJobCoordinator(storage: storage, database: db)
-            await coordinator.setProgressHandler { state in
-                if state.totalFiles > 0 {
-                    let pct = Int((Double(state.processedFiles) / Double(state.totalFiles)) * 100)
-                    let file = state.currentFile.isEmpty ? "" : " - \(state.currentFile)"
-                    print("\r[\(state.currentDestinationName)] \(pct)% (\(state.processedFiles)/\(state.totalFiles))\(file)", terminator: "")
-                    fflush(stdout)
+            let db = DatabaseEngine()
+            try await db.open(at: profile.manifestDatabasePath)
+            do {
+                let storage = DefaultFileSystemProvider()
+                let coordinator = BackupCopyJobCoordinator(storage: storage, database: db)
+                await coordinator.setProgressHandler { state in
+                    if state.totalFiles > 0 {
+                        let pct = Int((Double(state.processedFiles) / Double(state.totalFiles)) * 100)
+                        let file = state.currentFile.isEmpty ? "" : " - \(state.currentFile)"
+                        print("\r[\(state.currentDestinationName)] \(pct)% (\(state.processedFiles)/\(state.totalFiles))\(file)", terminator: "")
+                        fflush(stdout)
+                    }
                 }
+
+                let summary = try await coordinator.executeReplication(
+                    profile: profile,
+                    targetSnapshotId: snap.id
+                )
+
+                await db.close()
+
+                let statusDisplay: String
+                switch summary.status {
+                case "completed":
+                    statusDisplay = "completed"
+                case "completed_with_errors":
+                    statusDisplay = "completed_with_errors"
+                default:
+                    statusDisplay = "failed"
+                }
+
+                print("\n")
+                print("✅ 3-2-1 Replication Completed:")
+                print("   • Status:                  \(statusDisplay)")
+                print("   • Successful Destinations: \(summary.successfulDestinations)/\(summary.totalDestinations)")
+                print("   • Replicated Files:        \(summary.replicatedFiles)")
+                print("   • Replicated Bytes:        \(formatBytes(summary.replicatedBytes))")
+                print("   • Skipped (Deduplicated):  \(summary.skippedFiles)")
+                print("   • Duration:                \(String(format: "%.2f", summary.durationSeconds)) s")
+                exitCLI(0)
+            } catch {
+                await db.close()
+                throw error
             }
-
-            let summary = try await coordinator.executeReplication(
-                profile: profile,
-                targetSnapshotId: snap.id
-            )
-
-            let statusDisplay: String
-            switch summary.status {
-            case "completed":
-                statusDisplay = "completed"
-            case "completed_with_errors":
-                statusDisplay = "completed_with_errors"
-            default:
-                statusDisplay = "failed"
-            }
-
-            print("\n")
-            print("✅ 3-2-1 Replication Completed:")
-            print("   • Status:                  \(statusDisplay)")
-            print("   • Successful Destinations: \(summary.successfulDestinations)/\(summary.totalDestinations)")
-            print("   • Replicated Files:        \(summary.replicatedFiles)")
-            print("   • Replicated Bytes:        \(formatBytes(summary.replicatedBytes))")
-            print("   • Skipped (Deduplicated):  \(summary.skippedFiles)")
-            print("   • Duration:                \(String(format: "%.2f", summary.durationSeconds)) s")
-            exitCLI(0)
         } catch {
             print("\n❌ Replication failed: \(error.localizedDescription)")
             exitCLI(1)
@@ -563,26 +520,11 @@ struct OtterKeepCLI {
     /// Lists completed snapshots stored in the manifest catalog of the given profile.
     /// - Parameter args: Command-line arguments passed to the snapshots subcommand.
     static func handleSnapshots(_ args: [String]) async {
-        let store = ProfileStore.shared
-        let profiles = store.loadProfiles()
         let profileName = getOption("--profile", from: args)
+        let profile = resolveProfile(target: profileName)
 
-        let profile: BackupProfile
-        if let target = profileName {
-            guard let matched = profiles.first(where: { $0.name.lowercased() == target.lowercased() }) else {
-                print(L10n.format(.cliProfileNotFound, target))
-                exitCLI(1)
-            }
-            profile = matched
-        } else {
-            profile = profiles[0]
-        }
-
-        let dbPath = profile.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite").path
-        let db = DatabaseEngine()
         do {
-            try await db.open(at: dbPath)
-            let snaps = try await db.listSnapshots()
+            let snaps = try await SnapshotCatalogService.shared.listSnapshots(for: profile)
             if snaps.isEmpty {
                 print(L10n.t(.noSnapshotsAvailable))
             } else {
@@ -594,6 +536,7 @@ struct OtterKeepCLI {
                     print("• \(typeTag) [\(s.id)]  \(df.string(from: s.timestamp))  \(s.totalFiles) \(L10n.t(.filesCountUnit))  \(formatBytes(s.totalBytes))  (\(s.snapshotPath))\(lockTag)")
                 }
             }
+            exitCLI(0)
         } catch {
             print("❌ \(error.localizedDescription)")
             exitCLI(1)
@@ -613,33 +556,17 @@ struct OtterKeepCLI {
         }
 
         let profileName = getOption("--profile", from: args)
-        let store = ProfileStore.shared
-        let profiles = store.loadProfiles()
-        guard !profiles.isEmpty else {
-            print(L10n.t(.cliNoProfiles))
-            exitCLI(1)
-        }
+        let profile = resolveProfile(target: profileName)
 
-        let profile: BackupProfile
-        if let target = profileName {
-            guard let matched = profiles.first(where: { $0.name.lowercased() == target.lowercased() || $0.id.uuidString.lowercased() == target.lowercased() }) else {
-                print(L10n.format(.cliProfileNotFound, target))
-                exitCLI(1)
-            }
-            profile = matched
-        } else {
-            profile = profiles[0]
-        }
-
-        let dbPath = profile.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite").path
         let db = DatabaseEngine()
-        let storage = APFSFileSystemProvider()
+        let storage = DefaultFileSystemProvider()
         let engine = RestoreEngine(storage: storage, database: db)
 
         do {
-            try await db.open(at: dbPath)
+            try await db.open(at: profile.manifestDatabasePath)
             let snaps = try await db.listSnapshots()
             guard let snap = snaps.first(where: { $0.id == snapId }) else {
+                await db.close()
                 print("❌ Snapshot not found: '\(snapId)'")
                 exitCLI(1)
             }
@@ -651,9 +578,11 @@ struct OtterKeepCLI {
                 targetDirectoryURL: URL(fileURLWithPath: target),
                 collisionResolution: .overwrite
             )
+            await db.close()
             print(L10n.format(.restoreSuccessMessage, destURL.path))
             exitCLI(0)
         } catch {
+            await db.close()
             print("❌ \(error.localizedDescription)")
             exitCLI(1)
         }
@@ -677,33 +606,17 @@ struct OtterKeepCLI {
         }
 
         let profileName = getOption("--profile", from: args)
-        let store = ProfileStore.shared
-        let profiles = store.loadProfiles()
-        guard !profiles.isEmpty else {
-            print(L10n.t(.cliNoProfiles))
-            exitCLI(1)
-        }
+        let profile = resolveProfile(target: profileName)
 
-        let profile: BackupProfile
-        if let targetProfile = profileName {
-            guard let matched = profiles.first(where: { $0.name.lowercased() == targetProfile.lowercased() || $0.id.uuidString.lowercased() == targetProfile.lowercased() }) else {
-                print(L10n.format(.cliProfileNotFound, targetProfile))
-                exitCLI(1)
-            }
-            profile = matched
-        } else {
-            profile = profiles[0]
-        }
-
-        let dbPath = profile.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite").path
         let db = DatabaseEngine()
-        let storage = APFSFileSystemProvider()
+        let storage = DefaultFileSystemProvider()
         let engine = RestoreEngine(storage: storage, database: db)
 
         do {
-            try await db.open(at: dbPath)
+            try await db.open(at: profile.manifestDatabasePath)
             let snaps = try await db.listSnapshots()
             guard let snap = snaps.first(where: { $0.id == snapId || $0.snapshotPath == snapId }) else {
+                await db.close()
                 print("❌ Snapshot not found: '\(snapId)'")
                 exitCLI(1)
             }
@@ -721,11 +634,13 @@ struct OtterKeepCLI {
                     }
                 }
             )
+            await db.close()
 
             print("✅ \(L10n.format(.restoreEntireSnapshotSuccessFormat, snap.snapshotPath, Int64(summary.restoredFiles), target))")
             print("⏱️ Duration: \(String(format: "%.2f", summary.durationSeconds))s, Restored: \(ByteCountFormatter.string(fromByteCount: summary.restoredBytes, countStyle: .file))")
             exitCLI(0)
         } catch {
+            await db.close()
             print("❌ \(error.localizedDescription)")
             exitCLI(1)
         }
@@ -779,12 +694,8 @@ struct OtterKeepCLI {
             exitCLI(1)
         }
 
-        let db = DatabaseEngine()
-        let dbPath = matchingProfile.destinationURL.appendingPathComponent(".otterkeep").appendingPathComponent("manifest.sqlite").path(percentEncoded: false)
-
         do {
-            try await db.open(at: dbPath)
-            let versions = try await db.listVersions(ofRelativePath: relPath)
+            let versions = try await SnapshotCatalogService.shared.listFileVersions(relativePath: relPath, in: matchingProfile)
             if versions.isEmpty {
                 print(L10n.t(.noVersionsFoundForFile))
                 exitCLI(0)
@@ -876,7 +787,7 @@ struct OtterKeepCLI {
     /// - Parameter args: Command-line arguments passed to the schedule subcommand.
     static func handleSchedule(_ args: [String]) async {
         print(L10n.t(.cliScheduleCheckStarting))
-        let storage = APFSFileSystemProvider()
+        let storage = DefaultFileSystemProvider()
         let database = DatabaseEngine()
         let retentionManager = RetentionManager(storage: storage, database: database)
         let coordinator = BackupSessionCoordinator(storage: storage, database: database, retentionManager: retentionManager)
@@ -913,23 +824,7 @@ struct OtterKeepCLI {
         let limitStr = getOption("--limit", from: args)
         let limit = limitStr.flatMap(Int.init)
 
-        let store = ProfileStore.shared
-        let profiles = store.loadProfiles()
-        guard !profiles.isEmpty else {
-            print(L10n.t(.cliNoProfiles))
-            exitCLI(1)
-        }
-
-        let profile: BackupProfile
-        if let target = profileName {
-            guard let matched = profiles.first(where: { $0.name.lowercased() == target.lowercased() || $0.id.uuidString.lowercased() == target.lowercased() }) else {
-                print(L10n.format(.cliProfileNotFound, target))
-                exitCLI(1)
-            }
-            profile = matched
-        } else {
-            profile = profiles[0]
-        }
+        let profile = resolveProfile(target: profileName)
 
         print("🔍 Starting cryptographic data scrubbing pass...")
         print("📁 Profile: \(profile.name)")
@@ -972,29 +867,10 @@ struct OtterKeepCLI {
         let fileRel = getOption("--file", from: args)
         let sideBySide = args.contains("--side-by-side")
 
-        let store = ProfileStore.shared
-        let profiles = store.loadProfiles()
-        guard !profiles.isEmpty else {
-            print(L10n.t(.cliNoProfiles))
-            exitCLI(1)
-        }
+        let profile = resolveProfile(target: profileName)
 
-        let profile: BackupProfile
-        if let target = profileName {
-            guard let matched = profiles.first(where: { $0.name.lowercased() == target.lowercased() || $0.id.uuidString.lowercased() == target.lowercased() }) else {
-                print(L10n.format(.cliProfileNotFound, target))
-                exitCLI(1)
-            }
-            profile = matched
-        } else {
-            profile = profiles[0]
-        }
-
-        let dbPath = profile.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite").path
-        let db = DatabaseEngine()
         do {
-            try await db.open(at: dbPath)
-            let snaps = try await db.listSnapshots()
+            let snaps = try await SnapshotCatalogService.shared.listSnapshots(for: profile)
             guard !snaps.isEmpty else {
                 print(L10n.t(.noSnapshotsAvailable))
                 exitCLI(1)
@@ -1014,7 +890,7 @@ struct OtterKeepCLI {
                 let urlA = profile.destinationURL.appendingPathComponent(snapBase.snapshotPath).appendingPathComponent("root").appendingPathComponent(filePath)
                 let urlB = profile.destinationURL.appendingPathComponent(snapTarget.snapshotPath).appendingPathComponent("root").appendingPathComponent(filePath)
 
-                let diffResult = try TextDiffEngine().diffFiles(leftURL: urlA, rightURL: urlB, relativePath: filePath)
+                let diffResult = try SnapshotCatalogService.shared.diffFiles(leftURL: urlA, rightURL: urlB, relativePath: filePath)
                 print("📄 File comparison: '\(filePath)'")
                 print("   Base:   [\(snapBase.id)] (\(snapBase.snapshotPath))")
                 print("   Target: [\(snapTarget.id)] (\(snapTarget.snapshotPath))\n")
@@ -1065,10 +941,10 @@ struct OtterKeepCLI {
                     }
                 }
             } else {
-                let report = try await SnapshotDiffEngine.shared.diff(
-                    database: db,
+                let report = try await SnapshotCatalogService.shared.diffSnapshots(
                     targetSnapshotId: effectiveTargetId,
-                    baseSnapshotId: effectiveBaseId
+                    baseSnapshotId: effectiveBaseId,
+                    in: profile
                 )
                 print("📊 Snapshot Diff Report:")
                 print("   Base:   \(report.baseSnapshotId ?? "Initial State")")
@@ -1083,6 +959,7 @@ struct OtterKeepCLI {
                     print("  \(symbol) \(item.relativePath)")
                 }
             }
+            exitCLI(0)
         } catch {
             print("❌ Diff failed: \(error.localizedDescription)")
             exitCLI(1)
@@ -1099,37 +976,20 @@ struct OtterKeepCLI {
         let profileName = getOption("--profile", from: args)
         let days = getOption("--days", from: args).flatMap(Int.init) ?? 30
 
-        let store = ProfileStore.shared
-        let profiles = store.loadProfiles()
-        guard !profiles.isEmpty else {
-            print(L10n.t(.cliNoProfiles))
-            exitCLI(1)
-        }
+        let profile = resolveProfile(target: profileName)
 
-        let profile = profileName.flatMap { target in
-            profiles.first(where: { $0.name.lowercased() == target.lowercased() || $0.id.uuidString.lowercased() == target.lowercased() })
-        } ?? profiles[0]
-
-        let dbPath = profile.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite").path
-        let db = DatabaseEngine()
         do {
-            try await db.open(at: dbPath)
-            let snaps = try await db.listSnapshots()
-            guard let snap = snaps.first(where: { $0.id == snapId }) else {
-                print("❌ Snapshot '\(snapId)' not found.")
-                exitCLI(1)
-            }
-
             let lockedUntil = Date().addingTimeInterval(Double(days) * 86400)
-            try await db.updateSnapshotLockedUntil(id: snapId, lockedUntil: lockedUntil)
-
-            let snapURL = profile.destinationURL.appendingPathComponent(snap.snapshotPath)
-            let storage = APFSFileSystemProvider()
-            try? storage.setImmutable(at: snapURL, immutable: true, recursive: true)
+            try await SnapshotCatalogService.shared.updateSnapshotLock(
+                id: snapId,
+                lockedUntil: lockedUntil,
+                in: profile
+            )
 
             let df = ISO8601DateFormatter()
             print("🔒 Snapshot '\(snapId)' locked with WORM immutability.")
             print("   Protected until: \(df.string(from: lockedUntil)) (\(days) days)")
+            exitCLI(0)
         } catch {
             print("❌ Failed to lock snapshot: \(error.localizedDescription)")
             exitCLI(1)
@@ -1142,35 +1002,17 @@ struct OtterKeepCLI {
             exitCLI(1)
         }
         let profileName = getOption("--profile", from: args)
+        let profile = resolveProfile(target: profileName)
 
-        let store = ProfileStore.shared
-        let profiles = store.loadProfiles()
-        guard !profiles.isEmpty else {
-            print(L10n.t(.cliNoProfiles))
-            exitCLI(1)
-        }
-
-        let profile = profileName.flatMap { target in
-            profiles.first(where: { $0.name.lowercased() == target.lowercased() || $0.id.uuidString.lowercased() == target.lowercased() })
-        } ?? profiles[0]
-
-        let dbPath = profile.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite").path
-        let db = DatabaseEngine()
         do {
-            try await db.open(at: dbPath)
-            let snaps = try await db.listSnapshots()
-            guard let snap = snaps.first(where: { $0.id == snapId }) else {
-                print("❌ Snapshot '\(snapId)' not found.")
-                exitCLI(1)
-            }
-
-            try await db.updateSnapshotLockedUntil(id: snapId, lockedUntil: nil)
-
-            let snapURL = profile.destinationURL.appendingPathComponent(snap.snapshotPath)
-            let storage = APFSFileSystemProvider()
-            try? storage.setImmutable(at: snapURL, immutable: false, recursive: true)
+            try await SnapshotCatalogService.shared.updateSnapshotLock(
+                id: snapId,
+                lockedUntil: nil,
+                in: profile
+            )
 
             print("🔓 Snapshot '\(snapId)' unlocked.")
+            exitCLI(0)
         } catch {
             print("❌ Failed to unlock snapshot: \(error.localizedDescription)")
             exitCLI(1)
@@ -1207,7 +1049,7 @@ struct OtterKeepCLI {
             print("📸 Starting Apple Photos backup...")
             print("🎯 Destination: \(config.destinationURL.path(percentEncoded: false))\n")
 
-            let storage = APFSFileSystemProvider()
+            let storage = DefaultFileSystemProvider()
             let database = DatabaseEngine()
             let coordinator = PhotosBackupCoordinator(storage: storage, dbEngine: database)
 
@@ -1245,16 +1087,22 @@ struct OtterKeepCLI {
             let db = DatabaseEngine()
             let unifiedPath = config.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite").path(percentEncoded: false)
             if FileManager.default.fileExists(atPath: unifiedPath) {
-                try? await db.open(at: unifiedPath)
-                let snaps = (try? await db.listSnapshots()) ?? []
-                if snaps.isEmpty {
-                    print(L10n.t(.noSnapshotsAvailable))
-                } else {
-                    print("📸 Photos Snapshots (\(snaps.count)):")
-                    let df = ISO8601DateFormatter()
-                    for s in snaps {
-                        print("• [\(s.id)]  \(df.string(from: s.timestamp))  \(s.totalFiles) \(L10n.t(.assetsCountUnit))  \(formatBytes(s.totalBytes))  (\(s.snapshotPath))")
+                do {
+                    try await db.open(at: unifiedPath)
+                    let snaps = try await db.listSnapshots()
+                    await db.close()
+                    if snaps.isEmpty {
+                        print(L10n.t(.noSnapshotsAvailable))
+                    } else {
+                        print("📸 Photos Snapshots (\(snaps.count)):")
+                        let df = ISO8601DateFormatter()
+                        for s in snaps {
+                            print("• [\(s.id)]  \(df.string(from: s.timestamp))  \(s.totalFiles) \(L10n.t(.assetsCountUnit))  \(formatBytes(s.totalBytes))  (\(s.snapshotPath))")
+                        }
                     }
+                } catch {
+                    await db.close()
+                    print(L10n.t(.noSnapshotsAvailable))
                 }
             } else {
                 print(L10n.t(.noSnapshotsAvailable))
@@ -1275,23 +1123,7 @@ struct OtterKeepCLI {
         let profileName = getOption("--profile", from: args)
         let keepStr = getOption("--keep", from: args)
 
-        let store = ProfileStore.shared
-        let profiles = store.loadProfiles()
-        guard !profiles.isEmpty else {
-            print(L10n.t(.cliNoProfiles))
-            exitCLI(1)
-        }
-
-        let profile: BackupProfile
-        if let target = profileName {
-            guard let matched = profiles.first(where: { $0.name.lowercased() == target.lowercased() || $0.id.uuidString.lowercased() == target.lowercased() }) else {
-                print(L10n.format(.cliProfileNotFound, target))
-                exitCLI(1)
-            }
-            profile = matched
-        } else {
-            profile = profiles[0]
-        }
+        let profile = resolveProfile(target: profileName)
 
         let keepCount = keepStr.flatMap(Int.init)
         var policy = profile.pruningPolicy
@@ -1302,14 +1134,15 @@ struct OtterKeepCLI {
         let retainLabel = keepCount ?? policy.maxSnapshotsToKeep ?? 5
         print("🧹 Pruning snapshots for profile '\(profile.name)' (Retaining latest \(retainLabel))...")
 
-        let storage = APFSFileSystemProvider()
+        let storage = DefaultFileSystemProvider()
         let database = DatabaseEngine()
-        let dbPath = profile.destinationURL.appendingPathComponent(".otterkeep/manifest.sqlite").path(percentEncoded: false)
+        let dbPath = profile.manifestDatabasePath
         try? await database.open(at: dbPath)
         let retention = RetentionManager(storage: storage, database: database)
 
         do {
             let prunedIds = try await retention.applyRetentionPolicy(destinationURL: profile.destinationURL, policy: policy)
+            await database.close()
             if prunedIds.isEmpty {
                 print("ℹ️ No snapshots required pruning. All snapshots within retention limit.")
             } else {
@@ -1322,6 +1155,7 @@ struct OtterKeepCLI {
             }
             exitCLI(0)
         } catch {
+            await database.close()
             print("❌ Pruning failed: \(error.localizedDescription)")
             exitCLI(1)
         }
@@ -1405,7 +1239,7 @@ struct OtterKeepCLI {
         let store = ProfileStore.shared
         let profiles = store.loadProfiles()
         print("\n📁 Backup Profiles Audit (\(profiles.count)):")
-        let storage = APFSFileSystemProvider()
+        let storage = DefaultFileSystemProvider()
 
         for (idx, p) in profiles.enumerated() {
             print("   [\(idx + 1)] Profile: \(p.name)")
@@ -1463,5 +1297,26 @@ struct OtterKeepCLI {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file
         return formatter.string(fromByteCount: bytes)
+    }
+
+    /// Resolves a backup profile specified by name or UUID, defaulting to the first profile if unspecified.
+    /// Terminates the process if no profiles exist or if the specified profile is not found.
+    /// - Parameter target: Optional profile name or UUID string.
+    /// - Returns: The resolved `BackupProfile`.
+    static func resolveProfile(target: String?) -> BackupProfile {
+        let store = ProfileStore.shared
+        let profiles = store.loadProfiles()
+        guard !profiles.isEmpty else {
+            print(L10n.t(.cliNoProfiles))
+            exitCLI(1)
+        }
+        guard let target else {
+            return profiles[0]
+        }
+        guard let matched = store.findProfile(namedOrId: target) else {
+            print(L10n.format(.cliProfileNotFound, target))
+            exitCLI(1)
+        }
+        return matched
     }
 }

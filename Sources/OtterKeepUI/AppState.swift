@@ -17,14 +17,6 @@ public enum NavigationSection: Hashable, Sendable {
     case logs
     /// Preferences and system configuration.
     case settings
-
-    // Backward-compatible cases:
-    case dashboard
-    case restoreExplorer
-    case profileRules
-    case maintenance
-    case photosBackup
-    case photosSnapshots
 }
 
 /// Tabs within the unified Profile Workspace.
@@ -174,7 +166,7 @@ public final class AppState: Sendable {
     /// Currently selected backup profile ID.
     public var selectedProfileId: UUID?
     /// Active navigation section in the split view sidebar.
-    public var activeNavigation: NavigationSection = .dashboard
+    public var activeNavigation: NavigationSection = .photos
 
     /// Currently active tab within the selected Profile workspace.
     public var activeProfileTab: ProfileWorkspaceTab = .overview
@@ -739,7 +731,7 @@ public final class AppState: Sendable {
     private let photosCoordinator: PhotosBackupCoordinator
 
     public init() {
-        let storage = APFSFileSystemProvider()
+        let storage = DefaultFileSystemProvider()
         let database = DatabaseEngine()
         let retentionManager = RetentionManager(storage: storage, database: database)
         self.storage = storage
@@ -835,6 +827,45 @@ public final class AppState: Sendable {
     public func destinationStorageCapacity() -> StorageCapacity? {
         guard let destURL = selectedProfile?.destinationURL else { return nil }
         return try? storage.storageCapacity(at: destURL)
+    }
+
+    /// Checks whether the destination volume/folder of a given profile is reachable and mounted.
+    public func isDestinationReachable(for profile: BackupProfile) -> Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: profile.destinationURL.path, isDirectory: &isDir) && isDir.boolValue
+    }
+
+    /// Retrieves the volume name of the profile's destination.
+    public func destinationVolumeName(for profile: BackupProfile) -> String? {
+        let vals = try? profile.destinationURL.resourceValues(forKeys: [.volumeNameKey])
+        return vals?.volumeName
+    }
+
+    /// Determines whether the destination of the profile resides on an external or removable storage device.
+    public func isDestinationRemovable(for profile: BackupProfile) -> Bool {
+        guard let vals = try? profile.destinationURL.resourceValues(forKeys: [.volumeIsRemovableKey, .volumeIsInternalKey]) else {
+            return false
+        }
+        return vals.volumeIsRemovable == true || vals.volumeIsInternal == false
+    }
+
+    /// Safely unmounts and ejects the destination volume for the given profile.
+    public func ejectDestinationVolume(for profile: BackupProfile) {
+        guard !isBackupRunning(for: profile.id) else {
+            showError(L10n.t(.errBackupInProgress))
+            return
+        }
+        do {
+            try NSWorkspace.shared.unmountAndEjectDevice(at: profile.destinationURL)
+            LogManager.shared.log("Destination volume safely unmounted and ejected for profile '\(profile.name)'.", level: .info, category: "Storage")
+            refreshLogs()
+            let volName = destinationVolumeName(for: profile) ?? profile.name
+            showSuccess(L10n.format(.destinationEjectedSuccessFormat, volName))
+        } catch {
+            LogManager.shared.log("Failed to safely unmount destination volume for profile '\(profile.name)': \(error.localizedDescription)", level: .error, category: "Storage")
+            refreshLogs()
+            showError(error.localizedDescription)
+        }
     }
 
     /// Calculates the sum of all stored snapshot catalog sizes for the selected profile.
@@ -1171,40 +1202,13 @@ public final class AppState: Sendable {
 
     // MARK: - 3-2-1 Compliance & Replication Controls
 
-    public enum Rule321Compliance: Sendable {
-        case compliant(description: String)
-        case partial(description: String)
-        case localOnly(description: String)
-
-        public var badgeText: String {
-            switch self {
-            case .compliant: return L10n.t(.rule321StatusCompliant)
-            case .partial: return L10n.t(.rule321StatusPartial)
-            case .localOnly: return L10n.t(.rule321StatusLocalOnly)
-            }
-        }
-
-        public var color: Color {
-            switch self {
-            case .compliant: return OtterTheme.oceanicTeal
-            case .partial: return OtterTheme.statusWarning
-            case .localOnly: return OtterTheme.otterAmber
-            }
-        }
-    }
+    public typealias Rule321Compliance = OtterKeepCore.Rule321Compliance
 
     public var rule321Compliance: Rule321Compliance {
         guard let profile = selectedProfile else {
             return .localOnly(description: L10n.t(.rule321StatusLocalOnly))
         }
-
-        let enabledDestinations = profile.copyJobConfig.destinations.filter { $0.isEnabled }
-        if profile.copyJobConfig.isEnabled && !enabledDestinations.isEmpty {
-            let names = enabledDestinations.map { $0.name }.joined(separator: ", ")
-            return .compliant(description: "\(L10n.t(.rule321StatusCompliant)): \(names)")
-        } else {
-            return .partial(description: L10n.t(.rule321StatusPartial))
-        }
+        return ComplianceEvaluator.evaluate(profile: profile).rule321Status
     }
 
     public func startReplication(for profile: BackupProfile? = nil) {
@@ -2815,10 +2819,6 @@ public final class AppState: Sendable {
         if FileManager.default.fileExists(atPath: unifiedPath) {
             return unifiedPath
         }
-        let legacyPath = destURL.appendingPathComponent(".otterkeep_catalog.sqlite").path(percentEncoded: false)
-        if FileManager.default.fileExists(atPath: legacyPath) {
-            return legacyPath
-        }
         return nil
     }
 
@@ -3020,3 +3020,24 @@ public final class AppState: Sendable {
         }
     }
 }
+
+// MARK: - Rule321Compliance Presentation Extensions
+
+extension Rule321Compliance {
+    public var badgeText: String {
+        switch self {
+        case .compliant: return L10n.t(.rule321StatusCompliant)
+        case .partial: return L10n.t(.rule321StatusPartial)
+        case .localOnly: return L10n.t(.rule321StatusLocalOnly)
+        }
+    }
+
+    public var color: Color {
+        switch self {
+        case .compliant: return OtterTheme.oceanicTeal
+        case .partial: return OtterTheme.statusWarning
+        case .localOnly: return OtterTheme.otterAmber
+        }
+    }
+}
+

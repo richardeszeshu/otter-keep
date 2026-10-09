@@ -313,12 +313,27 @@ public struct BackupProfile: Identifiable, Codable, Sendable, Equatable {
         case isImmutabilityLockEnabled, immutabilityLockDays, isParallelMultiDestinationEnabled
     }
 
+    /// Directory URL holding internal manifest and database artifacts (`<destination>/.otterkeep/`).
+    public var manifestDirectoryURL: URL {
+        destinationURL.appendingPathComponent(".otterkeep", isDirectory: true)
+    }
+
+    /// URL to the active SQLite manifest database (`<destination>/.otterkeep/manifest.sqlite`).
+    public var manifestDatabaseURL: URL {
+        manifestDirectoryURL.appendingPathComponent("manifest.sqlite")
+    }
+
+    /// Standardized filesystem path to the SQLite manifest database.
+    public var manifestDatabasePath: String {
+        manifestDatabaseURL.standardizedFileURL.path(percentEncoded: false)
+    }
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        if let uid = try container.decodeIfPresent(UUID.self, forKey: .uuid) {
-            self.id = uid
-        } else if let id = try container.decodeIfPresent(UUID.self, forKey: .id) {
+        if let id = try container.decodeIfPresent(UUID.self, forKey: .id) {
             self.id = id
+        } else if let uid = try container.decodeIfPresent(UUID.self, forKey: .uuid) {
+            self.id = uid
         } else {
             self.id = UUID()
         }
@@ -330,7 +345,7 @@ public struct BackupProfile: Identifiable, Codable, Sendable, Equatable {
         if let strat = try? container.decode(ICloudBackupStrategy.self, forKey: .icloudStrategy) {
             self.icloudStrategy = strat
         } else if let rawStr = try? container.decode(String.self, forKey: .icloudStrategy) {
-            if rawStr.contains("Metadata") || rawStr.contains("Metaadat") {
+            if rawStr.contains("Metadata") {
                 self.icloudStrategy = .metadataOnly
             } else {
                 self.icloudStrategy = .downloadAndEvict
@@ -363,7 +378,6 @@ public struct BackupProfile: Identifiable, Codable, Sendable, Equatable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
-        try container.encode(id.uuidString, forKey: .uuid)
         try container.encode(name, forKey: .name)
         try container.encode(sourceURL, forKey: .sourceURL)
         try container.encode(destinationURL, forKey: .destinationURL)

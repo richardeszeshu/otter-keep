@@ -81,9 +81,11 @@ public struct StorageGaugeBar: View {
                     }
 
                     // Free Disk Space Segment
-                    RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .fill(Color.primary.opacity(0.08))
-                        .frame(maxWidth: .infinity)
+                    if freeRatio > 0.005 {
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(Color.primary.opacity(0.08))
+                            .frame(width: max(width * freeRatio - 2, 4))
+                    }
                 }
             }
             .frame(height: 8)

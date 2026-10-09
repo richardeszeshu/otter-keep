@@ -307,7 +307,7 @@ public actor BackupSessionCoordinator {
     ///   - icloudController: iCloud eviction and download controller.
     ///   - retentionManager: Snapshot retention manager.
     public init(
-        storage: FileSystemProvider = APFSFileSystemProvider(),
+        storage: FileSystemProvider = DefaultFileSystemProvider(),
         database: DatabaseEngine = DatabaseEngine(),
         icloudController: ICloudEvictionController = ICloudEvictionController(),
         retentionManager: RetentionManager? = nil

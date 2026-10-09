@@ -56,11 +56,14 @@ jobs:
           echo "dmg_sha256=$DMG_SHA256" >> "$GITHUB_OUTPUT"
           echo "DMG SHA-256: $DMG_SHA256"
 
-          if [ -f "$ZIP_PATH" ]; then
-            ZIP_SHA256=$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')
-            echo "zip_sha256=$ZIP_SHA256" >> "$GITHUB_OUTPUT"
-            echo "ZIP SHA-256: $ZIP_SHA256"
+          if [ ! -f "$ZIP_PATH" ]; then
+            echo "::error::ZIP file was not found at: $ZIP_PATH"
+            exit 1
           fi
+
+          ZIP_SHA256=$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')
+          echo "zip_sha256=$ZIP_SHA256" >> "$GITHUB_OUTPUT"
+          echo "ZIP SHA-256: $ZIP_SHA256"
 
       - name: Commit Updated Appcast if Modified
         run: |
@@ -99,10 +102,15 @@ jobs:
           cd homebrew-repo
           CASK_FILE="Casks/otterkeep.rb"
           NEW_VERSION="${{ steps.vars.outputs.version }}"
-          NEW_SHA256="${{ steps.checksum.outputs.dmg_sha256 }}"
+          NEW_SHA256="${{ steps.checksum.outputs.zip_sha256 }}"
 
           if [ ! -f "$CASK_FILE" ]; then
             echo "::error::Cask formula not found: $CASK_FILE"
+            exit 1
+          fi
+
+          if [ -z "$NEW_SHA256" ]; then
+            echo "::error::ZIP SHA-256 checksum is empty or missing"
             exit 1
           fi
 

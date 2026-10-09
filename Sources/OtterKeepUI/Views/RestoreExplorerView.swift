@@ -452,34 +452,19 @@ public struct RestoreExplorerView: View {
         }
         .padding(.vertical, 3)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) {
-            if !node.isDirectory {
-                if let rec = node.record {
-                    appState.selectedFile = rec
-                } else {
-                    appState.selectedFile = appState.snapshotFiles.first(where: { $0.relativePath == node.relativePath })
-                }
-                appState.toggleQuickLook()
-            }
-        }
         .onTapGesture {
+            selectNode(node)
+        }
+        .onTapGesture(count: 2) {
+            selectNode(node)
             if !node.isDirectory {
-                if let rec = node.record {
-                    appState.selectedFile = rec
-                } else {
-                    appState.selectedFile = appState.snapshotFiles.first(where: { $0.relativePath == node.relativePath })
-                }
-                appState.updateQuickLookForCurrentSelection()
+                appState.toggleQuickLook()
             }
         }
         .contextMenu {
             if !node.isDirectory {
                 Button {
-                    if let rec = node.record {
-                        appState.selectedFile = rec
-                    } else {
-                        appState.selectedFile = appState.snapshotFiles.first(where: { $0.relativePath == node.relativePath })
-                    }
+                    selectNode(node)
                     appState.toggleQuickLook()
                 } label: {
                     Label(L10n.t(.previewSpaceButton), systemImage: "eye")
@@ -493,20 +478,53 @@ public struct RestoreExplorerView: View {
                 } label: {
                     Label(L10n.t(.diffSideBySideCompare), systemImage: "square.split.2x1")
                 }
-
-                Button {
-                    if let rec = node.record {
-                        appState.selectedFile = rec
-                    } else {
-                        appState.selectedFile = appState.snapshotFiles.first(where: { $0.relativePath == node.relativePath })
-                    }
-                    if let url = appState.currentSelectedFileURL() {
-                        NSWorkspace.shared.activateFileViewerSelecting([url])
-                    }
-                } label: {
-                    Label(L10n.t(.revealInFinderButton), systemImage: "arrow.right.circle")
-                }
             }
+
+            Button {
+                selectNode(node)
+                appState.versionToRestore = nil
+                appState.showRestoreDialog = true
+            } label: {
+                Label(L10n.t(.restoreThisVersionButton), systemImage: "arrow.uturn.backward")
+            }
+
+            Button {
+                selectNode(node)
+                if let url = appState.currentSelectedFileURL() {
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                }
+            } label: {
+                Label(L10n.t(.revealInFinderButton), systemImage: "arrow.right.circle")
+            }
+        }
+    }
+
+    private func selectNode(_ node: FileTreeNode) {
+        appState.selectedTreeNode = node
+        if node.isDirectory {
+            if let rec = node.record {
+                appState.selectedFile = rec
+            } else {
+                appState.selectedFile = FileCatalogRecord(
+                    id: 0,
+                    snapshotId: appState.selectedSnapshotId ?? "",
+                    relativePath: node.relativePath,
+                    fileSize: node.fileSize,
+                    modificationTime: node.modificationTime,
+                    inode: 0,
+                    checksum: nil,
+                    sampleHash: nil,
+                    isDirectory: true,
+                    isSymlink: false
+                )
+            }
+        } else {
+            if let rec = node.record {
+                appState.selectedFile = rec
+            } else {
+                appState.selectedFile = appState.snapshotFiles.first(where: { $0.relativePath == node.relativePath })
+            }
+            appState.updateQuickLookForCurrentSelection()
         }
     }
 

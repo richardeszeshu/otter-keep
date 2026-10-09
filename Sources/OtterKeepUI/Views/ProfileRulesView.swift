@@ -1048,12 +1048,12 @@ public struct ProfileRulesView: View {
                             Text(L10n.t(.ransomwareAbortToggle))
                                 .font(.subheadline)
                             if profile.abortOnAnomaly {
-                                Text("ABORT")
+                                Text(L10n.t(.ransomwareAutoPauseBadge))
                                     .font(.caption2.bold())
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(OtterTheme.statusError.opacity(0.12), in: Capsule())
-                                    .foregroundStyle(OtterTheme.statusError)
+                                    .background(OtterTheme.otterAmber.opacity(0.14), in: Capsule())
+                                    .foregroundStyle(OtterTheme.otterAmber)
                             }
                         }
                     }

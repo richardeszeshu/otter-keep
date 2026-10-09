@@ -6,6 +6,18 @@
         <description>Most recent updates and releases for OtterKeep on macOS.</description>
         <language>en</language>
         <item>
+            <title>Version 1.7.0</title>
+            <pubDate>Fri, 09 Oct 2026 18:30:00 +0000</pubDate>
+            <sparkle:releaseNotesLink>https://github.com/richardeszeshu/otter-keep/releases/tag/v1.7.0</sparkle:releaseNotesLink>
+            <description><![CDATA[OtterKeep 1.7.0 backend maintenance release: architectural layering hardening, removal of compatibility shims and legacy generators, unified SnapshotCatalogService, centralized 3-2-1 ComplianceEvaluator, subprocess environment isolation, and strict SQLite file security.]]></description>
+            <enclosure
+                url="https://github.com/richardeszeshu/otter-keep/releases/download/v1.7.0/OtterKeep-1.7.0.zip"
+                sparkle:version="1700"
+                sparkle:shortVersionString="1.7.0"
+                length="11580000"
+                type="application/octet-stream" />
+        </item>
+        <item>
             <title>Version 1.6.0</title>
             <pubDate>Thu, 08 Oct 2026 22:30:00 +0000</pubDate>
             <sparkle:releaseNotesLink>https://github.com/richardeszeshu/otter-keep/releases/tag/v1.6.0</sparkle:releaseNotesLink>

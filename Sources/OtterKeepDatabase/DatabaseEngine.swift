@@ -396,8 +396,11 @@ final class SQLiteHandle: @unchecked Sendable {
 }
 
 /// High-performance, actor-isolated SQLite database engine managing snapshot metadata and file version history.
+///
+/// Implements transactional SQLite operations with WAL journal mode, automatic fallback to TRUNCATE
+/// on non-POSIX shared-memory volumes (exFAT/FAT/SMB), and explicit resource closure releasing file locks.
 public actor DatabaseEngine {
-    private let logger = Logger(subsystem: "com.otterkeep.desktop", category: "Database")
+    private let logger = Logger(subsystem: "com.otterkeep", category: "Database")
     private var handle: SQLiteHandle?
     private var db: OpaquePointer? { handle?.pointer }
 
@@ -431,6 +434,12 @@ public actor DatabaseEngine {
             handle = nil
         }
 
+        // Ensure parent directory exists before creating or opening SQLite database file
+        let parentDir = (path as NSString).deletingLastPathComponent
+        if !parentDir.isEmpty && !FileManager.default.fileExists(atPath: parentDir) {
+            try FileManager.default.createDirectory(atPath: parentDir, withIntermediateDirectories: true)
+        }
+
         var newPointer: OpaquePointer?
         let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
         if sqlite3_open_v2(path, &newPointer, flags, nil) != SQLITE_OK {
@@ -439,6 +448,9 @@ public actor DatabaseEngine {
             throw DatabaseError.openFailed(msg)
         }
         self.handle = SQLiteHandle(pointer: newPointer)
+
+        // Enforce strict 0600 POSIX permissions on database file for user data security
+        chmod(path, 0o600)
 
         // Configure 10-second busy timeout to prevent immediate SQLITE_BUSY locking under multi-process contention
         sqlite3_busy_timeout(newPointer, 10000)

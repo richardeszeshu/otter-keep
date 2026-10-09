@@ -49,6 +49,17 @@ public final class ProfileStore: @unchecked Sendable {
         return loadProfilesUnlocked()
     }
 
+    /// Resolves a backup profile by its name or UUID string (case-insensitive).
+    /// - Parameter query: Profile name or UUID string.
+    /// - Returns: The matching `BackupProfile`, or `nil` if not found.
+    public func findProfile(namedOrId query: String) -> BackupProfile? {
+        let profiles = loadProfiles()
+        let lowerQuery = query.lowercased()
+        return profiles.first {
+            $0.name.lowercased() == lowerQuery || $0.id.uuidString.lowercased() == lowerQuery
+        }
+    }
+
     /// Persists an array of backup profiles to disk atomically.
     /// - Parameter profiles: Array of profiles to write.
     public func saveProfiles(_ profiles: [BackupProfile]) throws {

@@ -69,8 +69,6 @@ public enum OtterTheme {
     public static let primaryAmber = otterAmber
     public static let otterOrange = otterAmber
     public static let primaryOrange = otterAmber
-    public static let squirrelOrange = otterAmber
-    public static let squirrelAmber = otterAmber
 
     // MARK: - Complementary Accent Tones
     /// Oceanic Teal tone: crisp sea-cyan in light mode, glowing readable cyan on dark surfaces.
@@ -276,18 +274,4 @@ public extension View {
     func otterHeroCard(padding: CGFloat = 18) -> some View {
         modifier(OtterHeroCardModifier(padding: padding))
     }
-
-    /// Backward-compatibility aliases
-    func squirrelCard(padding: CGFloat = 16, cornerRadius: CGFloat = OtterTheme.cardCornerRadius) -> some View {
-        otterCard(padding: padding, cornerRadius: cornerRadius)
-    }
-
-    func squirrelHeroCard(padding: CGFloat = 20) -> some View {
-        otterHeroCard(padding: padding)
-    }
 }
-
-/// Compatibility aliases during rebranding
-public typealias SquirrelTheme = OtterTheme
-public typealias SquirrelCardModifier = OtterCardModifier
-public typealias SquirrelHeroCardModifier = OtterHeroCardModifier

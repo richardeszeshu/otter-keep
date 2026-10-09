@@ -381,7 +381,7 @@ public struct RemoteDestinationEditorModalView: View {
                     .font(.subheadline.bold())
                     .foregroundStyle(OtterTheme.oceanicTeal)
                 Spacer()
-                Text("Zero-Knowledge SigV4")
+                Text(L10n.t(.protocolBadgeS3))
                     .font(.caption2.monospaced())
                     .foregroundStyle(.secondary)
             }
@@ -514,7 +514,7 @@ public struct RemoteDestinationEditorModalView: View {
                     .font(.subheadline.bold())
                     .foregroundStyle(OtterTheme.otterAmber)
                 Spacer()
-                Text("Native Apple SMBfs")
+                Text(L10n.t(.protocolBadgeSMB))
                     .font(.caption2.monospaced())
                     .foregroundStyle(.secondary)
             }
@@ -568,7 +568,7 @@ public struct RemoteDestinationEditorModalView: View {
                     .font(.subheadline.bold())
                     .foregroundStyle(OtterTheme.oceanicTeal)
                 Spacer()
-                Text("RFC 4918 HTTP/HTTPS")
+                Text(L10n.t(.protocolBadgeWebDAV))
                     .font(.caption2.monospaced())
                     .foregroundStyle(.secondary)
             }
@@ -622,7 +622,7 @@ public struct RemoteDestinationEditorModalView: View {
                     .font(.subheadline.bold())
                     .foregroundStyle(OtterTheme.accentPurple)
                 Spacer()
-                Text("OpenSSH / SFTP")
+                Text(L10n.t(.protocolBadgeSFTP))
                     .font(.caption2.monospaced())
                     .foregroundStyle(.secondary)
             }
@@ -766,7 +766,7 @@ public struct RemoteDestinationEditorModalView: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Path Prefix")
+                Text(L10n.t(.pathPrefixLabel))
                     .font(.caption.bold())
                 TextField("otterkeep", text: Binding(get: { appState.destinationEditorB2PathPrefix }, set: { appState.destinationEditorB2PathPrefix = $0 }))
                     .textFieldStyle(.roundedBorder)
@@ -821,15 +821,15 @@ public struct RemoteDestinationEditorModalView: View {
                     )
 
                     HStack {
-                        Text("1: Fast")
+                        Text(L10n.t(.compressionFast))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text("3: Recommended")
+                        Text(L10n.t(.compressionRecommended))
                             .font(.caption2.bold())
                             .foregroundStyle(appState.destinationEditorArchiveCompressionLevel == 3 ? OtterTheme.otterAmber : .secondary)
                         Spacer()
-                        Text("9: Maximum")
+                        Text(L10n.t(.compressionMaximum))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
