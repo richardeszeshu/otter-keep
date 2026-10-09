@@ -124,13 +124,13 @@ final class OtterKeepTestSuite {
 
     public func executeAllTests() async -> Bool {
         print("\n" + String(repeating: "=", count: 80))
-        print("🦦 OTTERKEEP 1.6.0 (BUILD 1600) SYSTEM INTEGRATION TEST SUITE & BENCHMARK")
+        print("🦦 OTTERKEEP 1.7.0 (BUILD 1700) SYSTEM INTEGRATION TEST SUITE & BENCHMARK")
         print(String(repeating: "=", count: 80))
 
         // Module 1
         print("\n🔹 Module 1: System, Version & Subsystem SemVer Integrity")
         await runTest("1.1 CoreEngine Metadata, Slogans & Bundle Identifier", test1_1_CoreEngineMetadata)
-        await runTest("1.2 SemVer Subsystem Matrix Alignment (1.6.0 / 1600)", test1_2_SemVerSubsystemMatrix)
+        await runTest("1.2 SemVer Subsystem Matrix Alignment (1.7.0 / 1700)", test1_2_SemVerSubsystemMatrix)
         await runTest("1.3 Semantic Version Parser & Comparison", test1_3_SemVerComparison)
         await runTest("1.4 Sparkle Appcast Coordinator Logic & Feed Audit", test1_4_SparkleAppcast)
 
@@ -141,7 +141,7 @@ final class OtterKeepTestSuite {
         await runTest("2.3 POSIX Hardlink Fallback & Inode Consistency", test2_3_HardlinkFallback)
         await runTest("2.4 Extended Attributes (xattr) Preservation", test2_4_ExtendedAttributes)
         await runTest("2.5 Atomic Directory Tree Renaming (atomicMove)", test2_5_AtomicMove)
-        await runTest("2.6 Fallback Storage Provider Non-APFS Behavior", test2_6_FallbackStorageProvider)
+        await runTest("2.6 DefaultFileSystemProvider Stream Copy & Metadata Preservation", test2_6_FallbackStorageProvider)
         await runTest("2.7 exFAT & NTFS FileSystem Capabilities Matrix", test2_7_ExFATAndNTFSCapabilities)
         await runTest("2.8 FileSystemDriverRegistry Dynamic Resolution", test2_8_DriverRegistryResolution)
 
@@ -206,18 +206,23 @@ final class OtterKeepTestSuite {
         await runTest("10.2 Three-Part Error Architecture Formatting in analyzeBackupError", test10_2_ThreePartErrorArchitecture)
         await runTest("10.3 Configuration Archive Round-Trip JSON Serialization", test10_3_ConfigurationArchiveSerialization)
         await runTest("10.4 AppState Multi-Profile Parallel Tracking & Lockout", test10_4_AppStateMultiProfileTracking)
-        await runTest("10.5 OtterAboutView Brand Metadata & Version Display (v1.6.0)", test10_5_OtterAboutViewMetadata)
-        await runTest("10.6 DefaultFileSystemProvider Registry Routing & Backward Compatibility", test10_6_DefaultFileSystemProviderRouting)
+        await runTest("10.5 OtterAboutView Brand Metadata & Version Display (v1.7.0)", test10_5_OtterAboutViewMetadata)
+        await runTest("10.6 DefaultFileSystemProvider Registry Routing & Dynamic Resolution", test10_6_DefaultFileSystemProviderRouting)
         await runTest("10.7 Restore OperationFeedback & Streamlined Browse Modes", test10_7_RestoreOperationFeedbackAndModes)
 
         // Module 11
-        print("\n🔹 Module 11: 1.5.0 Modern Capabilities (Diff, Scrubber, WORM, B2, Replication, iCloud)")
+        print("\n🔹 Module 11: Modern Capabilities (Diff, Scrubber, WORM, B2, Replication, iCloud)")
         await runTest("11.1 TextDiffEngine Side-by-Side LCS Text & Binary Detection", test11_1_TextDiffEngineSideBySide)
         await runTest("11.2 DataScrubberEngine Background Bit-Rot & Corruption Detection", test11_2_DataScrubberBitRotDetection)
         await runTest("11.3 Recursive WORM Immutability Flags & GFS Retention Pruning", test11_3_WORMImmutabilityAndRetentionPruning)
         await runTest("11.4 Backblaze B2 S3 Configuration Mapping & Provider Resolution", test11_4_BackblazeB2Configuration)
         await runTest("11.5 ReplicationCatchUpCoordinator Deferred Task Queueing & Lifecycle", test11_5_ReplicationCatchUpCoordinator)
         await runTest("11.6 Dataless iCloud Drive Change Detection Without Forced Download", test11_6_DatalessICloudChangeDetection)
+
+        // Module 12
+        print("\n🔹 Module 12: Backend Architecture, Layering & Catalog Services")
+        await runTest("12.1 ComplianceEvaluator 3-2-1 Matrix & Deduplication Scenarios", test12_1_ComplianceEvaluatorScenarios)
+        await runTest("12.2 SnapshotCatalogService SQLite Connection Closure & Immutability", test12_2_SnapshotCatalogServiceLifecycle)
 
         print("\n" + String(repeating: "=", count: 80))
         print("📊 TEST EXECUTION SUMMARY")
@@ -247,39 +252,39 @@ final class OtterKeepTestSuite {
     private func test1_1_CoreEngineMetadata() throws {
         try assertEqual(CoreEngine.appName, "OtterKeep")
         try assertEqual(CoreEngine.bundleIdentifier, "com.otterkeep.desktop")
-        try assertEqual(CoreEngine.version, "1.6.0", "CoreEngine version must be exactly 1.6.0")
-        try assertEqual(CoreEngine.buildNumber, "1600", "Build number must be 1600 for release 1.6.0")
+        try assertEqual(CoreEngine.version, "1.7.0", "CoreEngine version must be exactly 1.7.0")
+        try assertEqual(CoreEngine.buildNumber, "1700", "Build number must be 1700 for release 1.7.0")
     }
 
     private func test1_2_SemVerSubsystemMatrix() throws {
         let matrix = CoreEngine.componentVersions
-        try assertEqual(matrix["OtterKeepStorage"], "1.2.0", "OtterKeepStorage must be 1.2.0")
-        try assertEqual(matrix["OtterKeepDatabase"], "1.2.0", "OtterKeepDatabase must be 1.2.0")
-        try assertEqual(matrix["OtterKeepCore"], "1.5.0", "OtterKeepCore must be 1.5.0")
-        try assertEqual(matrix["OtterKeepUI"], "1.6.0", "OtterKeepUI must be 1.6.0")
-        try assertEqual(matrix["OtterKeepCLI"], "1.2.0", "OtterKeepCLI must be 1.2.0")
+        try assertEqual(matrix["OtterKeepStorage"], "1.3.0", "OtterKeepStorage must be 1.3.0")
+        try assertEqual(matrix["OtterKeepDatabase"], "1.3.0", "OtterKeepDatabase must be 1.3.0")
+        try assertEqual(matrix["OtterKeepCore"], "1.7.0", "OtterKeepCore must be 1.7.0")
+        try assertEqual(matrix["OtterKeepUI"], "1.7.0", "OtterKeepUI must be 1.7.0")
+        try assertEqual(matrix["OtterKeepCLI"], "1.3.0", "OtterKeepCLI must be 1.3.0")
         try assertEqual(matrix["OtterKeepFinderSyncExtension"], "1.0.1", "OtterKeepFinderSyncExtension must be 1.0.1")
 
         let summary = CoreEngine.componentVersionsFormatted
-        try assertTrue(summary.contains("v1.2.0"), "Summary must reflect subsystem versions")
-        try assertTrue(summary.contains("v1.5.0"), "Summary must reflect core version")
+        try assertTrue(summary.contains("v1.3.0"), "Summary must reflect subsystem versions")
+        try assertTrue(summary.contains("v1.7.0"), "Summary must reflect core version")
     }
 
     private func test1_3_SemVerComparison() throws {
-        try assertEqual(SoftwareUpdateCoordinator.compareVersions("1.6.0", "1.6.0"), .orderedSame)
-        try assertEqual(SoftwareUpdateCoordinator.compareVersions("1.5.0", "1.6.0"), .orderedAscending)
-        try assertEqual(SoftwareUpdateCoordinator.compareVersions("1.6.0", "1.5.0"), .orderedDescending)
-        try assertEqual(SoftwareUpdateCoordinator.compareVersions("v1.6.0", "1.6.0"), .orderedSame)
-        try assertEqual(SoftwareUpdateCoordinator.compareVersions("1.10.0", "1.6.0"), .orderedDescending)
-        try assertEqual(SoftwareUpdateCoordinator.compareVersions("1.6.1", "1.6.0"), .orderedDescending)
+        try assertEqual(SoftwareUpdateCoordinator.compareVersions("1.7.0", "1.7.0"), .orderedSame)
+        try assertEqual(SoftwareUpdateCoordinator.compareVersions("1.6.0", "1.7.0"), .orderedAscending)
+        try assertEqual(SoftwareUpdateCoordinator.compareVersions("1.7.0", "1.6.0"), .orderedDescending)
+        try assertEqual(SoftwareUpdateCoordinator.compareVersions("v1.7.0", "1.7.0"), .orderedSame)
+        try assertEqual(SoftwareUpdateCoordinator.compareVersions("1.10.0", "1.7.0"), .orderedDescending)
+        try assertEqual(SoftwareUpdateCoordinator.compareVersions("1.7.1", "1.7.0"), .orderedDescending)
     }
 
     private func test1_4_SparkleAppcast() async throws {
         let coordinator = SoftwareUpdateCoordinator()
         let currentVer = coordinator.currentVersion
         let currentBld = coordinator.currentBuild
-        try assertEqual(currentVer, "1.6.0")
-        try assertEqual(currentBld, "1600")
+        try assertEqual(currentVer, "1.7.0")
+        try assertEqual(currentBld, "1700")
 
         // Parse and validate Distribution/appcast.xml in repository root
         let projectRoot = URL(fileURLWithPath: #file)
@@ -293,9 +298,9 @@ final class OtterKeepTestSuite {
             guard let latest = await coordinator.parseAppcastXML(data: data) else {
                 throw TestFailure(message: "Expected parsed update info in appcast", file: #file, line: #line)
             }
-            try assertEqual(latest.version, "1.6.0", "Latest appcast version should be 1.6.0")
-            try assertEqual(latest.buildNumber, "1600", "Latest appcast build number should be 1600")
-            try assertTrue(latest.downloadURL.absoluteString.contains("OtterKeep-1.6.0.zip"))
+            try assertEqual(latest.version, "1.7.0", "Latest appcast version should be 1.7.0")
+            try assertEqual(latest.buildNumber, "1700", "Latest appcast build number should be 1700")
+            try assertTrue(latest.downloadURL.absoluteString.contains("OtterKeep-1.7.0.zip"))
         }
     }
 
@@ -307,7 +312,7 @@ final class OtterKeepTestSuite {
         let tempDir = try createTempDirectory(prefix: "Capabilities")
         defer { removeTempDirectory(tempDir) }
 
-        let provider = APFSFileSystemProvider()
+        let provider = DefaultFileSystemProvider()
         let caps = try await provider.capabilities(at: tempDir)
         let capacity = try provider.storageCapacity(at: tempDir)
 
@@ -327,7 +332,7 @@ final class OtterKeepTestSuite {
         let payload = Data(repeating: 0x42, count: 64 * 1024)
         try payload.write(to: sourceFile)
 
-        let provider = APFSFileSystemProvider()
+        let provider = DefaultFileSystemProvider()
         try await provider.cloneItem(at: sourceFile, to: cloneFile)
 
         try assertTrue(FileManager.default.fileExists(atPath: cloneFile.path))
@@ -349,7 +354,7 @@ final class OtterKeepTestSuite {
         let linkFile = tempDir.appendingPathComponent("linked.txt")
         try "OtterKeep Inode Fidelity".write(to: sourceFile, atomically: true, encoding: .utf8)
 
-        let provider = APFSFileSystemProvider()
+        let provider = DefaultFileSystemProvider()
         try await provider.createHardLink(at: sourceFile, to: linkFile)
 
         try assertTrue(FileManager.default.fileExists(atPath: linkFile.path))
@@ -365,7 +370,7 @@ final class OtterKeepTestSuite {
         let file = tempDir.appendingPathComponent("tagged.txt")
         try "Content".write(to: file, atomically: true, encoding: .utf8)
 
-        let provider = APFSFileSystemProvider()
+        let provider = DefaultFileSystemProvider()
         let attrKey = "com.otterkeep.test.safeguard"
         let attrValue = Data("PreservedSanctuary".utf8)
         try provider.setExtendedAttributes([attrKey: attrValue], at: file)
@@ -383,7 +388,7 @@ final class OtterKeepTestSuite {
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
         try "data".write(to: source.appendingPathComponent("file.txt"), atomically: true, encoding: .utf8)
 
-        let provider = APFSFileSystemProvider()
+        let provider = DefaultFileSystemProvider()
         try await provider.atomicMove(from: source, to: dest)
 
         try assertFalse(FileManager.default.fileExists(atPath: source.path))
@@ -392,18 +397,18 @@ final class OtterKeepTestSuite {
     }
 
     private func test2_6_FallbackStorageProvider() async throws {
-        let tempDir = try createTempDirectory(prefix: "FallbackProvider")
+        let tempDir = try createTempDirectory(prefix: "StreamCopyProvider")
         defer { removeTempDirectory(tempDir) }
 
-        let fallback = FallbackFileSystemProvider()
-        let source = tempDir.appendingPathComponent("fallback_source.txt")
-        let dest = tempDir.appendingPathComponent("fallback_dest.txt")
-        try "Fallback Data Stream".write(to: source, atomically: true, encoding: .utf8)
+        let provider = DefaultFileSystemProvider()
+        let source = tempDir.appendingPathComponent("stream_source.txt")
+        let dest = tempDir.appendingPathComponent("stream_dest.txt")
+        try "Stream Copy Data".write(to: source, atomically: true, encoding: .utf8)
 
-        try await fallback.copyItemPreservingMetadata(at: source, to: dest, progress: nil)
+        try await provider.copyItemPreservingMetadata(at: source, to: dest, progress: nil)
         try assertTrue(FileManager.default.fileExists(atPath: dest.path))
         let data = try String(contentsOf: dest, encoding: .utf8)
-        try assertEqual(data, "Fallback Data Stream")
+        try assertEqual(data, "Stream Copy Data")
     }
 
     private func test2_7_ExFATAndNTFSCapabilities() throws {
@@ -703,7 +708,7 @@ final class OtterKeepTestSuite {
             destinationURL: destDir
         )
 
-        let storage = APFSFileSystemProvider()
+        let storage = DefaultFileSystemProvider()
         let db = DatabaseEngine()
         let coordinator = BackupSessionCoordinator(storage: storage, database: db)
 
@@ -750,7 +755,7 @@ final class OtterKeepTestSuite {
         let includedFile = tempDir.appendingPathComponent("valid.txt")
         try "keep".write(to: includedFile, atomically: true, encoding: .utf8)
 
-        let scanner = FileTreeScanner(storage: APFSFileSystemProvider())
+        let scanner = FileTreeScanner(storage: DefaultFileSystemProvider())
         let scanResult = try await scanner.scanDetailed(rootURL: tempDir)
 
         let paths = scanResult.items.map(\.relativePath)
@@ -797,7 +802,7 @@ final class OtterKeepTestSuite {
         let db = DatabaseEngine()
         let dbPath = destDir.appendingPathComponent(".otterkeep/manifest.sqlite").path
         try await db.open(at: dbPath)
-        let storage = APFSFileSystemProvider()
+        let storage = DefaultFileSystemProvider()
         let restoreEngine = RestoreEngine(storage: storage, database: db)
 
         final class ProgressBox: @unchecked Sendable {
@@ -872,14 +877,27 @@ final class OtterKeepTestSuite {
         let plaintext = Data("Legacy DataSquirrel Archive 1.0".utf8)
         let passphrase = "LegacyPassphrase123"
 
-        let legacyEncrypted = try ClientSideEncryptor.encryptLegacyV1(
-            data: plaintext,
-            passphrase: passphrase
+        // Construct a valid DSENC1 legacy envelope using HKDF-SHA256 to verify the backward-compatible decrypt branch
+        let salt = Data([UInt8](repeating: 0x5A, count: 16))
+        let inputKeyMaterial = SymmetricKey(data: Data(passphrase.utf8))
+        let derivedKey = HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: inputKeyMaterial,
+            salt: salt,
+            info: Data("OtterKeep-S3-Envelope-Key".utf8),
+            outputByteCount: 32
         )
-        try assertTrue(legacyEncrypted.starts(with: ClientSideEncryptor.headerMagicV1))
+        let sealedBox = try AES.GCM.seal(plaintext, using: derivedKey)
+        guard let combined = sealedBox.combined else {
+            throw TestFailure(message: "Failed to create legacy sealed box")
+        }
+        var legacyEnvelope = ClientSideEncryptor.headerMagicV1
+        legacyEnvelope.append(salt)
+        legacyEnvelope.append(combined)
 
-        let decrypted = try ClientSideEncryptor.decrypt(envelope: legacyEncrypted, passphrase: passphrase)
-        try assertEqual(decrypted, plaintext, "DSENC1 legacy format must decrypt seamlessly")
+        try assertTrue(legacyEnvelope.starts(with: ClientSideEncryptor.headerMagicV1))
+
+        let decrypted = try ClientSideEncryptor.decrypt(envelope: legacyEnvelope, passphrase: passphrase)
+        try assertEqual(decrypted, plaintext, "DSENC1 legacy format must decrypt seamlessly through backward-compatibility path")
     }
 
     private func test5_3_TamperResistance() throws {
@@ -1170,7 +1188,7 @@ final class OtterKeepTestSuite {
 
         let decoder = JSONDecoder()
         let decoded = try decoder.decode(ConfigurationExportArchive.self, from: data)
-        try assertEqual(decoded.appVersion, "1.6.0")
+        try assertEqual(decoded.appVersion, "1.7.0")
         try assertEqual(decoded.profiles.count, 1)
         try assertEqual(decoded.profiles.first?.name, "Portable Profile")
     }
@@ -1185,8 +1203,8 @@ final class OtterKeepTestSuite {
     }
 
     private func test10_5_OtterAboutViewMetadata() throws {
-        try assertEqual(CoreEngine.version, "1.6.0")
-        try assertEqual(CoreEngine.buildNumber, "1600")
+        try assertEqual(CoreEngine.version, "1.7.0")
+        try assertEqual(CoreEngine.buildNumber, "1700")
     }
 
     private func test10_6_DefaultFileSystemProviderRouting() async throws {
@@ -1195,10 +1213,10 @@ final class OtterKeepTestSuite {
         let caps = try await provider.capabilities(at: home)
         try assertTrue(!caps.fsTypeName.isEmpty)
 
-        // Verify typealias consistency
-        let aliasProvider: APFSFileSystemProvider = provider
-        let capAlias = try await aliasProvider.capabilities(at: home)
-        try assertEqual(caps.fsTypeName, capAlias.fsTypeName)
+        // Verify FileSystemDriverRegistry resolution
+        let resolved = FileSystemDriverRegistry.shared.driver(forFSType: caps.fsTypeName)
+        let regCaps = try await resolved.capabilities(at: home)
+        try assertEqual(caps.fsTypeName, regCaps.fsTypeName)
     }
 
     private func test10_7_RestoreOperationFeedbackAndModes() throws {
@@ -1310,7 +1328,7 @@ final class OtterKeepTestSuite {
         try await db.insertFileRecordsBatch([fileRecord])
 
         // Initial scrub: clean pass
-        let scrubber = DataScrubberEngine(storage: APFSFileSystemProvider(), database: db)
+        let scrubber = DataScrubberEngine(storage: DefaultFileSystemProvider(), database: db)
         let cleanAudit = try await scrubber.performScrub(backupRootURL: tempDir)
         try assertEqual(cleanAudit.status, "healthy")
         try assertEqual(cleanAudit.corruptedFilesCount, 0)
@@ -1605,6 +1623,121 @@ final class OtterKeepTestSuite {
 
         try assertEqual(changedResult.modified.count, 1, "Dataless iCloud item with changed mtime must be detected as modified")
         try assertEqual(changedResult.unmodified.count, 0)
+    }
+
+    // =========================================================================
+    // MARK: - Module 12: Backend Architecture, Layering & Catalog Services
+    // =========================================================================
+
+    private func test12_1_ComplianceEvaluatorScenarios() throws {
+        // 1. Local-only profile (no copy jobs enabled)
+        let localProfile = BackupProfile(
+            name: "Local Only",
+            sourceURL: URL(fileURLWithPath: "/tmp/src"),
+            destinationURL: URL(fileURLWithPath: "/tmp/dst")
+        )
+        let report1 = ComplianceEvaluator.evaluate(profile: localProfile)
+        try assertEqual(report1.status, ComplianceStatus.localOnly)
+        try assertEqual(report1.rule321Status, Rule321Compliance.localOnly(description: L10n.t(.rule321StatusLocalOnly)))
+        try assertEqual(report1.copiesCount, 2)
+        try assertEqual(report1.mediaTypesCount, 2)
+        try assertFalse(report1.hasOffsite)
+
+        // 2. Fully compliant profile (source + dest + S3 remote)
+        var s3Dest = RemoteDestination(
+            name: "AWS S3 Offsite",
+            type: .s3(S3Configuration(
+                endpoint: "https://s3.amazonaws.com",
+                bucket: "my-bucket",
+                region: "us-east-1",
+                accessKeyId: "key"
+            ))
+        )
+        s3Dest.isEnabled = true
+        let compliantProfile = BackupProfile(
+            name: "Compliant S3",
+            sourceURL: URL(fileURLWithPath: "/tmp/src"),
+            destinationURL: URL(fileURLWithPath: "/tmp/dst"),
+            copyJobConfig: BackupCopyJobConfiguration(
+                isEnabled: true,
+                trigger: .onPrimarySuccess,
+                destinations: [s3Dest]
+            )
+        )
+        let report2 = ComplianceEvaluator.evaluate(profile: compliantProfile)
+        try assertEqual(report2.status, ComplianceStatus.compliant)
+        try assertEqual(report2.rule321Status, Rule321Compliance.compliant(description: "\(L10n.t(.rule321StatusCompliant)): \(s3Dest.name)"))
+        try assertEqual(report2.copiesCount, 3)
+        try assertEqual(report2.mediaTypesCount, 3)
+        try assertTrue(report2.hasOffsite)
+
+        // 3. Partial compliance (copy job config disabled, or destination disabled)
+        var disabledDest = s3Dest
+        disabledDest.isEnabled = false
+        let partialProfile = BackupProfile(
+            name: "Partial Profile",
+            sourceURL: URL(fileURLWithPath: "/tmp/src"),
+            destinationURL: URL(fileURLWithPath: "/tmp/dst"),
+            copyJobConfig: BackupCopyJobConfiguration(
+                isEnabled: true,
+                trigger: .onPrimarySuccess,
+                destinations: [disabledDest]
+            )
+        )
+        let report3 = ComplianceEvaluator.evaluate(profile: partialProfile)
+        try assertEqual(report3.status, ComplianceStatus.localOnly)
+        try assertEqual(report3.rule321Status, Rule321Compliance.localOnly(description: L10n.t(.rule321StatusLocalOnly)))
+    }
+
+    private func test12_2_SnapshotCatalogServiceLifecycle() async throws {
+        let tempDir = try createTempDirectory(prefix: "CatalogServiceTest")
+        defer { removeTempDirectory(tempDir) }
+
+        let srcDir = tempDir.appendingPathComponent("src")
+        let dstDir = tempDir.appendingPathComponent("dst")
+        try FileManager.default.createDirectory(at: srcDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: dstDir, withIntermediateDirectories: true)
+
+        let profile = BackupProfile(name: "CatalogTestProfile", sourceURL: srcDir, destinationURL: dstDir)
+
+        // Verify query on clean/empty catalog creates schema or returns empty
+        let initialSnapshots = try await SnapshotCatalogService.shared.listSnapshots(for: profile)
+        try assertEqual(initialSnapshots.count, 0)
+
+        // Populate a record using DatabaseEngine
+        let db = DatabaseEngine()
+        try await db.open(at: profile.manifestDatabasePath)
+        let record = SnapshotRecord(
+            id: "2026-10-09-001",
+            timestamp: Date(),
+            status: "completed",
+            totalFiles: 5,
+            totalBytes: 1024,
+            snapshotPath: "2026-10-09-001",
+            backupType: "full"
+        )
+        try await db.insertSnapshot(record)
+        await db.close()
+
+        // Verify retrieval via SnapshotCatalogService
+        let retrieved = try await SnapshotCatalogService.shared.listSnapshots(for: profile)
+        try assertEqual(retrieved.count, 1)
+        try assertEqual(retrieved[0].id, "2026-10-09-001")
+
+        // Verify getSnapshot
+        let specific = try await SnapshotCatalogService.shared.getSnapshot(id: "2026-10-09-001", in: profile)
+        try assertNotNil(specific)
+        try assertEqual(specific?.totalFiles, 5)
+
+        // Verify lock/unlock mutation via SnapshotCatalogService
+        let lockUntil = Date().addingTimeInterval(86400)
+        try await SnapshotCatalogService.shared.updateSnapshotLock(id: "2026-10-09-001", lockedUntil: lockUntil, in: profile)
+        let lockedSnap = try await SnapshotCatalogService.shared.getSnapshot(id: "2026-10-09-001", in: profile)
+        try assertTrue(lockedSnap?.isLocked == true)
+
+        try await SnapshotCatalogService.shared.updateSnapshotLock(id: "2026-10-09-001", lockedUntil: nil, in: profile)
+        let unlockedSnap = try await SnapshotCatalogService.shared.getSnapshot(id: "2026-10-09-001", in: profile)
+        try assertTrue(unlockedSnap?.isLocked == false)
     }
 }
 
