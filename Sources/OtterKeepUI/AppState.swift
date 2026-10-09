@@ -829,6 +829,45 @@ public final class AppState: Sendable {
         return try? storage.storageCapacity(at: destURL)
     }
 
+    /// Checks whether the destination volume/folder of a given profile is reachable and mounted.
+    public func isDestinationReachable(for profile: BackupProfile) -> Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: profile.destinationURL.path, isDirectory: &isDir) && isDir.boolValue
+    }
+
+    /// Retrieves the volume name of the profile's destination.
+    public func destinationVolumeName(for profile: BackupProfile) -> String? {
+        let vals = try? profile.destinationURL.resourceValues(forKeys: [.volumeNameKey])
+        return vals?.volumeName
+    }
+
+    /// Determines whether the destination of the profile resides on an external or removable storage device.
+    public func isDestinationRemovable(for profile: BackupProfile) -> Bool {
+        guard let vals = try? profile.destinationURL.resourceValues(forKeys: [.volumeIsRemovableKey, .volumeIsInternalKey]) else {
+            return false
+        }
+        return vals.volumeIsRemovable == true || vals.volumeIsInternal == false
+    }
+
+    /// Safely unmounts and ejects the destination volume for the given profile.
+    public func ejectDestinationVolume(for profile: BackupProfile) {
+        guard !isBackupRunning(for: profile.id) else {
+            showError(L10n.t(.errBackupInProgress))
+            return
+        }
+        do {
+            try NSWorkspace.shared.unmountAndEjectDevice(at: profile.destinationURL)
+            LogManager.shared.log("Destination volume safely unmounted and ejected for profile '\(profile.name)'.", level: .info, category: "Storage")
+            refreshLogs()
+            let volName = destinationVolumeName(for: profile) ?? profile.name
+            showSuccess(L10n.format(.destinationEjectedSuccessFormat, volName))
+        } catch {
+            LogManager.shared.log("Failed to safely unmount destination volume for profile '\(profile.name)': \(error.localizedDescription)", level: .error, category: "Storage")
+            refreshLogs()
+            showError(error.localizedDescription)
+        }
+    }
+
     /// Calculates the sum of all stored snapshot catalog sizes for the selected profile.
     public func totalBackupSize() -> Int64 {
         snapshots.reduce(0) { $0 + $1.totalBytes }

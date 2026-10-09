@@ -99,13 +99,6 @@ public struct OtterKeepMenuBarIconView: View {
     }
 
     public var body: some View {
-        HStack(spacing: 3) {
-            Image(nsImage: OtterKeepMenuBarIcon.createMenuBarImage(size: 18, isRunning: isRunning))
-            if isRunning {
-                Circle()
-                    .fill(OtterTheme.otterAmber)
-                    .frame(width: 5, height: 5)
-            }
-        }
+        Image(nsImage: OtterKeepMenuBarIcon.createMenuBarImage(size: 18, isRunning: isRunning))
     }
 }

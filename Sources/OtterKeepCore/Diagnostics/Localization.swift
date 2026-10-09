@@ -1250,6 +1250,19 @@ public enum L10n {
         case protocolBadgeWebDAV
         case protocolBadgeSFTP
         case ransomwareAutoPauseBadge
+
+        // MARK: - v1.7.0: MenuBar Polish
+        case menuBarTimeMachine
+        case menuBarEjectVolume
+        case destinationEjectedSuccessFormat
+        case menuBarCheckUpdates
+        case menuBarSimulateDryRun
+        case menuBarRevealDestination
+        case menuBarFullBackup
+        case menuBarOpenRules
+        case menuBarExternalVolumeDisconnected
+        case menuBarTargetVolumeLabel
+        case errBackupInProgress
     }
 
 
@@ -2230,7 +2243,20 @@ public enum L10n {
         .protocolBadgeSMB: "Natív Apple SMBfs",
         .protocolBadgeWebDAV: "RFC 4918 HTTP/HTTPS",
         .protocolBadgeSFTP: "OpenSSH / SFTP",
-        .ransomwareAutoPauseBadge: "Automatikus megállítás"
+        .ransomwareAutoPauseBadge: "Automatikus megállítás",
+
+        // MARK: - v1.7.0: MenuBar Polish
+        .menuBarTimeMachine: "Időgép & Visszaállítás",
+        .menuBarEjectVolume: "Meghajtó biztonságos kiadása",
+        .destinationEjectedSuccessFormat: "A(z) '%@' célmeghajtó sikeresen kiadva.",
+        .menuBarCheckUpdates: "Frissítések keresése",
+        .menuBarSimulateDryRun: "Mentés szimulációja (Dry-Run)",
+        .menuBarRevealDestination: "Célmappa megnyitása a Finderben",
+        .menuBarFullBackup: "Teljes mentés indítása",
+        .menuBarOpenRules: "Szabályok és ütemezés megnyitása",
+        .menuBarExternalVolumeDisconnected: "A mentési meghajtó nincs csatlakoztatva",
+        .menuBarTargetVolumeLabel: "Célmeghajtó",
+        .errBackupInProgress: "A mentés még folyamatban van."
     ]
 
 
@@ -3204,7 +3230,20 @@ public enum L10n {
         .protocolBadgeSMB: "Native Apple SMBfs",
         .protocolBadgeWebDAV: "RFC 4918 HTTP/HTTPS",
         .protocolBadgeSFTP: "OpenSSH / SFTP",
-        .ransomwareAutoPauseBadge: "Auto-Pause"
+        .ransomwareAutoPauseBadge: "Auto-Pause",
+
+        // MARK: - v1.7.0: MenuBar Polish
+        .menuBarTimeMachine: "Time Machine & Restore",
+        .menuBarEjectVolume: "Safely Eject Volume",
+        .destinationEjectedSuccessFormat: "Destination volume '%@' safely ejected.",
+        .menuBarCheckUpdates: "Check for Updates",
+        .menuBarSimulateDryRun: "Simulate Backup (Dry-Run)",
+        .menuBarRevealDestination: "Reveal Destination in Finder",
+        .menuBarFullBackup: "Start Full Backup",
+        .menuBarOpenRules: "Open Rules & Schedule",
+        .menuBarExternalVolumeDisconnected: "Destination drive is not connected",
+        .menuBarTargetVolumeLabel: "Target Volume",
+        .errBackupInProgress: "Backup is currently in progress."
     ]
 }
 
