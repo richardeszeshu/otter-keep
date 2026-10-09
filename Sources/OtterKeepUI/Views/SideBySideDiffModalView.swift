@@ -279,12 +279,13 @@ public struct SideBySideDiffModalView: View {
     private var footerBar: some View {
         HStack {
             Spacer()
-            Button(L10n.t(.cancel)) {
+            Button(L10n.t(.aboutCloseButton)) {
                 appState.showSideBySideDiffModal = false
                 dismiss()
             }
             .buttonStyle(.borderedProminent)
             .tint(OtterTheme.oceanicTeal)
+            .keyboardShortcut(.cancelAction)
         }
         .padding()
     }

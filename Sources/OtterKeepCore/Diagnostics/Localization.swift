@@ -1239,6 +1239,17 @@ public enum L10n {
         case profileSubTabRules
         case profileSubTabAutomation
         case profileSubTabMaintenance
+
+        // MARK: - v1.7.0: GUI UX Polish
+        case compressionFast
+        case compressionRecommended
+        case compressionMaximum
+        case pathPrefixLabel
+        case protocolBadgeS3
+        case protocolBadgeSMB
+        case protocolBadgeWebDAV
+        case protocolBadgeSFTP
+        case ransomwareAutoPauseBadge
     }
 
 
@@ -2208,7 +2219,18 @@ public enum L10n {
         .sanctuaryHeroDangerTitle: "Figyelem szükséges, de minden kincsedet megvédjük",
         .profileSubTabRules: "Szabályok és kizárások",
         .profileSubTabAutomation: "Automatizáció és ütemezés",
-        .profileSubTabMaintenance: "Karbantartás és tárhely"
+        .profileSubTabMaintenance: "Karbantartás és tárhely",
+
+        // MARK: - v1.7.0: GUI UX Polish
+        .compressionFast: "1: Gyors",
+        .compressionRecommended: "3: Ajánlott",
+        .compressionMaximum: "9: Maximális",
+        .pathPrefixLabel: "Útvonal előtag",
+        .protocolBadgeS3: "Zero-Knowledge SigV4",
+        .protocolBadgeSMB: "Natív Apple SMBfs",
+        .protocolBadgeWebDAV: "RFC 4918 HTTP/HTTPS",
+        .protocolBadgeSFTP: "OpenSSH / SFTP",
+        .ransomwareAutoPauseBadge: "Automatikus megállítás"
     ]
 
 
@@ -3171,7 +3193,18 @@ public enum L10n {
         .sanctuaryHeroDangerTitle: "Action needed, but your treasures remain protected",
         .profileSubTabRules: "Rules & Exclusions",
         .profileSubTabAutomation: "Automation & Schedule",
-        .profileSubTabMaintenance: "Maintenance & Storage"
+        .profileSubTabMaintenance: "Maintenance & Storage",
+
+        // MARK: - v1.7.0: GUI UX Polish
+        .compressionFast: "1: Fast",
+        .compressionRecommended: "3: Recommended",
+        .compressionMaximum: "9: Maximum",
+        .pathPrefixLabel: "Path Prefix",
+        .protocolBadgeS3: "Zero-Knowledge SigV4",
+        .protocolBadgeSMB: "Native Apple SMBfs",
+        .protocolBadgeWebDAV: "RFC 4918 HTTP/HTTPS",
+        .protocolBadgeSFTP: "OpenSSH / SFTP",
+        .ransomwareAutoPauseBadge: "Auto-Pause"
     ]
 }
 

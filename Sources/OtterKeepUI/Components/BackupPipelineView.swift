@@ -111,6 +111,7 @@ public struct BackupPipelineView: View {
                 .font(.subheadline.bold())
                 .lineLimit(1)
                 .multilineTextAlignment(alignment == .trailing ? .trailing : .leading)
+                .help(detail)
 
             Text(detail)
                 .font(.system(size: 9, design: .monospaced))
@@ -118,6 +119,7 @@ public struct BackupPipelineView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .multilineTextAlignment(alignment == .trailing ? .trailing : .leading)
+                .help(detail)
 
             if onChange != nil || onReveal != nil {
                 HStack(spacing: 8) {
@@ -146,8 +148,8 @@ public struct BackupPipelineView: View {
                             }
                             .font(.system(size: 10, weight: .medium))
                         }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(iconColor)
+                        .buttonStyle(.bordered)
+                        .controlSize(.mini)
                     }
                 }
                 .padding(.top, 2)
