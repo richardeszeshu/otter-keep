@@ -746,6 +746,11 @@ public enum L10n {
         case rule321StatusCompliant
         case rule321StatusPartial
         case rule321StatusLocalOnly
+        case rule321CopiesFormat
+        case rule321MediaTypesFormat
+        case rule321OffsiteFormat
+        case commonYes
+        case commonNo
         case smartThrottlingTitle
         case smartThrottlingDesc
         case rule321Title
@@ -1617,7 +1622,7 @@ public enum L10n {
         .interval4h: "4 óra (240p)",
         .interval8h: "8 óra (480p)",
 
-        .cliDescription: "🦦  OtterKeep CLI v1.0 – Natív APFS Mentő és Helyreállító Eszköz",
+        .cliDescription: "🦦  OtterKeep CLI – Natív APFS Mentő és Helyreállító Eszköz",
         .cliUsage: "Használat: otterkeep <parancs> [opciók]",
         .cliCommandsHeader: "Parancsok:",
         .cliCmdBackup: "Biztonsági mentés vagy előzetes elemzés indítása",
@@ -1720,6 +1725,11 @@ public enum L10n {
         .rule321StatusCompliant: "3-2-1 Megfelelő (Helyi + Off-site Felhő/NAS)",
         .rule321StatusPartial: "Részleges 3-2-1 (Csak helyi másolat aktív)",
         .rule321StatusLocalOnly: "1 Példány (Nincs másolat)",
+        .rule321CopiesFormat: "Másolatok: %d/3 (Forrás + Helyi APFS + %d távoli)",
+        .rule321MediaTypesFormat: "Média típusok: %d/2 (%@)",
+        .rule321OffsiteFormat: "Off-site / Felhő tároló: %@",
+        .commonYes: "Igen",
+        .commonNo: "Nem",
         .smartThrottlingTitle: "Intelligens Sávszélesség-korlátozás",
         .smartThrottlingDesc: "Korlátozza a másolási sebességet a hálózat védelmében.",
         .rule321Title: "3-2-1 Mentési Szabály",
@@ -2575,7 +2585,7 @@ public enum L10n {
         .interval4h: "4 hours (240m)",
         .interval8h: "8 hours (480m)",
 
-        .cliDescription: "🦦  OtterKeep CLI v1.0 – Native APFS Backup & Recovery Tool",
+        .cliDescription: "🦦  OtterKeep CLI – Native APFS Backup & Recovery Tool",
         .cliUsage: "Usage: otterkeep <command> [options]",
         .cliCommandsHeader: "Commands:",
         .cliCmdBackup: "Execute backup or pre-backup analysis",
@@ -2678,6 +2688,11 @@ public enum L10n {
         .rule321StatusCompliant: "3-2-1 Compliant (Local + Off-site Cloud/NAS)",
         .rule321StatusPartial: "Partial 3-2-1 (Local copy only)",
         .rule321StatusLocalOnly: "1 Copy (No redundancy)",
+        .rule321CopiesFormat: "Copies: %d/3 (Source + Local APFS + %d remote)",
+        .rule321MediaTypesFormat: "Media types: %d/2 (%@)",
+        .rule321OffsiteFormat: "Off-site / Cloud storage: %@",
+        .commonYes: "Yes",
+        .commonNo: "No",
         .smartThrottlingTitle: "Smart Bandwidth Throttling",
         .smartThrottlingDesc: "Limits upload bandwidth to preserve network throughput.",
         .rule321Title: "3-2-1 Backup Rule",

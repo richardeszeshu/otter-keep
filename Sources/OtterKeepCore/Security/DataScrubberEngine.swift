@@ -37,7 +37,7 @@ public actor DataScrubberEngine {
     private let logger = Logger(subsystem: "com.otterkeep", category: "DataScrubber")
 
     public init(
-        storage: FileSystemProvider = APFSFileSystemProvider(),
+        storage: FileSystemProvider = DefaultFileSystemProvider(),
         database: DatabaseEngine = DatabaseEngine()
     ) {
         self.storage = storage

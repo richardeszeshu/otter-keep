@@ -13,7 +13,7 @@ public actor RetentionManager {
     /// - Parameters:
     ///   - storage: Filesystem provider.
     ///   - database: Catalog database engine.
-    public init(storage: FileSystemProvider = APFSFileSystemProvider(), database: DatabaseEngine = DatabaseEngine()) {
+    public init(storage: FileSystemProvider = DefaultFileSystemProvider(), database: DatabaseEngine = DatabaseEngine()) {
         self.storage = storage
         self.database = database
     }

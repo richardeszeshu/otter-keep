@@ -17,13 +17,13 @@ public actor PhotosBackupCoordinator {
 
     /// Initializes a new `PhotosBackupCoordinator`.
     /// - Parameters:
-    ///   - storage: Underlying filesystem provider (default: `APFSFileSystemProvider`).
+    ///   - storage: Underlying filesystem provider (default: `DefaultFileSystemProvider`).
     ///   - dbEngine: SQLite database engine for catalog indexing.
     ///   - metadataExtractor: EXIF, IPTC, and GPS sidecar generator.
     ///   - deltaScanner: Differential scanner for photo assets.
     ///   - ephemeralGuard: Disk cache guard for in-flight downloads.
     public init(
-        storage: FileSystemProvider = APFSFileSystemProvider(),
+        storage: FileSystemProvider = DefaultFileSystemProvider(),
         dbEngine: DatabaseEngine = DatabaseEngine(),
         metadataExtractor: PhotoMetadataExtractor = PhotoMetadataExtractor(),
         deltaScanner: PhotosDeltaScanner = PhotosDeltaScanner(),

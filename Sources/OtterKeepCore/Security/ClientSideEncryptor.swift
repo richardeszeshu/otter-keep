@@ -21,11 +21,9 @@ public enum ClientEncryptionError: Error, Sendable, LocalizedError, Equatable {
 
 /// Zero-Knowledge Client-Side Authenticated Encryption Engine (AES-256-GCM with PBKDF2-HMAC-SHA256 key derivation).
 public enum ClientSideEncryptor: Sendable {
-    /// Modern PBKDF2-HMAC-SHA256 header magic identifier (OtterKeep v1.0.0+).
+    /// Modern PBKDF2-HMAC-SHA256 header magic identifier (OtterKeep standard envelope format).
     public static let headerMagicOKENC2 = Data([0x4F, 0x4B, 0x45, 0x4E, 0x43, 0x32, 0x00]) // "OKENC2\0"
-    /// PBKDF2-HMAC-SHA256 header magic identifier (DataSquirrel legacy v2).
-    public static let headerMagicV2 = Data([0x44, 0x53, 0x45, 0x4E, 0x43, 0x32, 0x00]) // "DSENC2\0"
-    /// Legacy HKDF-SHA256 header magic identifier for backward compatibility.
+    /// Legacy HKDF-SHA256 header magic identifier retained for backwards-compatible reading of existing archives.
     public static let headerMagicV1 = Data([0x44, 0x53, 0x45, 0x4E, 0x43, 0x31, 0x00]) // "DSENC1\0"
     
     private static let saltLengthV2 = 32
@@ -61,7 +59,7 @@ public enum ClientSideEncryptor: Sendable {
         return SymmetricKey(data: derivedKeyData)
     }
 
-    /// Legacy key derivation using HKDF-SHA256 for backward compatibility with DSENC1 blobs.
+    /// Legacy key derivation using HKDF-SHA256 for backward compatibility with existing DSENC1 blobs.
     private static func deriveKeyLegacyHKDF(from passphrase: String, salt: Data) -> SymmetricKey {
         let inputKey = SymmetricKey(data: Data(passphrase.utf8))
         return HKDF<SHA256>.deriveKey(
@@ -102,46 +100,24 @@ public enum ClientSideEncryptor: Sendable {
         }
     }
 
-    /// Legacy DSENC1 encryption for testing backward compatibility.
-    public static func encryptLegacyV1(data: Data, passphrase: String) throws -> Data {
-        var saltBytes = [UInt8](repeating: 0, count: saltLengthV1)
-        guard SecRandomCopyBytes(kSecRandomDefault, saltLengthV1, &saltBytes) == errSecSuccess else {
-            throw ClientEncryptionError.encryptionFailed("Failed to generate secure random salt")
-        }
-        let salt = Data(saltBytes)
-        let key = deriveKeyLegacyHKDF(from: passphrase, salt: salt)
-
-        do {
-            let sealedBox = try AES.GCM.seal(data, using: key)
-            guard let combined = sealedBox.combined else {
-                throw ClientEncryptionError.encryptionFailed("Failed to generate combined sealed box")
-            }
-
-            var envelope = Data()
-            envelope.append(headerMagicV1)
-            envelope.append(salt)
-            envelope.append(combined)
-            return envelope
-        } catch {
-            throw ClientEncryptionError.encryptionFailed(error.localizedDescription)
-        }
-    }
-
-    /// Decrypts an encrypted envelope using AES-256-GCM, supporting OKENC2, DSENC2 (PBKDF2) and DSENC1 (legacy HKDF).
+    /// Decrypts an encrypted envelope using AES-256-GCM.
+    ///
+    /// Primary path: OKENC2 (PBKDF2-HMAC-SHA256, 600,000 iterations).
+    /// Legacy fallback: DSENC1 (HKDF-SHA256) for read-compatibility with pre-existing backups.
     /// - Parameters:
     ///   - envelope: Encrypted data payload.
     ///   - passphrase: Encryption passphrase.
     /// - Returns: Decrypted plaintext data.
     public static func decrypt(envelope: Data, passphrase: String) throws -> Data {
-        guard envelope.count > headerMagicV2.count + saltLengthV1 + 28 else {
+        guard envelope.count > headerMagicOKENC2.count + saltLengthV1 + 28 else {
             throw ClientEncryptionError.invalidHeader
         }
 
-        if envelope.starts(with: headerMagicOKENC2) || envelope.starts(with: headerMagicV2) {
-            guard envelope.count > headerMagicV2.count + saltLengthV2 + 28 else {
+        if envelope.starts(with: headerMagicOKENC2) {
+            guard envelope.count > headerMagicOKENC2.count + saltLengthV2 + 28 else {
                 throw ClientEncryptionError.invalidHeader
             }
-            let saltStart = headerMagicV2.count
+            let saltStart = headerMagicOKENC2.count
             let salt = envelope.subdata(in: saltStart..<(saltStart + saltLengthV2))
             let boxData = envelope.suffix(from: saltStart + saltLengthV2)
 
@@ -154,6 +130,7 @@ public enum ClientSideEncryptor: Sendable {
                 throw ClientEncryptionError.authenticationMismatch
             }
         } else if envelope.starts(with: headerMagicV1) {
+            // Documented legacy recovery branch: HKDF-SHA256 key derivation with 16-byte salt
             guard envelope.count > headerMagicV1.count + saltLengthV1 + 28 else {
                 throw ClientEncryptionError.invalidHeader
             }

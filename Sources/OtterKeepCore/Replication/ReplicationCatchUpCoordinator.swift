@@ -9,7 +9,7 @@ public actor ReplicationCatchUpCoordinator {
     private let storage: FileSystemProvider
     private let logger = Logger(subsystem: "com.otterkeep", category: "CatchUpCoordinator")
 
-    public init(database: DatabaseEngine, storage: FileSystemProvider = APFSFileSystemProvider()) {
+    public init(database: DatabaseEngine, storage: FileSystemProvider = DefaultFileSystemProvider()) {
         self.database = database
         self.storage = storage
     }
