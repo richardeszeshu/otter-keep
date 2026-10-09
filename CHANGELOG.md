@@ -20,6 +20,20 @@ Version **1.7.0** is a major backend maintenance, architectural stability, and s
   - Pruned legacy rebranding leftovers (`SquirrelTheme`, squirrel card styling modifiers) in `OtterKeepUI`.
   - Pruned obsolete navigation enum cases in `AppState` and aligned navigation routing in `MainWindowView`.
   - Removed obsolete `OtterKeepEngine` typealias in `CoreEngine.swift`.
+- **macOS GUI UX & Folder Restore**:
+  - Enabled recursive directory tree selection and one-click folder restore in `RestoreExplorerView`.
+  - Replaced alarmist `ABORT` badge with warm amber `Auto-Pause` (`Automatikus megállítás`) badge in `ProfileRulesView`.
+  - Standardized diff modal footer to native "Close" (`Bezárás`) with Escape shortcut.
+  - Added path hover tooltips and bordered button styling in `BackupPipelineView`.
+  - Corrected documentation and release URLs to `richardeszeshu/otter-keep`.
+- **macOS MenuBar Extra Overhaul**:
+  - Pixel-perfect mascot template icon maintaining exact 18x18pt dimensions without width jitter.
+  - Linear live progress bar with speed (`⚡ MB/s`), completion percentage, processed item counter, and remaining time.
+  - Uncapped profile management with smooth scrolling and rich context menu (Incremental, Full, Dry-Run, Time Machine, Finder).
+  - Removable destination volume detection and native safe ejection (`unmountAndEjectDevice`).
+  - 1-click Time Machine shortcut in header and software update check action in footer.
+- **Homebrew Release Automation**:
+  - Aligned release workflow to record and verify ZIP archive SHA-256 checksums (`zip_sha256`) for Homebrew tap distribution.
 - **Bilingual Localization & Telemetry Polish**: Standardized Apple Unified Logging subsystem identifiers to `com.otterkeep` and localized 3-2-1 rule breakdown formatting in Hungarian and English.
 
 ---
