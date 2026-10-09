@@ -4,6 +4,26 @@ All notable changes to OtterKeep are documented in this file in accordance with 
 
 ---
 
+## [1.7.0] - 2026-10-09 (Build 1700)
+
+### 🌟 Release Summary / Verzióösszefoglaló
+Version **1.7.0** is a major backend maintenance, architectural stability, and security hardening release for OtterKeep, establishing the rock-solid foundation for broad public distribution:
+- **Clean Architectural Layering**: Enforced strict boundary separation across subsystems: `Storage` (`OtterKeepStorage`) → `Database` (`OtterKeepDatabase`) → `Core Engine` (`OtterKeepCore`) → `Presentation & Tools` (`OtterKeepUI`, `OtterKeepCLI`).
+- **Centralized Snapshot Catalog Service (`SnapshotCatalogService`)**: Encapsulated all SQLite manifest operations, snapshot timeline queries, version diffing, and WORM immutability locking behind a robust service with transactional database lifecycles (`withDatabase`), guaranteeing WAL checkpointing and immediate connection release on all paths.
+- **Unified 3-2-1 Compliance Evaluator (`ComplianceEvaluator`)**: Consolidated duplicate compliance calculation logic from UI and CLI into a single authoritative core evaluator in `OtterKeepCore`, ensuring consistent, localized reporting across terminal and graphical interfaces.
+- **Security & Data Hardening**:
+  - Enforced strict `0600` POSIX file permissions on SQLite database catalogs via `chmod` immediately upon creation and opening.
+  - Subprocess environment isolation: Hardened `SFTPStorageProvider` subprocess execution for `/usr/bin/scp` and `/usr/bin/ssh` to prevent credential and variable leakage from the parent process environment.
+  - Cryptographic pruning: Removed legacy `encryptLegacyV1` generation from `ClientSideEncryptor`, while retaining a safe, documented, backward-compatible `decrypt` fallback for pre-existing `DSENC1` archives.
+- **Compatibility Shim & Dead Code Pruning**:
+  - Removed deprecated `FallbackFileSystemProvider` and `APFSFileSystemProvider` shims in `OtterKeepStorage`, fully consolidating filesystem dispatch into `DefaultFileSystemProvider` and `FileSystemDriverRegistry`.
+  - Pruned legacy rebranding leftovers (`SquirrelTheme`, squirrel card styling modifiers) in `OtterKeepUI`.
+  - Pruned obsolete navigation enum cases in `AppState` and aligned navigation routing in `MainWindowView`.
+  - Removed obsolete `OtterKeepEngine` typealias in `CoreEngine.swift`.
+- **Bilingual Localization & Telemetry Polish**: Standardized Apple Unified Logging subsystem identifiers to `com.otterkeep` and localized 3-2-1 rule breakdown formatting in Hungarian and English.
+
+---
+
 ## [1.6.0] - 2026-10-08 (Build 1600)
 
 ### 🌟 Release Summary / Verzióösszefoglaló
